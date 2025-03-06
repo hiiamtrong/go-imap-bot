@@ -19,17 +19,18 @@ func NewTransactionRepository(db *database.Database) *TransactionRepository {
 func (r *TransactionRepository) Create(transaction *models.Transaction) error {
 	query := `
 		INSERT INTO transactions (
-			mail_id, amount, current_balance, 
+			mail_id, amount, current_balance, type,
 			from_account, to_account, description, 
 			timestamp, created_at
 		)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	result, err := r.db.Conn.Exec(
 		query,
 		transaction.MailID,
 		transaction.Amount,
 		transaction.CurrentBalance,
+		transaction.Type,
 		transaction.From,
 		transaction.To,
 		transaction.Description,
@@ -52,7 +53,7 @@ func (r *TransactionRepository) Create(transaction *models.Transaction) error {
 func (r *TransactionRepository) GetByMailID(mailID int64) ([]*models.Transaction, error) {
 	query := `
 		SELECT 
-			id, mail_id, amount, current_balance,
+			id, mail_id, amount, current_balance, type,
 			from_account, to_account, description,
 			timestamp, created_at
 		FROM transactions
@@ -72,6 +73,7 @@ func (r *TransactionRepository) GetByMailID(mailID int64) ([]*models.Transaction
 			&t.MailID,
 			&t.Amount,
 			&t.CurrentBalance,
+			&t.Type,
 			&t.From,
 			&t.To,
 			&t.Description,
@@ -85,4 +87,62 @@ func (r *TransactionRepository) GetByMailID(mailID int64) ([]*models.Transaction
 	}
 
 	return transactions, nil
+}
+
+func (r *TransactionRepository) GetByID(id int64) (*models.Transaction, error) {
+	query := `
+		SELECT 
+			id, mail_id, amount, current_balance, type,
+			from_account, to_account, description,
+			timestamp, created_at
+		FROM transactions
+		WHERE id = ?
+	`
+	row := r.db.Conn.QueryRow(query, id)
+
+	t := &models.Transaction{}
+	err := row.Scan(
+		&t.ID,
+		&t.MailID,
+		&t.Amount,
+		&t.CurrentBalance,
+		&t.Type,
+		&t.From,
+		&t.To,
+		&t.Description,
+		&t.Timestamp,
+		&t.CreatedAt,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to scan transaction: %v", err)
+	}
+
+	return t, nil
+}
+
+func (r *TransactionRepository) CreateSplit(split *models.TransactionSplit) error {
+	query := `
+		INSERT INTO transaction_splits (
+			transaction_id, name, amount, created_at
+		)
+		VALUES (?, ?, ?, ?)
+	`
+	result, err := r.db.Conn.Exec(
+		query,
+		split.TransactionID,
+		split.Name,
+		split.Amount,
+		split.CreatedAt,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to insert transaction split: %v", err)
+	}
+
+	id, err := result.LastInsertId()
+	if err != nil {
+		return fmt.Errorf("failed to get last insert id: %v", err)
+	}
+
+	split.ID = id
+	return nil
 }

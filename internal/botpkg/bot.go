@@ -48,16 +48,14 @@ func InitBot(config *config.Config, ctx context.Context, injector *BotInjector) 
 
 	log.Println("Bot is running...")
 
-	updates, err := bot.GetUpdatesChan(tgbotapi.UpdateConfig{
+	updates := bot.GetUpdatesChan(tgbotapi.UpdateConfig{
 		Timeout: 60,
 	})
 	if err != nil {
 		log.Fatalf("Error getting updates: %v", err)
 	}
 
-	bot.Updates = updates
-
-	bot = &Bot{
+	botInstance := &Bot{
 		TelegramBot: bot,
 		BotInjector: injector,
 		Updates:     updates,
@@ -65,9 +63,9 @@ func InitBot(config *config.Config, ctx context.Context, injector *BotInjector) 
 	}
 
 	// Start handling callbacks in a separate goroutine
-	go bot.HandleCallbacks()
+	go botInstance.HandleCallbacks()
 
-	return bot
+	return botInstance
 }
 
 func (b *Bot) SendMessage(chatId int64, message string) error {
