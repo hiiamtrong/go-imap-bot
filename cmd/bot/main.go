@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"math"
+	"math/rand"
 	"strconv"
 	"strings"
 	"time"
@@ -13,12 +14,13 @@ import (
 	"github.com/emersion/go-imap/v2"
 	"github.com/emersion/go-imap/v2/imapclient"
 	"github.com/emersion/go-message/mail"
-	"github.com/hiiamtrong/imap-bot-go/internal/bot"
+	"github.com/hiiamtrong/imap-bot-go/internal/botpkg"
 	"github.com/hiiamtrong/imap-bot-go/internal/config"
 	"github.com/hiiamtrong/imap-bot-go/internal/database"
 	"github.com/hiiamtrong/imap-bot-go/internal/models"
 	"github.com/hiiamtrong/imap-bot-go/internal/parser"
 	"github.com/hiiamtrong/imap-bot-go/internal/repository"
+	"github.com/hiiamtrong/imap-bot-go/pkg/currency"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -33,9 +35,10 @@ func main() {
 
 	mailRepo := repository.NewMailRepository(db)
 	transactionRepo := repository.NewTransactionRepository(db)
+	tagRepo := repository.NewTagRepository(db)
 
-	botInjector := bot.NewBotInjector(mailRepo, transactionRepo)
-	bot := bot.InitBot(cfg, context.Background(), botInjector)
+	botInjector := botpkg.NewBotInjector(db, mailRepo, transactionRepo, tagRepo)
+	bot := botpkg.InitBot(cfg, context.Background(), botInjector)
 
 	// Connect to the IMAP server using TLS
 	c, err := imapclient.DialTLS(cfg.MailConfig.Server, nil)
@@ -68,13 +71,30 @@ func main() {
 func runBot(
 	cfg *config.Config,
 	c *imapclient.Client,
-	bot *bot.Bot,
+	bot *botpkg.Bot,
 ) {
 	// Select the mailbox (e.g., INBOX)
 	_, err := c.Select(cfg.MailConfig.Mailbox, nil).Wait()
 	if err != nil {
 		log.Fatalf("Failed to select mailbox: %v", err)
 	}
+
+	availableMails := searchEmails(c)
+	nonProcessedMails, err := bot.BotInjector.MailRepository.GetNonProcessedMails(availableMails)
+	if err != nil {
+		log.Printf("failed to get non processed mails: %v", err)
+	}
+
+	if len(nonProcessedMails) == 0 {
+		fmt.Println("No non processed mails")
+		return
+	}
+
+	fmt.Printf("Non Processed Mails: %+v\n", nonProcessedMails)
+	processEmails(c, bot, cfg, nonProcessedMails)
+}
+
+func searchEmails(c *imapclient.Client) []int64 {
 	criteria := imap.SearchCriteria{
 		Header: []imap.SearchCriteriaHeaderField{
 			{
@@ -120,25 +140,16 @@ func runBot(
 		}
 	}
 
-	nonProcessedMails, err := bot.BotInjector.MailRepository.GetNonProcessedMails(availableMails)
-	if err != nil {
-		log.Printf("failed to get non processed mails: %v", err)
-	}
+	return availableMails
+}
 
-	if len(nonProcessedMails) == 0 {
-		fmt.Println("No non processed mails")
-		return
-	}
-
-	fmt.Printf("Non Processed Mails: %+v\n", nonProcessedMails)
-
+func processEmails(c *imapclient.Client, bot *botpkg.Bot, cfg *config.Config, nonProcessedMails []int64) {
 	seqSet := imap.SeqSet{}
 	for _, mail := range nonProcessedMails {
 		seqSet.AddNum(uint32(mail))
 	}
 
 	fmt.Printf("Seq Set: %+v\n", seqSet)
-	// Use searchData.All directly as it implements imap.NumSet
 	fetchCmd := c.Fetch(seqSet, &imap.FetchOptions{
 		Envelope:    true,
 		UID:         true,
@@ -151,128 +162,7 @@ func runBot(
 			break
 		}
 
-		var bodySection imapclient.FetchItemDataBodySection
-		ok := false
-		for {
-			item := msg.Next()
-			if item == nil {
-				break
-			}
-			bodySection, ok = item.(imapclient.FetchItemDataBodySection)
-			if ok {
-				break
-			}
-		}
-		if !ok {
-			log.Printf("FETCH command did not return body section")
-			continue
-		}
-
-		newMail := &models.Mail{
-			UID: int64(msg.SeqNum),
-		}
-
-		// Read the message via the go-message library
-		mr, err := mail.CreateReader(bodySection.Literal)
-		if err != nil {
-			log.Printf("failed to create mail reader: %v", err)
-			continue
-		}
-
-		// Print a few header fields
-		h := mr.Header
-		if date, err := h.Date(); err != nil {
-			log.Printf("failed to parse Date header field: %v", err)
-			continue
-		} else {
-			newMail.Date = date
-			log.Printf("Date: %v", date)
-		}
-		if to, err := h.AddressList("To"); err != nil {
-			log.Printf("failed to parse To header field: %v", err)
-			continue
-		} else {
-			toAddresses := make([]string, len(to))
-			for i, addr := range to {
-				toAddresses[i] = addr.Address
-			}
-			newMail.To = strings.Join(toAddresses, ",")
-			log.Printf("To: %v", toAddresses)
-		}
-		if from, err := h.AddressList("From"); err != nil {
-			log.Printf("failed to parse From header field: %v", err)
-			continue
-		} else {
-			fromAddresses := make([]string, len(from))
-			for i, addr := range from {
-				fromAddresses[i] = addr.Address
-			}
-			newMail.From = strings.Join(fromAddresses, ",")
-			log.Printf("From: %v", fromAddresses)
-		}
-		if subject, err := h.Text("Subject"); err != nil {
-			log.Printf("failed to parse Subject header field: %v", err)
-			continue
-		} else {
-			newMail.Subject = subject
-			log.Printf("Subject: %v", subject)
-		}
-
-		err = bot.BotInjector.MailRepository.Create(newMail)
-		if err != nil {
-			log.Printf("failed to create mail: %v", err)
-			continue
-		}
-
-		fmt.Printf("New Mail: %+v\n", newMail)
-
-		transaction := &models.Transaction{
-			MailID: newMail.ID,
-		}
-
-		// Process the message's parts
-		for {
-			p, err := mr.NextPart()
-			if err == io.EOF {
-				break
-			} else if err != nil {
-				log.Printf("failed to read message part: %v", err)
-				continue
-			}
-
-			switch p.Header.(type) {
-			case *mail.InlineHeader:
-				b, _ := io.ReadAll(p.Body)
-				bodyText := string(b)
-
-				// Parse transaction details
-				details, err := parser.ParseTransactionEmail(bodyText)
-				if err != nil {
-					log.Printf("Failed to parse transaction details: %v", err)
-					continue
-				}
-
-				transaction.Amount = details.Amount
-				transaction.CurrentBalance = details.CurrentBalance
-				transaction.Description = details.Description
-				transaction.Type = string(details.Type)
-				transaction.Timestamp = newMail.Date
-				transaction.CreatedAt = time.Now()
-				transaction.From = newMail.From
-				transaction.To = newMail.To
-
-				err = bot.BotInjector.TransactionRepository.Create(transaction)
-				if err != nil {
-					log.Printf("failed to create transaction: %v", err)
-					continue
-				}
-
-				SendMessageTransaction(bot, cfg.TelegramBot.ChatID, transaction)
-			}
-		}
-
-		// Move to next message at the end of the loop
-		fmt.Printf("Moving to next message\n")
+		processEmail(msg, bot, cfg)
 	}
 
 	// Close the message body
@@ -281,15 +171,227 @@ func runBot(
 	}
 }
 
-func SendMessageTransaction(bot *bot.Bot, chatId int64, transaction *models.Transaction) {
+func processEmail(msg *imapclient.FetchMessageData, bot *botpkg.Bot, cfg *config.Config) {
+	var bodySection imapclient.FetchItemDataBodySection
+	ok := false
+	for {
+		item := msg.Next()
+		if item == nil {
+			break
+		}
+		bodySection, ok = item.(imapclient.FetchItemDataBodySection)
+		if ok {
+			break
+		}
+	}
+	if !ok {
+		log.Printf("FETCH command did not return body section")
+		return
+	}
+
+	newMail := &models.Mail{
+		UID: int64(msg.SeqNum),
+	}
+
+	// Read the message via the go-message library
+	mr, err := mail.CreateReader(bodySection.Literal)
+	if err != nil {
+		log.Printf("failed to create mail reader: %v", err)
+		return
+	}
+
+	if !parseMailHeaders(mr, newMail) {
+		return
+	}
+
+	// Get database connection
+
+	// Start transaction
+	tx, err := bot.BotInjector.Database.BeginTx(context.Background())
+	if err != nil {
+		log.Printf("failed to begin transaction: %v", err)
+		return
+	}
+
+	// Ensure rollback on error
+	defer func() {
+		if tx != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// Create mail record
+	query := `
+		INSERT INTO mails (uid, subject, from_account, to_account, timestamp)
+		VALUES (?, ?, ?, ?, ?)
+	`
+	result, err := tx.Exec(query, newMail.UID, newMail.Subject, newMail.From, newMail.To, newMail.Date.Unix())
+	if err != nil {
+		log.Printf("failed to create mail: %v", err)
+		return
+	}
+
+	id, err := result.LastInsertId()
+	if err != nil {
+		log.Printf("failed to get last insert id: %v", err)
+		return
+	}
+	newMail.ID = id
+
+	fmt.Printf("New Mail: %+v\n", newMail)
+
+	var transaction *models.Transaction
+
+	// Process the message's parts
+	for {
+		p, err := mr.NextPart()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			log.Printf("failed to read message part: %v", err)
+			continue
+		}
+
+		switch p.Header.(type) {
+		case *mail.InlineHeader:
+			b, _ := io.ReadAll(p.Body)
+			bodyText := string(b)
+
+			// Parse transaction details
+			details, err := parser.ParseTransactionEmail(bodyText)
+			if err != nil {
+				log.Printf("Failed to parse transaction details: %v", err)
+				continue
+			}
+
+			transaction = &models.Transaction{
+				MailID:         newMail.ID,
+				Amount:         details.Amount,
+				CurrentBalance: details.CurrentBalance,
+				Description:    details.Description,
+				Type:           string(details.Type),
+				Timestamp:      newMail.Date,
+				CreatedAt:      time.Now(),
+				From:           newMail.From,
+				To:             newMail.To,
+			}
+
+			// Create transaction within transaction
+			query := `
+				INSERT INTO transactions (
+					mail_id, amount, current_balance, type,
+					from_account, to_account, description, 
+					timestamp, created_at
+				)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+			`
+			result, err := tx.Exec(
+				query,
+				transaction.MailID,
+				transaction.Amount,
+				transaction.CurrentBalance,
+				transaction.Type,
+				transaction.From,
+				transaction.To,
+				transaction.Description,
+				transaction.Timestamp.Unix(),
+				time.Now(),
+			)
+			if err != nil {
+				log.Printf("failed to create transaction: %v", err)
+				return
+			}
+
+			id, err := result.LastInsertId()
+			if err != nil {
+				log.Printf("failed to get last insert id: %v", err)
+				return
+			}
+			transaction.ID = id
+		}
+	}
+
+	// Only proceed if we have a transaction
+	if transaction == nil {
+		log.Printf("no transaction found in email")
+		return
+	}
+
+	// Get the first email address from the To field
+	recipientEmail := strings.Split(newMail.To, ",")[0]
+
+	err = bot.NotifyNewTransaction(transaction, recipientEmail)
+	if err != nil {
+		log.Printf("failed to notify users: %v", err)
+		return
+	}
+
+	// Store the transaction in the database first
+	if err = tx.Commit(); err != nil {
+		log.Printf("failed to commit transaction: %v", err)
+		return
+	}
+
+	// Set tx to nil so the deferred rollback won't try to roll back a committed transaction
+	tx = nil
+
+	fmt.Printf("Successfully processed email with UID: %d\n", newMail.UID)
+}
+
+func parseMailHeaders(mr *mail.Reader, newMail *models.Mail) bool {
+	h := mr.Header
+	if date, err := h.Date(); err != nil {
+		log.Printf("failed to parse Date header field: %v", err)
+		return false
+	} else {
+		newMail.Date = date
+		log.Printf("Date: %v", date)
+	}
+
+	if to, err := h.AddressList("To"); err != nil {
+		log.Printf("failed to parse To header field: %v", err)
+		return false
+	} else {
+		toAddresses := make([]string, len(to))
+		for i, addr := range to {
+			toAddresses[i] = addr.Address
+		}
+		newMail.To = strings.Join(toAddresses, ",")
+		log.Printf("To: %v", toAddresses)
+	}
+
+	if from, err := h.AddressList("From"); err != nil {
+		log.Printf("failed to parse From header field: %v", err)
+		return false
+	} else {
+		fromAddresses := make([]string, len(from))
+		for i, addr := range from {
+			fromAddresses[i] = addr.Address
+		}
+		newMail.From = strings.Join(fromAddresses, ",")
+		log.Printf("From: %v", fromAddresses)
+	}
+
+	if subject, err := h.Text("Subject"); err != nil {
+		log.Printf("failed to parse Subject header field: %v", err)
+		return false
+	} else {
+		newMail.Subject = subject
+		log.Printf("Subject: %v", subject)
+	}
+
+	return true
+}
+
+func sendMessageTransaction(bot *botpkg.Bot, chatId int64, transaction *models.Transaction) error {
 	// Format amount with VND and determine if it's increasing or decreasing
 	amountType := "Tăng"
 	if transaction.Type == string(models.TransactionTypeSubtract) {
 		amountType = "Giảm"
 	}
 
-	formattedAmount := formatCurrency(math.Abs(float64(transaction.Amount)))
-	formattedBalance := formatCurrency(math.Abs(float64(transaction.CurrentBalance)))
+	formattedAmount := currency.FormatCurrency(math.Abs(float64(transaction.Amount)))
+	formattedBalance := currency.FormatCurrency(math.Abs(float64(transaction.CurrentBalance)))
 	// Load Asia/Ho_Chi_Minh location
 	location, _ := time.LoadLocation("Asia/Ho_Chi_Minh")
 
@@ -308,26 +410,43 @@ func SendMessageTransaction(bot *bot.Bot, chatId int64, transaction *models.Tran
 		transaction.Description,
 	)
 
-	// Send the formatted message
-	bot.SendMessage(chatId, message)
-}
+	// Implement retry with exponential backoff for rate limiting
+	maxRetries := 10
+	baseDelay := 1 * time.Second
 
-func formatCurrency(amount float64) string {
-	// Convert to integer to avoid floating point precision issues
-	intAmount := int64(amount)
-
-	// Convert to string
-	str := fmt.Sprintf("%d", intAmount)
-
-	// Add thousand separators
-	var result []rune
-	length := len(str)
-	for i, char := range str {
-		result = append(result, char)
-		if (length-i-1)%3 == 0 && i != length-1 {
-			result = append(result, '.')
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		err := bot.SendMessageWithButtons(chatId, message, transaction.ID)
+		if err == nil {
+			return nil // Success
 		}
+
+		// Check if error is related to rate limiting
+		if strings.Contains(err.Error(), "Too Many Requests") ||
+			strings.Contains(err.Error(), "retry after") ||
+			strings.Contains(err.Error(), "429") {
+
+			// Calculate delay with exponential backoff
+			delay := baseDelay * time.Duration(math.Pow(2, float64(attempt)))
+
+			// Add some jitter to prevent thundering herd
+			jitter := time.Duration(rand.Int63n(int64(delay) / 2))
+			delay = delay + jitter
+
+			// Cap the maximum delay
+			if delay > 60*time.Second {
+				delay = 60 * time.Second
+			}
+
+			log.Printf("Rate limited by Telegram. Retrying in %v (attempt %d/%d)",
+				delay, attempt+1, maxRetries)
+
+			time.Sleep(delay)
+			continue
+		}
+
+		// If it's not a rate limiting error, return it immediately
+		return fmt.Errorf("failed to send message: %w", err)
 	}
 
-	return string(result) + " VND"
+	return fmt.Errorf("failed to send message after %d attempts: rate limit exceeded", maxRetries)
 }

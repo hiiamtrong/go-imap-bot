@@ -17,12 +17,60 @@ func NewMailRepository(db *database.Database) *MailRepository {
 	return &MailRepository{db: db}
 }
 
+// Transaction executes a function within a database transaction
+func (r *MailRepository) Transaction(fn func(tx *sql.Tx) error) error {
+	tx, err := r.db.Conn.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %v", err)
+	}
+
+	defer func() {
+		if p := recover(); p != nil {
+			tx.Rollback()
+			panic(p) // re-throw panic after rollback
+		}
+	}()
+
+	if err := fn(tx); err != nil {
+		if rbErr := tx.Rollback(); rbErr != nil {
+			return fmt.Errorf("error rolling back transaction: %v (original error: %v)", rbErr, err)
+		}
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("error committing transaction: %v", err)
+	}
+
+	return nil
+}
+
 func (r *MailRepository) Create(mail *models.Mail) error {
 	query := `
 		INSERT INTO mails (uid, subject, from_account, to_account, timestamp)
 		VALUES (?, ?, ?, ?, ?)
 	`
 	result, err := r.db.Conn.Exec(query, mail.UID, mail.Subject, mail.From, mail.To, mail.Date.Unix())
+	if err != nil {
+		return fmt.Errorf("failed to insert mail: %v", err)
+	}
+	fmt.Printf("Mail inserted successfully: %v\n, err: %v\n", mail, err)
+
+	id, err := result.LastInsertId()
+	if err != nil {
+		return fmt.Errorf("failed to get last insert id: %v", err)
+	}
+
+	mail.ID = id
+	return nil
+}
+
+func (r *MailRepository) CreateTx(tx *sql.Tx, mail *models.Mail) error {
+	query := `
+		INSERT INTO mails (uid, subject, from_account, to_account, timestamp)
+		VALUES (?, ?, ?, ?, ?)
+	`
+	result, err := tx.Exec(query, mail.UID, mail.Subject, mail.From, mail.To, mail.Date.Unix())
 	if err != nil {
 		return fmt.Errorf("failed to insert mail: %v", err)
 	}

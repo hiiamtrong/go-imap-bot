@@ -1,6 +1,7 @@
 package database
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"os"
@@ -42,4 +43,16 @@ func GetDatabase(cfg *config.DatabaseConfig) (*Database, error) {
 	fmt.Printf("Database path: %v\n", cfg.DatabasePath)
 	fmt.Printf("Database conn: %v\n", conn)
 	return &Database{Conn: conn}, nil
+}
+
+func (db *Database) BeginTx(ctx context.Context) (*sql.Tx, error) {
+	return db.Conn.BeginTx(ctx, nil)
+}
+
+func (db *Database) CommitTx(tx *sql.Tx) error {
+	return tx.Commit()
+}
+
+func (db *Database) RollbackTx(tx *sql.Tx) error {
+	return tx.Rollback()
 }

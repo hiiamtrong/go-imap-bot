@@ -1,0 +1,32 @@
+---
+Description: "Go DDD Architecture Guidelines"
+Globs:
+  - "**/*.go"
+---
+
+# Directory Structure
+- cmd/bot/main.go for the application entry point
+- internal/domain/ for domain models (entities, value objects, domain interfaces)
+- app/ for application services (orchestrating domain logic)
+- infrastructure/ for external implementations (database, external APIs)
+- config/ for configuration
+- pkg/ for shared libraries
+- tests/ for integration or end-to-end tests
+
+# Domain Layer
+- Keep domain logic pure. No direct references to external packages or frameworks.
+- Define repository interfaces here. Implement them in infrastructure.
+
+# Application Layer
+- Orchestrates domain logic, transactions, and calls domain services.
+- Thin layer: any heavy logic belongs in domain or domain services.
+
+# Infrastructure Layer
+- Database, external APIs, frameworks. 
+- Must implement domain interfaces, not the other way around.
+
+# Conventions
+- Use Go modules. 
+- Package naming: short, lowercase, no underscores.
+- Error handling: prefer idiomatic Go errors, domain-specific errors in domain/errors.go.
+- Testing: table-driven tests, store integration tests in /tests or co-located.

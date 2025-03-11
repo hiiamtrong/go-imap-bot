@@ -37,6 +37,28 @@ CREATE TABLE IF NOT EXISTS transaction_splits (
         FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
+CREATE TABLE IF NOT EXISTS tags (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS transaction_tags (
+        transaction_id INTEGER,
+        tag_id INTEGER,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (transaction_id, tag_id),
+        FOREIGN KEY (transaction_id) REFERENCES transactions(id),
+        FOREIGN KEY (tag_id) REFERENCES tags(id)
+);
+
+CREATE TABLE IF NOT EXISTS authorized_telegram_users (
+        chat_id INTEGER PRIMARY KEY,
+        username TEXT,
+        email TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 
 
 

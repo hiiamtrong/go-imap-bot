@@ -33,7 +33,6 @@ func NewConfig() *Config {
 
 		"DB_PATH",
 		"TELEGRAM_BOT_TOKEN",
-		"TELEGRAM_BOT_CHAT_ID",
 	}
 
 	for _, r := range required {
@@ -53,8 +52,7 @@ func NewConfig() *Config {
 			DatabasePath: viper.GetString("DB_PATH"),
 		},
 		TelegramBot: &TelegramBotConfig{
-			Token:  viper.GetString("TELEGRAM_BOT_TOKEN"),
-			ChatID: int64(viper.GetInt("TELEGRAM_BOT_CHAT_ID")),
+			Token: viper.GetString("TELEGRAM_BOT_TOKEN"),
 		},
 	}
 }
