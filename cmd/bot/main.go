@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"math"
-	"math/rand"
 	"strconv"
 	"strings"
 	"time"
@@ -20,7 +18,6 @@ import (
 	"github.com/hiiamtrong/imap-bot-go/internal/models"
 	"github.com/hiiamtrong/imap-bot-go/internal/parser"
 	"github.com/hiiamtrong/imap-bot-go/internal/repository"
-	"github.com/hiiamtrong/imap-bot-go/pkg/currency"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -36,8 +33,15 @@ func main() {
 	mailRepo := repository.NewMailRepository(db)
 	transactionRepo := repository.NewTransactionRepository(db)
 	tagRepo := repository.NewTagRepository(db)
+	userRepo := repository.NewUserRepository(db)
 
-	botInjector := botpkg.NewBotInjector(db, mailRepo, transactionRepo, tagRepo)
+	botInjector := botpkg.NewBotInjector(
+		db,
+		mailRepo,
+		transactionRepo,
+		tagRepo,
+		userRepo,
+	)
 	bot := botpkg.InitBot(cfg, context.Background(), botInjector)
 
 	// Connect to the IMAP server using TLS
@@ -320,7 +324,7 @@ func processEmail(msg *imapclient.FetchMessageData, bot *botpkg.Bot, cfg *config
 	// Get the first email address from the To field
 	recipientEmail := strings.Split(newMail.To, ",")[0]
 
-	err = bot.NotifyNewTransaction(transaction, recipientEmail)
+	err = bot.NotifyNewTransaction(transaction, recipientEmail, tx)
 	if err != nil {
 		log.Printf("failed to notify users: %v", err)
 		return
@@ -381,72 +385,4 @@ func parseMailHeaders(mr *mail.Reader, newMail *models.Mail) bool {
 	}
 
 	return true
-}
-
-func sendMessageTransaction(bot *botpkg.Bot, chatId int64, transaction *models.Transaction) error {
-	// Format amount with VND and determine if it's increasing or decreasing
-	amountType := "Tăng"
-	if transaction.Type == string(models.TransactionTypeSubtract) {
-		amountType = "Giảm"
-	}
-
-	formattedAmount := currency.FormatCurrency(math.Abs(float64(transaction.Amount)))
-	formattedBalance := currency.FormatCurrency(math.Abs(float64(transaction.CurrentBalance)))
-	// Load Asia/Ho_Chi_Minh location
-	location, _ := time.LoadLocation("Asia/Ho_Chi_Minh")
-
-	// Format the message with timezone-adjusted timestamp
-	message := fmt.Sprintf(
-		"Người gửi: %s\n"+
-			"Số tiền: %s %s\n"+
-			"Số dư: %s\n"+
-			"Thời gian: %s\n"+
-			"Mô tả: %s",
-		transaction.From,
-		amountType,
-		formattedAmount,
-		formattedBalance,
-		transaction.Timestamp.In(location).Format("02/01/2006 15:04:05"),
-		transaction.Description,
-	)
-
-	// Implement retry with exponential backoff for rate limiting
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		err := bot.SendMessageWithButtons(chatId, message, transaction.ID)
-		if err == nil {
-			return nil // Success
-		}
-
-		// Check if error is related to rate limiting
-		if strings.Contains(err.Error(), "Too Many Requests") ||
-			strings.Contains(err.Error(), "retry after") ||
-			strings.Contains(err.Error(), "429") {
-
-			// Calculate delay with exponential backoff
-			delay := baseDelay * time.Duration(math.Pow(2, float64(attempt)))
-
-			// Add some jitter to prevent thundering herd
-			jitter := time.Duration(rand.Int63n(int64(delay) / 2))
-			delay = delay + jitter
-
-			// Cap the maximum delay
-			if delay > 60*time.Second {
-				delay = 60 * time.Second
-			}
-
-			log.Printf("Rate limited by Telegram. Retrying in %v (attempt %d/%d)",
-				delay, attempt+1, maxRetries)
-
-			time.Sleep(delay)
-			continue
-		}
-
-		// If it's not a rate limiting error, return it immediately
-		return fmt.Errorf("failed to send message: %w", err)
-	}
-
-	return fmt.Errorf("failed to send message after %d attempts: rate limit exceeded", maxRetries)
 }

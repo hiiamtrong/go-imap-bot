@@ -1,23 +1,48 @@
 package currency
 
-import "fmt"
+import (
+	"fmt"
+	"strconv"
+	"strings"
+)
 
 func FormatCurrency(amount float64) string {
-	// Convert to integer to avoid floating point precision issues
-	intAmount := int64(amount)
+	return fmt.Sprintf("%s₫", formatNumber(amount))
+}
 
-	// Convert to string
-	str := fmt.Sprintf("%d", intAmount)
+func formatNumber(n float64) string {
+	in := strconv.FormatFloat(n, 'f', 0, 64)
+	numOfDigits := len(in)
+	if n < 0 {
+		numOfDigits-- // First character is the - sign (not a digit)
+	}
+	numOfCommas := (numOfDigits - 1) / 3
 
-	// Add thousand separators
-	var result []rune
-	length := len(str)
-	for i, char := range str {
-		result = append(result, char)
-		if (length-i-1)%3 == 0 && i != length-1 {
-			result = append(result, '.')
-		}
+	out := make([]byte, len(in)+numOfCommas)
+	if n < 0 {
+		in = in[1:]
+		out[0] = '-'
 	}
 
-	return string(result) + " VND"
+	for i, j, k := len(in)-1, len(out)-1, 0; ; i, j = i-1, j-1 {
+		out[j] = in[i]
+		if i == 0 {
+			break
+		}
+		if k++; k == 3 {
+			j--
+			out[j] = ','
+			k = 0
+		}
+	}
+	return string(out)
+}
+
+func ParseCurrency(s string) (float64, error) {
+	// Remove currency symbol and any whitespace
+	s = strings.TrimSpace(strings.ReplaceAll(s, "₫", ""))
+	// Remove commas
+	s = strings.ReplaceAll(s, ",", "")
+	// Parse as float
+	return strconv.ParseFloat(s, 64)
 }

@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS transactions (
 
 CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        email TEXT,
+        email TEXT UNIQUE NOT NULL,
         name TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );

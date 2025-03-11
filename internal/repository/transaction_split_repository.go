@@ -48,14 +48,14 @@ func (r *TransactionSplitRepository) Transaction(fn func(tx *sql.Tx) error) erro
 func (r *TransactionSplitRepository) Create(split *models.TransactionSplit) error {
 	query := `
 		INSERT INTO transaction_splits (
-			transaction_id, name, amount, created_at
+			transaction_id, user_id, amount, created_at
 		)
 		VALUES (?, ?, ?, ?)
 	`
 	result, err := r.db.Conn.Exec(
 		query,
 		split.TransactionID,
-		split.Name,
+		split.UserID,
 		split.Amount,
 		split.CreatedAt,
 	)
@@ -75,14 +75,14 @@ func (r *TransactionSplitRepository) Create(split *models.TransactionSplit) erro
 func (r *TransactionSplitRepository) CreateTx(tx *sql.Tx, split *models.TransactionSplit) error {
 	query := `
 		INSERT INTO transaction_splits (
-			transaction_id, name, amount, created_at
+			transaction_id, user_id, amount, created_at
 		)
 		VALUES (?, ?, ?, ?)
 	`
 	result, err := tx.Exec(
 		query,
 		split.TransactionID,
-		split.Name,
+		split.UserID,
 		split.Amount,
 		time.Now(),
 	)
@@ -101,7 +101,7 @@ func (r *TransactionSplitRepository) CreateTx(tx *sql.Tx, split *models.Transact
 
 func (r *TransactionSplitRepository) GetByTransactionID(transactionID int64) ([]*models.TransactionSplit, error) {
 	query := `
-		SELECT id, transaction_id, name, amount, created_at
+		SELECT id, transaction_id, user_id, amount, created_at
 		FROM transaction_splits
 		WHERE transaction_id = ?
 	`
@@ -117,7 +117,7 @@ func (r *TransactionSplitRepository) GetByTransactionID(transactionID int64) ([]
 		err := rows.Scan(
 			&split.ID,
 			&split.TransactionID,
-			&split.Name,
+			&split.UserID,
 			&split.Amount,
 			&split.CreatedAt,
 		)

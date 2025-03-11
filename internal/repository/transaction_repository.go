@@ -274,3 +274,60 @@ func (r *TransactionRepository) GetTagsForTransaction(transactionID int64) ([]Ta
 
 	return tags, nil
 }
+
+// Add this after the existing GetByID method
+func (r *TransactionRepository) GetSplitsForTransaction(transactionID int64) ([]*models.TransactionSplit, error) {
+	query := `
+		SELECT id, transaction_id, user_id, amount, created_at
+		FROM transaction_splits
+		WHERE transaction_id = ?
+	`
+	rows, err := r.db.Conn.Query(query, transactionID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get splits: %v", err)
+	}
+	defer rows.Close()
+
+	var splits []*models.TransactionSplit
+	for rows.Next() {
+		split := &models.TransactionSplit{}
+		err := rows.Scan(
+			&split.ID,
+			&split.TransactionID,
+			&split.UserID,
+			&split.Amount,
+			&split.CreatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan split: %v", err)
+		}
+		splits = append(splits, split)
+	}
+
+	return splits, nil
+}
+
+func (r *TransactionRepository) CreateSplit(split *models.TransactionSplit) error {
+	query := `
+		INSERT INTO transaction_splits (transaction_id, user_id, amount, created_at)
+		VALUES (?, ?, ?, ?)
+	`
+	result, err := r.db.Conn.Exec(
+		query,
+		split.TransactionID,
+		split.UserID,
+		split.Amount,
+		split.CreatedAt,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create split: %v", err)
+	}
+
+	id, err := result.LastInsertId()
+	if err != nil {
+		return fmt.Errorf("failed to get last insert id: %v", err)
+	}
+
+	split.ID = id
+	return nil
+}

@@ -80,11 +80,8 @@ func (r *UserRepository) GetByID(id int64) (*models.User, error) {
 	query := `SELECT id, name, email FROM users WHERE id = ?`
 	user := &models.User{}
 	err := r.db.Conn.QueryRow(query, id).Scan(&user.ID, &user.Name, &user.Email)
-	if err == sql.ErrNoRows {
-		return nil, nil
-	}
 	if err != nil {
-		return nil, fmt.Errorf("failed to get user: %v", err)
+		return nil, err
 	}
 	return user, nil
 }
