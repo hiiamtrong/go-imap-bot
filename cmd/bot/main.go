@@ -34,6 +34,8 @@ func main() {
 	transactionRepo := repository.NewTransactionRepository(db)
 	tagRepo := repository.NewTagRepository(db)
 	userRepo := repository.NewUserRepository(db)
+	telegramUserRepo := repository.NewTelegramUserRepository(db)
+	transactionSplitRepo := repository.NewTransactionSplitRepository(db)
 
 	botInjector := botpkg.NewBotInjector(
 		db,
@@ -41,6 +43,8 @@ func main() {
 		transactionRepo,
 		tagRepo,
 		userRepo,
+		telegramUserRepo,
+		transactionSplitRepo,
 	)
 	bot := botpkg.InitBot(cfg, context.Background(), botInjector)
 

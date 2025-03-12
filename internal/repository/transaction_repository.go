@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"time"
@@ -307,27 +308,59 @@ func (r *TransactionRepository) GetSplitsForTransaction(transactionID int64) ([]
 	return splits, nil
 }
 
-func (r *TransactionRepository) CreateSplit(split *models.TransactionSplit) error {
-	query := `
-		INSERT INTO transaction_splits (transaction_id, user_id, amount, created_at)
-		VALUES (?, ?, ?, ?)
-	`
-	result, err := r.db.Conn.Exec(
-		query,
-		split.TransactionID,
-		split.UserID,
-		split.Amount,
-		split.CreatedAt,
-	)
+func (r *TransactionRepository) Complete(ctx context.Context, transactionID int64) error {
+	query := `UPDATE transactions SET completed = 1 WHERE id = ?`
+	_, err := r.db.Conn.Exec(query, transactionID)
 	if err != nil {
-		return fmt.Errorf("failed to create split: %v", err)
+		return fmt.Errorf("failed to complete transaction: %v", err)
 	}
-
-	id, err := result.LastInsertId()
-	if err != nil {
-		return fmt.Errorf("failed to get last insert id: %v", err)
-	}
-
-	split.ID = id
 	return nil
+}
+
+func (r *TransactionRepository) IsCompleted(ctx context.Context, transactionID int64) (bool, error) {
+	query := `SELECT completed FROM transactions WHERE id = ?`
+	var completed bool
+	err := r.db.Conn.QueryRow(query, transactionID).Scan(&completed)
+	if err != nil {
+		return false, fmt.Errorf("failed to check if transaction is completed: %v", err)
+	}
+
+	fmt.Println("completed", completed)
+	return completed, nil
+}
+
+func (r *TransactionRepository) GetRecentTransactions(ctx context.Context, limit int64, offset int64) ([]*models.Transaction, error) {
+	query := `SELECT id, mail_id, amount, current_balance, type, from_account, to_account, description, timestamp, created_at FROM transactions 
+	WHERE completed = 0
+	ORDER BY timestamp DESC LIMIT ? OFFSET ?`
+	rows, err := r.db.Conn.Query(query, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get all transactions: %v", err)
+	}
+	defer rows.Close()
+
+	var transactions []*models.Transaction
+	for rows.Next() {
+		t := &models.Transaction{}
+		var timestampUnix int64
+		err := rows.Scan(
+			&t.ID,
+			&t.MailID,
+			&t.Amount,
+			&t.CurrentBalance,
+			&t.Type,
+			&t.From,
+			&t.To,
+			&t.Description,
+			&timestampUnix,
+			&t.CreatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan transaction: %v", err)
+		}
+		t.Timestamp = time.Unix(timestampUnix, 0)
+		transactions = append(transactions, t)
+	}
+
+	return transactions, nil
 }

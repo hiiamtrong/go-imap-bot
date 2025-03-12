@@ -3,6 +3,7 @@ package repository
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 
 	"github.com/hiiamtrong/imap-bot-go/internal/database"
 	"github.com/hiiamtrong/imap-bot-go/internal/models"
@@ -102,5 +103,43 @@ func (r *UserRepository) GetAll() ([]*models.User, error) {
 		}
 		users = append(users, &user)
 	}
+	return users, nil
+}
+
+func (r *UserRepository) GetInIDs(ids []int64) ([]*models.User, error) {
+	if len(ids) == 0 {
+		return []*models.User{}, nil
+	}
+
+	// Create the correct number of placeholders for the IN clause
+	placeholders := make([]string, len(ids))
+	args := make([]interface{}, len(ids))
+	for i, id := range ids {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+
+	// Build the query with the correct number of placeholders
+	query := fmt.Sprintf(
+		"SELECT id, name, email FROM users WHERE id IN (%s)",
+		strings.Join(placeholders, ","),
+	)
+
+	// Execute the query with the expanded arguments
+	rows, err := r.db.Conn.Query(query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query users: %v", err)
+	}
+	defer rows.Close()
+
+	users := []*models.User{}
+	for rows.Next() {
+		var user models.User
+		if err := rows.Scan(&user.ID, &user.Name, &user.Email); err != nil {
+			return nil, fmt.Errorf("failed to scan user: %v", err)
+		}
+		users = append(users, &user)
+	}
+
 	return users, nil
 }

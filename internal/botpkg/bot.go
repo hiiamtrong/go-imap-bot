@@ -144,10 +144,12 @@ func (b *Bot) handleUpdates(ctx context.Context) {
 					}
 
 					// Create new user
-					_, err := b.BotInjector.Database.Conn.Exec(`
-						INSERT INTO users (name, email, created_at)
-						VALUES (?, ?, ?)
-					`, name, email, time.Now())
+					user := &models.User{
+						Name:  name,
+						Email: email,
+					}
+
+					err := b.BotInjector.UserRepository.Create(user)
 
 					if err != nil {
 						msg := fmt.Sprintf("❌ Lỗi khi thêm người dùng: %v\nVui lòng nhập theo định dạng:\nTên - Email\nVí dụ: John Doe - john.doe@example.com\nHoặc gửi /cancel để hủy", err)
@@ -197,7 +199,7 @@ func (b *Bot) handleUpdates(ctx context.Context) {
 						CreatedAt:     time.Now(),
 					}
 
-					err = b.BotInjector.TransactionRepository.CreateSplit(split)
+					err = b.BotInjector.TransactionSplitRepository.Create(split)
 					if err != nil {
 						log.Printf("Error creating split: %v", err)
 						b.SendMessage(update.Message.Chat.ID, "Không thể lưu thông tin chia bill. Vui lòng thử lại.")
@@ -216,6 +218,73 @@ func (b *Bot) handleUpdates(ctx context.Context) {
 						b.SendMessage(update.Message.Chat.ID, fmt.Sprintf("✅ Đã thêm tag '%s' thành công!", update.Message.Text))
 					}
 					delete(b.pendingActions, replyToID)
+
+				case "split_reason":
+					reason := update.Message.Text
+					if reason == "/skip" {
+						reason = ""
+					}
+
+					// Update all splits with the reason
+					splits, err := b.BotInjector.TransactionRepository.GetSplitsForTransaction(action.TransactionID)
+					if err != nil {
+						log.Printf("Error getting splits: %v", err)
+						b.SendMessage(update.Message.Chat.ID, "Không thể lấy thông tin chia bill.")
+						delete(b.pendingActions, replyToID)
+						return
+					}
+
+					for _, split := range splits {
+						split.Reason = reason
+						err = b.BotInjector.TransactionSplitRepository.Update(split)
+						if err != nil {
+							log.Printf("Error updating split: %v", err)
+							continue
+						}
+					}
+
+					// Format confirmation message
+					var message strings.Builder
+					message.WriteString(fmt.Sprintf("✅ Đã chia bill cho giao dịch #%d:\n\n", action.TransactionID))
+
+					userIDs := make([]int64, len(splits))
+					for i, split := range splits {
+						userIDs[i] = split.UserID
+					}
+
+					users, err := b.BotInjector.UserRepository.GetInIDs(userIDs)
+					if err != nil {
+						log.Printf("Error getting users: %v", err)
+						b.SendMessage(update.Message.Chat.ID, "Không thể lấy danh sách người dùng.")
+						return
+					}
+
+					mapUsers := make(map[int64]*models.User)
+					for _, user := range users {
+						mapUsers[user.ID] = user
+					}
+
+					for _, split := range splits {
+						user := mapUsers[split.UserID]
+						if user == nil {
+							continue
+						}
+						message.WriteString(fmt.Sprintf(
+							"- %s: %s\n",
+							user.Name,
+							currency.FormatCurrency(float64(split.Amount)),
+						))
+					}
+
+					if reason != "" {
+						message.WriteString(fmt.Sprintf("\nLý do: %s", reason))
+					}
+
+					b.SendMessage(update.Message.Chat.ID, message.String())
+					delete(b.pendingActions, replyToID)
+
+					// Return to transaction view
+					b.handleBackToTransaction(update.Message.Chat.ID, action.TransactionID)
 				}
 			}
 		}
@@ -249,10 +318,7 @@ func (b *Bot) handleCallbackQuery(callback *tgbotapi.CallbackQuery) {
 	transactionID, _ := strconv.ParseInt(parts[1], 10, 64)
 
 	// Check if transaction is completed before processing any action
-	var completed bool
-	err := b.BotInjector.Database.Conn.QueryRow(`
-		SELECT completed FROM transactions WHERE id = ?
-	`, transactionID).Scan(&completed)
+	completed, err := b.BotInjector.TransactionRepository.IsCompleted(context.Background(), transactionID)
 	if err != nil {
 		log.Printf("[handleCallbackQuery] Error checking transaction completion status: %v", err)
 		return
@@ -336,27 +402,26 @@ func (b *Bot) handleAddTag(chatID int64, transactionID int64) {
 
 	// Create keyboard with available tags
 	var rows [][]tgbotapi.InlineKeyboardButton
-
+	var tagRows []tgbotapi.InlineKeyboardButton
 	// Add tags in rows of 2 buttons each
 	for i := 0; i < len(tags); i += 2 {
-		var row []tgbotapi.InlineKeyboardButton
 
 		// Add first tag in row
-		row = append(row, tgbotapi.NewInlineKeyboardButtonData(
+		tagRows = append(tagRows, tgbotapi.NewInlineKeyboardButtonData(
 			tags[i].Name,
 			fmt.Sprintf("select_tag:%d:%d", transactionID, tags[i].ID),
 		))
 
 		// Add second tag if available
 		if i+1 < len(tags) {
-			row = append(row, tgbotapi.NewInlineKeyboardButtonData(
+			tagRows = append(tagRows, tgbotapi.NewInlineKeyboardButtonData(
 				tags[i+1].Name,
 				fmt.Sprintf("select_tag:%d:%d", transactionID, tags[i+1].ID),
 			))
 		}
 
-		rows = append(rows, row)
 	}
+	rows = append(rows, tagRows)
 
 	// Add "New Tag" button at the bottom
 	rows = append(rows, []tgbotapi.InlineKeyboardButton{
@@ -387,36 +452,29 @@ func (b *Bot) handleSplitBill(chatID int64, transactionID int64) {
 	}
 
 	// Get all users
-	users, err := b.BotInjector.Database.Conn.Query(`
-		SELECT id, name, email 
-		FROM users 
-		ORDER BY name
-	`)
+	users, err := b.BotInjector.UserRepository.GetAll()
 	if err != nil {
 		log.Printf("Error getting users: %v", err)
 		b.SendMessage(chatID, "Không thể lấy danh sách người dùng.")
 		return
 	}
-	defer users.Close()
 
 	// Create keyboard with user selection buttons
 	var rows [][]tgbotapi.InlineKeyboardButton
-	for users.Next() {
-		var user models.User
-		err := users.Scan(&user.ID, &user.Name, &user.Email)
-		if err != nil {
-			log.Printf("Error scanning user: %v", err)
-			continue
-		}
+	var currentRow []tgbotapi.InlineKeyboardButton
 
-		// Create a button for each user
-		row := tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData(
-				user.Name,
-				fmt.Sprintf("select_split_user:%d:%d", transactionID, user.ID),
-			),
-		)
-		rows = append(rows, row)
+	// Add users in rows of max 3
+	for i, user := range users {
+		currentRow = append(currentRow, tgbotapi.NewInlineKeyboardButtonData(
+			user.Name,
+			fmt.Sprintf("select_split_user:%d:%d", transactionID, user.ID),
+		))
+
+		// Add row when we have 3 users or it's the last user
+		if len(currentRow) == 3 || i == len(users)-1 {
+			rows = append(rows, currentRow)
+			currentRow = []tgbotapi.InlineKeyboardButton{}
+		}
 	}
 
 	// Add "Split Equally", "Reset", "Confirm Split" and "Back" buttons at the bottom
@@ -427,7 +485,7 @@ func (b *Bot) handleSplitBill(chatID int64, transactionID int64) {
 		tgbotapi.NewInlineKeyboardButtonData("⚠️ Reset", fmt.Sprintf("reset_split:%d", transactionID)),
 	))
 	rows = append(rows, tgbotapi.NewInlineKeyboardRow(
-		tgbotapi.NewInlineKeyboardButtonData("✅ Xác nhận chia bill", fmt.Sprintf("confirm_split:%d", transactionID)),
+		tgbotapi.NewInlineKeyboardButtonData("✅ Xác nhận", fmt.Sprintf("confirm_split:%d", transactionID)),
 	))
 	rows = append(rows, tgbotapi.NewInlineKeyboardRow(
 		tgbotapi.NewInlineKeyboardButtonData("« Quay lại", fmt.Sprintf("back:%d", transactionID)),
@@ -448,11 +506,30 @@ func (b *Bot) handleSplitBill(chatID int64, transactionID int64) {
 	// Build split summary
 	var splitSummary strings.Builder
 	var totalSplit int64
+
 	if len(splits) > 0 {
+
+		userIDs := make([]int64, len(splits))
+		for i, split := range splits {
+			userIDs[i] = split.UserID
+		}
+
+		users, err := b.BotInjector.UserRepository.GetInIDs(userIDs)
+		if err != nil {
+			log.Printf("Error getting users: %v", err)
+			b.SendMessage(chatID, "Không thể lấy danh sách người dùng.")
+			return
+		}
+
+		mapUsers := make(map[int64]*models.User)
+		for _, user := range users {
+			mapUsers[user.ID] = user
+		}
+
 		splitSummary.WriteString("\n\nChia bill hiện tại:\n")
 		for _, split := range splits {
-			user, err := b.BotInjector.UserRepository.GetByID(split.UserID)
-			if err != nil {
+			user := mapUsers[split.UserID]
+			if user == nil {
 				continue
 			}
 			splitSummary.WriteString(fmt.Sprintf("- %s: %s\n",
@@ -469,8 +546,8 @@ func (b *Bot) handleSplitBill(chatID int64, transactionID int64) {
 
 	// Send message with user selection buttons
 	msg := tgbotapi.NewMessage(chatID, fmt.Sprintf(
-		"💰 Chia bill cho giao dịch #%d\n"+
-			"Số tiền: %s\n\n"+
+		"💰 Chia bill cho giao dịch *#%d*\n"+
+			"*Số tiền*: %s\n\n"+
 			"Chọn người muốn chia bill:%s",
 		transactionID,
 		formattedAmount,
@@ -482,11 +559,7 @@ func (b *Bot) handleSplitBill(chatID int64, transactionID int64) {
 
 func (b *Bot) handleComplete(chatID int64, transactionID int64) {
 	// Mark transaction as completed
-	_, err := b.BotInjector.Database.Conn.Exec(`
-		UPDATE transactions 
-		SET completed = 1 
-		WHERE id = ?
-	`, transactionID)
+	err := b.BotInjector.TransactionRepository.Complete(context.Background(), transactionID)
 	if err != nil {
 		log.Printf("Error marking transaction as completed: %v", err)
 		b.SendMessage(chatID, "Không thể hoàn thành giao dịch. Vui lòng thử lại.")
@@ -510,13 +583,9 @@ func (b *Bot) SendMessageWithButtons(chatId int64, message string, transactionID
 	var completed bool
 	var err error
 	if tx != nil {
-		err = tx.QueryRow(`
-			SELECT completed FROM transactions WHERE id = ?
-		`, transactionID).Scan(&completed)
+		completed, err = b.BotInjector.TransactionRepository.IsCompleted(context.Background(), transactionID)
 	} else {
-		err = b.BotInjector.Database.Conn.QueryRow(`
-			SELECT completed FROM transactions WHERE id = ?
-		`, transactionID).Scan(&completed)
+		completed, err = b.BotInjector.TransactionRepository.IsCompleted(context.Background(), transactionID)
 	}
 
 	if err != nil {
@@ -742,57 +811,21 @@ func (b *Bot) handleSettings(chatID int64) {
 }
 
 func (b *Bot) isUserAuthorized(chatID int64) (bool, error) {
-	query := `SELECT COUNT(*) FROM authorized_telegram_users WHERE chat_id = ?`
-	var count int
-	err := b.BotInjector.Database.Conn.QueryRow(query, chatID).Scan(&count)
-	if err != nil {
-		return false, fmt.Errorf("failed to check user authorization: %v", err)
-	}
-	return count > 0, nil
+	return b.BotInjector.TelegramUserRepository.IsAuthorized(chatID)
 }
 
 func (b *Bot) authorizeUser(chatID int64, username string, email string) error {
-	query := `INSERT INTO authorized_telegram_users (chat_id, username, email) VALUES (?, ?, ?)`
-	_, err := b.BotInjector.Database.Conn.Exec(query, chatID, username, email)
-	if err != nil {
-		return fmt.Errorf("failed to authorize user: %v", err)
-	}
-	return nil
+	return b.BotInjector.TelegramUserRepository.Authorize(chatID, username, email)
 }
 
 func (b *Bot) getUserEmail(chatID int64) (string, error) {
-	query := `SELECT email FROM authorized_telegram_users WHERE chat_id = ?`
-	var email string
-	err := b.BotInjector.Database.Conn.QueryRow(query, chatID).Scan(&email)
-	if err != nil {
-		return "", fmt.Errorf("failed to get user email: %v", err)
-	}
-	return email, nil
+	return b.BotInjector.TelegramUserRepository.GetEmail(chatID)
 }
 
 func (b *Bot) NotifyNewTransaction(transaction *models.Transaction, email string, tx *sql.Tx) error {
-	// Get all authorized users with matching email
-	query := `SELECT chat_id FROM authorized_telegram_users WHERE email = ?`
-	var rows *sql.Rows
-	var err error
-	if tx != nil {
-		rows, err = tx.Query(query, email)
-	} else {
-		rows, err = b.BotInjector.Database.Conn.Query(query, email)
-	}
+	chatIDs, err := b.BotInjector.TelegramUserRepository.GetChatIDsByEmail(email, tx)
 	if err != nil {
 		return fmt.Errorf("failed to get authorized users: %v", err)
-	}
-	defer rows.Close()
-
-	var chatIDs []int64
-	for rows.Next() {
-		var chatID int64
-		if err := rows.Scan(&chatID); err != nil {
-			log.Printf("Error scanning chat ID: %v", err)
-			continue
-		}
-		chatIDs = append(chatIDs, chatID)
 	}
 
 	if len(chatIDs) == 0 {
@@ -871,43 +904,18 @@ func formatTransactionMessage(t *models.Transaction, tagsText string) string {
 
 func (b *Bot) handleTransactionsCommand(chatID int64) {
 	// Get recent transactions from the database
-	query := `
-		SELECT id, amount, current_balance, type, from_account, description, timestamp
-		FROM transactions
-		ORDER BY timestamp DESC
-		LIMIT 5
-	`
-	rows, err := b.BotInjector.Database.Conn.Query(query)
+	transactions, err := b.BotInjector.TransactionRepository.GetRecentTransactions(context.Background(), 5, 0)
 	if err != nil {
-		log.Printf("Error querying transactions: %v", err)
+		log.Printf("Error getting recent transactions: %v", err)
 		b.SendMessage(chatID, "Sorry, I couldn't retrieve your transactions right now.")
 		return
 	}
-	defer rows.Close()
-
-	var transactions []*models.Transaction
-	for rows.Next() {
-		t := &models.Transaction{}
-		var timestamp int64
-		err := rows.Scan(&t.ID, &t.Amount, &t.CurrentBalance, &t.Type, &t.From, &t.Description, &timestamp)
-		if err != nil {
-			log.Printf("Error scanning transaction: %v", err)
-			continue
-		}
-		t.Timestamp = time.Unix(timestamp, 0)
-		if err != nil {
-			log.Printf("Error parsing timestamp: %v", err)
-			continue
-		}
-		transactions = append(transactions, t)
-	}
 
 	if len(transactions) == 0 {
-		b.SendMessage(chatID, "No recent transactions found.")
+		b.SendMessage(chatID, "Không có giao dịch nào.")
 		return
 	}
 
-	// Send each transaction with its own set of buttons
 	for _, t := range transactions {
 		tags, _ := b.BotInjector.TagRepository.GetForTransaction(t.ID)
 		tagsText := ""
@@ -959,10 +967,7 @@ func (b *Bot) handleBackToTransaction(chatID int64, transactionID int64) {
 
 func (b *Bot) handleSelectSplitUser(chatID int64, transactionID int64, userID int64) {
 	// Get user details
-	var user models.User
-	err := b.BotInjector.Database.Conn.QueryRow(`
-		SELECT id, name, email FROM users WHERE id = ?
-	`, userID).Scan(&user.ID, &user.Name, &user.Email)
+	user, err := b.BotInjector.UserRepository.GetByID(userID)
 	if err != nil {
 		log.Printf("Error getting user: %v", err)
 		b.SendMessage(chatID, "Không thể lấy thông tin người dùng.")
@@ -1027,26 +1032,23 @@ func (b *Bot) handleConfirmSplit(chatID int64, transactionID int64) {
 		return
 	}
 
-	// Format confirmation message
-	var message strings.Builder
-	message.WriteString(fmt.Sprintf("✅ Đã chia bill cho giao dịch #%d:\n\n", transactionID))
-
-	for _, split := range splits {
-		user, err := b.BotInjector.UserRepository.GetByID(split.UserID)
-		if err != nil {
-			continue
-		}
-		message.WriteString(fmt.Sprintf(
-			"- %s: %s\n",
-			user.Name,
-			currency.FormatCurrency(float64(split.Amount)),
-		))
+	// Ask for split reason
+	msg := tgbotapi.NewMessage(chatID, "Vui lòng nhập lý do chia bill:\n(Hoặc gửi /skip để bỏ qua)")
+	msg.ReplyMarkup = &tgbotapi.ForceReply{
+		ForceReply: true,
+		Selective:  true,
+	}
+	sent, err := b.Send(msg)
+	if err != nil {
+		log.Printf("Error sending message: %v", err)
+		return
 	}
 
-	b.SendMessage(chatID, message.String())
-
-	// Return to transaction view
-	b.handleBackToTransaction(chatID, transactionID)
+	// Store pending action for reason input
+	b.pendingActions[sent.MessageID] = PendingAction{
+		Type:          "split_reason",
+		TransactionID: transactionID,
+	}
 }
 
 func (b *Bot) handleSplitEqually(chatID int64, transactionID int64) {
@@ -1059,41 +1061,33 @@ func (b *Bot) handleSplitEqually(chatID int64, transactionID int64) {
 	}
 
 	// Get all users
-	users, err := b.BotInjector.Database.Conn.Query(`
-		SELECT id, name, email 
-		FROM users 
-		ORDER BY name
-	`)
+	users, err := b.BotInjector.UserRepository.GetAll()
 	if err != nil {
 		log.Printf("Error getting users: %v", err)
 		b.SendMessage(chatID, "Không thể lấy danh sách người dùng.")
 		return
 	}
-	defer users.Close()
 
-	// Create keyboard with user selection buttons
 	var rows [][]tgbotapi.InlineKeyboardButton
-	for users.Next() {
-		var user models.User
-		err := users.Scan(&user.ID, &user.Name, &user.Email)
-		if err != nil {
-			log.Printf("Error scanning user: %v", err)
-			continue
-		}
+	var currentRow []tgbotapi.InlineKeyboardButton
 
-		// Create a button for each user
-		row := tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData(
-				"☐ "+user.Name,
-				fmt.Sprintf("select_equal_split_user:%d:%d", transactionID, user.ID),
-			),
-		)
-		rows = append(rows, row)
+	// Add users in rows of max 3
+	for i, user := range users {
+		currentRow = append(currentRow, tgbotapi.NewInlineKeyboardButtonData(
+			"☐ "+user.Name,
+			fmt.Sprintf("select_equal_split_user:%d:%d", transactionID, user.ID),
+		))
+
+		// Add row when we have 3 users or it's the last user
+		if len(currentRow) == 3 || i == len(users)-1 {
+			rows = append(rows, currentRow)
+			currentRow = []tgbotapi.InlineKeyboardButton{}
+		}
 	}
 
 	// Add "Confirm" and "Back" buttons at the bottom
 	rows = append(rows, tgbotapi.NewInlineKeyboardRow(
-		tgbotapi.NewInlineKeyboardButtonData("✅ Xác nhận chia đều", fmt.Sprintf("confirm_equal_split:%d", transactionID)),
+		tgbotapi.NewInlineKeyboardButtonData("✅ Xác nhận", fmt.Sprintf("confirm_equal_split:%d", transactionID)),
 	))
 	rows = append(rows, tgbotapi.NewInlineKeyboardRow(
 		tgbotapi.NewInlineKeyboardButtonData("« Quay lại", fmt.Sprintf("back_to_split:%d", transactionID)),
@@ -1126,45 +1120,39 @@ func (b *Bot) handleSelectEqualSplitUser(chatID int64, transactionID int64, user
 	b.selectedUsers[transactionID][userID] = !b.selectedUsers[transactionID][userID]
 
 	// Get all users to rebuild the keyboard
-	users, err := b.BotInjector.Database.Conn.Query(`
-		SELECT id, name, email 
-		FROM users 
-		ORDER BY name
-	`)
+	users, err := b.BotInjector.UserRepository.GetAll()
 	if err != nil {
 		log.Printf("Error getting users: %v", err)
 		b.SendMessage(chatID, "Không thể lấy danh sách người dùng.")
 		return
 	}
-	defer users.Close()
 
 	// Create keyboard with user selection buttons
 	var rows [][]tgbotapi.InlineKeyboardButton
-	for users.Next() {
-		var user models.User
-		err := users.Scan(&user.ID, &user.Name, &user.Email)
-		if err != nil {
-			log.Printf("Error scanning user: %v", err)
-			continue
-		}
+	var currentRow []tgbotapi.InlineKeyboardButton
 
-		// Create a button for each user
+	// Add users in rows of max 3
+	for i, user := range users {
 		prefix := "☐"
 		if b.selectedUsers[transactionID][user.ID] {
 			prefix = "☑"
 		}
-		row := tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData(
-				prefix+" "+user.Name,
-				fmt.Sprintf("select_equal_split_user:%d:%d", transactionID, user.ID),
-			),
-		)
-		rows = append(rows, row)
+
+		currentRow = append(currentRow, tgbotapi.NewInlineKeyboardButtonData(
+			prefix+" "+user.Name,
+			fmt.Sprintf("select_equal_split_user:%d:%d", transactionID, user.ID),
+		))
+
+		// Add row when we have 3 users or it's the last user
+		if len(currentRow) == 3 || i == len(users)-1 {
+			rows = append(rows, currentRow)
+			currentRow = []tgbotapi.InlineKeyboardButton{}
+		}
 	}
 
 	// Add "Confirm" and "Back" buttons at the bottom
 	rows = append(rows, tgbotapi.NewInlineKeyboardRow(
-		tgbotapi.NewInlineKeyboardButtonData("✅ Xác nhận chia đều", fmt.Sprintf("confirm_equal_split:%d", transactionID)),
+		tgbotapi.NewInlineKeyboardButtonData("✅ Xác nhận", fmt.Sprintf("confirm_equal_split:%d", transactionID)),
 	))
 	rows = append(rows, tgbotapi.NewInlineKeyboardRow(
 		tgbotapi.NewInlineKeyboardButtonData("« Quay lại", fmt.Sprintf("back_to_split:%d", transactionID)),
@@ -1208,7 +1196,7 @@ func (b *Bot) handleConfirmEqualSplit(chatID int64, transactionID int64) {
 	remainder := transaction.Amount % int64(len(selectedUserIDs))
 
 	// Delete existing splits
-	_, err = b.BotInjector.Database.Conn.Exec(`DELETE FROM transaction_splits WHERE transaction_id = ?`, transactionID)
+	err = b.BotInjector.TransactionSplitRepository.Reset(context.Background(), transactionID)
 	if err != nil {
 		log.Printf("Error deleting existing splits: %v", err)
 		b.SendMessage(chatID, "Không thể xóa thông tin chia bill cũ.")
@@ -1230,7 +1218,7 @@ func (b *Bot) handleConfirmEqualSplit(chatID int64, transactionID int64) {
 			CreatedAt:     time.Now(),
 		}
 
-		err = b.BotInjector.TransactionRepository.CreateSplit(split)
+		err = b.BotInjector.TransactionSplitRepository.Create(split)
 		if err != nil {
 			log.Printf("Error creating split for user %d: %v", userID, err)
 			continue
@@ -1246,7 +1234,7 @@ func (b *Bot) handleConfirmEqualSplit(chatID int64, transactionID int64) {
 
 func (b *Bot) handleResetSplit(chatID int64, transactionID int64) {
 	// Delete all splits for this transaction
-	_, err := b.BotInjector.Database.Conn.Exec(`DELETE FROM transaction_splits WHERE transaction_id = ?`, transactionID)
+	err := b.BotInjector.TransactionSplitRepository.Reset(context.Background(), transactionID)
 	if err != nil {
 		log.Printf("Error resetting splits: %v", err)
 		b.SendMessage(chatID, "Không thể xóa thông tin chia bill.")

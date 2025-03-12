@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"time"
@@ -47,11 +48,9 @@ func (r *TransactionSplitRepository) Transaction(fn func(tx *sql.Tx) error) erro
 
 func (r *TransactionSplitRepository) Create(split *models.TransactionSplit) error {
 	query := `
-		INSERT INTO transaction_splits (
-			transaction_id, user_id, amount, created_at
-		)
-		VALUES (?, ?, ?, ?)
-	`
+	INSERT INTO transaction_splits (transaction_id, user_id, amount, created_at)
+	VALUES (?, ?, ?, ?)
+`
 	result, err := r.db.Conn.Exec(
 		query,
 		split.TransactionID,
@@ -60,7 +59,7 @@ func (r *TransactionSplitRepository) Create(split *models.TransactionSplit) erro
 		split.CreatedAt,
 	)
 	if err != nil {
-		return fmt.Errorf("failed to insert transaction split: %v", err)
+		return fmt.Errorf("failed to create split: %v", err)
 	}
 
 	id, err := result.LastInsertId()
@@ -128,4 +127,27 @@ func (r *TransactionSplitRepository) GetByTransactionID(transactionID int64) ([]
 	}
 
 	return splits, nil
+}
+
+func (r *TransactionSplitRepository) Reset(ctx context.Context, transactionID int64) error {
+	query := `
+		DELETE FROM transaction_splits WHERE transaction_id = ?
+	`
+	_, err := r.db.Conn.Exec(query, transactionID)
+	if err != nil {
+		return fmt.Errorf("failed to reset transaction splits: %v", err)
+	}
+	return nil
+}
+
+func (r *TransactionSplitRepository) Update(split *models.TransactionSplit) error {
+	_, err := r.db.Conn.Exec(`
+		UPDATE transaction_splits 
+		SET reason = ? 
+		WHERE transaction_id = ? AND user_id = ?
+	`, split.Reason, split.TransactionID, split.UserID)
+	if err != nil {
+		return fmt.Errorf("failed to update split: %v", err)
+	}
+	return nil
 }

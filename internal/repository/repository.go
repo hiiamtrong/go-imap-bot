@@ -45,3 +45,12 @@ type IUserRepository interface {
 	CreateTx(tx *sql.Tx, user *models.User) error
 	GetByID(id int64) (*models.User, error)
 }
+
+// ITelegramUserRepository defines methods for telegram user operations
+type ITelegramUserRepository interface {
+	Repository
+	IsAuthorized(chatID int64) (bool, error)
+	Authorize(chatID int64, username string, email string) error
+	GetEmail(chatID int64) (string, error)
+	GetChatIDsByEmail(email string, tx *sql.Tx) ([]int64, error)
+}

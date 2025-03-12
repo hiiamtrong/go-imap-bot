@@ -6,11 +6,13 @@ import (
 )
 
 type BotInjector struct {
-	Database              *database.Database
-	MailRepository        *repository.MailRepository
-	TransactionRepository *repository.TransactionRepository
-	TagRepository         *repository.TagRepository
-	UserRepository        *repository.UserRepository
+	Database                   *database.Database
+	MailRepository             *repository.MailRepository
+	TransactionRepository      *repository.TransactionRepository
+	TagRepository              *repository.TagRepository
+	UserRepository             *repository.UserRepository
+	TelegramUserRepository     *repository.TelegramUserRepository
+	TransactionSplitRepository *repository.TransactionSplitRepository
 }
 
 func NewBotInjector(
@@ -19,12 +21,16 @@ func NewBotInjector(
 	transactionRepository *repository.TransactionRepository,
 	tagRepository *repository.TagRepository,
 	userRepository *repository.UserRepository,
+	telegramUserRepository *repository.TelegramUserRepository,
+	transactionSplitRepository *repository.TransactionSplitRepository,
 ) *BotInjector {
 	return &BotInjector{
-		Database:              database,
-		MailRepository:        mailRepository,
-		TransactionRepository: transactionRepository,
-		TagRepository:         tagRepository,
-		UserRepository:        userRepository,
+		Database:                   database,
+		MailRepository:             mailRepository,
+		TransactionRepository:      transactionRepository,
+		TagRepository:              tagRepository,
+		UserRepository:             userRepository,
+		TelegramUserRepository:     telegramUserRepository,
+		TransactionSplitRepository: transactionSplitRepository,
 	}
 }
