@@ -17,7 +17,7 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN CGO_ENABLED=1 GOOS=linux go build -a -o main ./cmd/bot/main.go
+RUN go build -a -o main ./cmd/bot/main.go
 
 # Final stage
 FROM alpine:latest
@@ -34,6 +34,7 @@ WORKDIR /app
 # Copy binary from builder
 COPY --from=builder /app/main .
 COPY --from=builder /app/.env.example .env
+COPY --from=builder /app/init/init.sql ./init/init.sql
 
 # Create volume for SQLite database
 VOLUME ["/app/data"]

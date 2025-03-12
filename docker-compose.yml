@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  app:
+    image: imap-bot-go
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: imap-bot
+    restart: unless-stopped
+    environment:
+      - MAIL_SERVER=${MAIL_SERVER:-imap.gmail.com:993}
+      - MAIL_USERNAME=${MAIL_USERNAME}
+      - MAIL_PASSWORD=${MAIL_PASSWORD}
+      - MAIL_MAILBOX=${MAIL_MAILBOX:-[Gmail]/All Mail}
+      - MAIL_FROM=${MAIL_FROM}
+      - MAIL_HOST=${MAIL_HOST:-smtp.gmail.com}
+      - MAIL_PORT=${MAIL_PORT:-587}
+      - VIETQR_CLIENT_ID=${VIETQR_CLIENT_ID}
+      - VIETQR_API_KEY=${VIETQR_API_KEY}
+      - VIETQR_BANK_ID=${VIETQR_BANK_ID:-963388}
+      - VIETQR_ACCOUNT_NO=${VIETQR_ACCOUNT_NO}
+      - VIETQR_ACCOUNT_NAME=${VIETQR_ACCOUNT_NAME}
+      - VIETQR_TEMPLATE=${VIETQR_TEMPLATE:-print}
+      - DB_PATH=/app/data/mail.db
+      - DB_DRIVER=sqlite3
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_BOT_CHAT_ID=${TELEGRAM_BOT_CHAT_ID}
+      - AWS_PROFILE=${AWS_PROFILE:-imap-bot}
+      - AWS_REGION=${AWS_REGION:-ap-southeast-1}
+      - AWS_S3_BUCKET=${AWS_S3_BUCKET:-imap-bot-qr-code}
+      - CIPHER_SECRET_KEY=${CIPHER_SECRET_KEY:-secret}
+      - TZ=Asia/Ho_Chi_Minh
+    volumes:
+      - ./data:/app/data
+      - ${HOME}/.aws:/root/.aws:ro  # Mount AWS credentials if using AWS services
+    networks:
+      - imap-bot-network
+
+networks:
+  imap-bot-network:
+    driver: bridge
