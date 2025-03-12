@@ -1,0 +1,27 @@
+# Git
+.git
+.gitignore
+
+# Docker
+Dockerfile
+.dockerignore
+
+# IDE
+.idea
+.vscode
+.cursor
+
+# Environment
+.env
+
+# Database
+*.db
+data/
+
+# Build
+bin/
+tmp/
+
+# Misc
+README.md
+*.log 
