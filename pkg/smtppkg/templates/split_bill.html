@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        line-height: 1.6;
+        color: #333;
+      }
+      .container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .header {
+        background-color: #f8f9fa;
+        padding: 20px;
+        text-align: center;
+        border-radius: 5px;
+      }
+      .content {
+        padding: 20px;
+      }
+      .footer {
+        text-align: center;
+        padding: 20px;
+        font-size: 12px;
+        color: #666;
+      }
+      .amount {
+        font-size: 24px;
+        font-weight: bold;
+        color: #dc3545;
+      }
+      .splits-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+      }
+      .splits-table th,
+      .splits-table td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+      }
+      .splits-table th {
+        background-color: #f8f9fa;
+      }
+      .qr-container {
+        text-align: center;
+        margin: 20px 0;
+        padding: 20px;
+        background-color: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      .qr-title {
+        font-size: 16px;
+        color: #333;
+        margin-bottom: 15px;
+      }
+      .qr-code {
+        max-width: 300px;
+        width: 100%;
+        height: auto;
+        padding: 10px;
+        background: white;
+        border: 1px solid #eee;
+        border-radius: 4px;
+      }
+      .qr-note {
+        font-size: 14px;
+        color: #666;
+        margin-top: 10px;
+        font-style: italic;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h2>🔔 Nhắc nhở thanh toán</h2>
+      </div>
+      <div class="content">
+        <p>Xin chào,</p>
+        <p>
+          Bạn có các khoản thanh toán cần thực hiện cho
+          <strong>{{.FromUser}}</strong>.
+        </p>
+        <p>Tổng số tiền: <span class="amount">{{.TotalAmount}}</span></p>
+
+        <table class="splits-table">
+          <tr>
+            <th>Số tiền</th>
+            <th>Lý do</th>
+            <th>Thời gian</th>
+            <th>Tổng bill</th>
+          </tr>
+          {{range .Splits}}
+          <tr>
+            <td>{{.Amount}}</td>
+            <td>{{if .Reason}}{{.Reason}}{{else}}-{{end}}</td>
+            <td>{{.CreatedAt}}</td>
+            <td>{{.TotalBillAmount}}</td>
+          </tr>
+          {{end}}
+        </table>
+
+        <div class="qr-container">
+          <p class="qr-title">Quét mã QR để thanh toán</p>
+          <img src="{{.QRCode}}" alt="QR Code" class="qr-code" />
+          <p class="qr-note">Sử dụng ứng dụng ngân hàng để quét mã</p>
+        </div>
+
+        <p>Vui lòng thanh toán sớm để hoàn tất giao dịch.</p>
+      </div>
+      <div class="footer">
+        <p>Email này được gửi tự động từ hệ thống quản lý chi tiêu.</p>
+      </div>
+    </div>
+  </body>
+</html>

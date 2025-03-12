@@ -3,6 +3,7 @@ package botpkg
 import (
 	"github.com/hiiamtrong/imap-bot-go/internal/database"
 	"github.com/hiiamtrong/imap-bot-go/internal/repository"
+	"github.com/hiiamtrong/imap-bot-go/pkg/smtppkg"
 )
 
 type BotInjector struct {
@@ -13,6 +14,8 @@ type BotInjector struct {
 	UserRepository             *repository.UserRepository
 	TelegramUserRepository     *repository.TelegramUserRepository
 	TransactionSplitRepository *repository.TransactionSplitRepository
+	SplitHashRepository        *repository.SplitHashRepository
+	SMTP                       *smtppkg.SMTPService
 }
 
 func NewBotInjector(
@@ -23,6 +26,8 @@ func NewBotInjector(
 	userRepository *repository.UserRepository,
 	telegramUserRepository *repository.TelegramUserRepository,
 	transactionSplitRepository *repository.TransactionSplitRepository,
+	splitHashRepository *repository.SplitHashRepository,
+	smtp *smtppkg.SMTPService,
 ) *BotInjector {
 	return &BotInjector{
 		Database:                   database,
@@ -32,5 +37,7 @@ func NewBotInjector(
 		UserRepository:             userRepository,
 		TelegramUserRepository:     telegramUserRepository,
 		TransactionSplitRepository: transactionSplitRepository,
+		SplitHashRepository:        splitHashRepository,
+		SMTP:                       smtp,
 	}
 }

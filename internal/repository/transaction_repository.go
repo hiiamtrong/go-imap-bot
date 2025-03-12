@@ -322,10 +322,12 @@ func (r *TransactionRepository) IsCompleted(ctx context.Context, transactionID i
 	var completed bool
 	err := r.db.Conn.QueryRow(query, transactionID).Scan(&completed)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return false, nil
+		}
 		return false, fmt.Errorf("failed to check if transaction is completed: %v", err)
 	}
 
-	fmt.Println("completed", completed)
 	return completed, nil
 }
 

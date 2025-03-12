@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -18,6 +19,10 @@ import (
 	"github.com/hiiamtrong/imap-bot-go/internal/models"
 	"github.com/hiiamtrong/imap-bot-go/internal/parser"
 	"github.com/hiiamtrong/imap-bot-go/internal/repository"
+	"github.com/hiiamtrong/imap-bot-go/internal/vietqr"
+	"github.com/hiiamtrong/imap-bot-go/pkg/regexpkg"
+	"github.com/hiiamtrong/imap-bot-go/pkg/s3pkg"
+	"github.com/hiiamtrong/imap-bot-go/pkg/smtppkg"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -30,12 +35,25 @@ func main() {
 	}
 	defer db.Conn.Close()
 
+	s3Service, err := s3pkg.NewS3Service(cfg)
+	if err != nil {
+		log.Fatalf("Failed to get S3 service: %v", err)
+	}
+
+	vietQR := vietqr.NewVietQRService(cfg, s3Service)
+
+	smtp, err := smtppkg.NewSMTPService(cfg, vietQR)
+	if err != nil {
+		log.Fatalf("Failed to get SMTP service: %v", err)
+	}
+
 	mailRepo := repository.NewMailRepository(db)
 	transactionRepo := repository.NewTransactionRepository(db)
 	tagRepo := repository.NewTagRepository(db)
 	userRepo := repository.NewUserRepository(db)
 	telegramUserRepo := repository.NewTelegramUserRepository(db)
 	transactionSplitRepo := repository.NewTransactionSplitRepository(db)
+	splitHashRepo := repository.NewSplitHashRepository(db)
 
 	botInjector := botpkg.NewBotInjector(
 		db,
@@ -45,6 +63,8 @@ func main() {
 		userRepo,
 		telegramUserRepo,
 		transactionSplitRepo,
+		splitHashRepo,
+		smtp,
 	)
 	bot := botpkg.InitBot(cfg, context.Background(), botInjector)
 
@@ -170,7 +190,7 @@ func processEmails(c *imapclient.Client, bot *botpkg.Bot, cfg *config.Config, no
 			break
 		}
 
-		processEmail(msg, bot, cfg)
+		processEmail(msg, bot)
 	}
 
 	// Close the message body
@@ -179,7 +199,7 @@ func processEmails(c *imapclient.Client, bot *botpkg.Bot, cfg *config.Config, no
 	}
 }
 
-func processEmail(msg *imapclient.FetchMessageData, bot *botpkg.Bot, cfg *config.Config) {
+func processEmail(msg *imapclient.FetchMessageData, bot *botpkg.Bot) {
 	var bodySection imapclient.FetchItemDataBodySection
 	ok := false
 	for {
@@ -327,6 +347,22 @@ func processEmail(msg *imapclient.FetchMessageData, bot *botpkg.Bot, cfg *config
 
 	// Get the first email address from the To field
 	recipientEmail := strings.Split(newMail.To, ",")[0]
+
+	// Check if transaction is a bill split
+	if matched, _ := regexp.MatchString(`(trx|TRX)\w+(ong|ONG)`, transaction.Description); matched {
+		hash, err := regexpkg.ExtractHash(transaction.Description)
+		if err != nil {
+			log.Printf("failed to extract hash: %v", err)
+			return
+		}
+		splitIDs, err := bot.BotInjector.SplitHashRepository.GetSplitIDs(hash)
+		if err != nil {
+			log.Printf("failed to get split ids: %v", err)
+			return
+		}
+
+		bot.BotInjector.TransactionSplitRepository.UpdateSplitStatus(splitIDs, tx)
+	}
 
 	err = bot.NotifyNewTransaction(transaction, recipientEmail, tx)
 	if err != nil {

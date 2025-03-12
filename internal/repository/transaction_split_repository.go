@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/hiiamtrong/imap-bot-go/internal/database"
@@ -150,4 +151,109 @@ func (r *TransactionSplitRepository) Update(split *models.TransactionSplit) erro
 		return fmt.Errorf("failed to update split: %v", err)
 	}
 	return nil
+}
+
+func (r *TransactionSplitRepository) UpdateSplitStatus(splitIDs []int64, tx *sql.Tx) error {
+	placeholders := make([]string, len(splitIDs))
+	args := make([]interface{}, len(splitIDs))
+	for i, id := range splitIDs {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+	query := `
+		UPDATE transaction_splits 
+		SET completed = 1 
+		WHERE id IN (%s)
+	`
+	query = fmt.Sprintf(query, strings.Join(placeholders, ","))
+
+	_, err := tx.Exec(query, args...)
+	if err != nil {
+		return fmt.Errorf("failed to update split status: %v", err)
+	}
+	return nil
+}
+
+func (r *TransactionSplitRepository) GetPendingSplits() ([]*models.TransactionSplit, error) {
+	query := `
+		SELECT 
+			ts.id,
+			ts.transaction_id,
+			ts.user_id,
+			ts.amount,
+			ts.reason,
+			ts.created_at
+		FROM transaction_splits ts
+		WHERE ts.completed = 0
+		ORDER BY ts.created_at DESC
+	`
+
+	rows, err := r.db.Conn.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var splits []*models.TransactionSplit
+	for rows.Next() {
+		split := &models.TransactionSplit{}
+		err := rows.Scan(
+			&split.ID,
+			&split.TransactionID,
+			&split.UserID,
+			&split.Amount,
+			&split.Reason,
+			&split.CreatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		splits = append(splits, split)
+	}
+
+	return splits, nil
+}
+
+func (r *TransactionSplitRepository) GetPendingSplitsByUserID(userID int64) ([]*models.TransactionSplit, error) {
+	query := `
+		SELECT 
+			ts.id,
+			ts.transaction_id,
+			ts.user_id,
+			ts.amount,
+			ts.reason,
+			ts.created_at,
+			t.amount as total_bill_amount
+		FROM transaction_splits ts
+		INNER JOIN transactions t ON t.id = ts.transaction_id
+		WHERE ts.completed = 0
+		AND ts.user_id = ?
+		ORDER BY ts.created_at DESC
+	`
+
+	rows, err := r.db.Conn.Query(query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var splits []*models.TransactionSplit
+	for rows.Next() {
+		split := &models.TransactionSplit{}
+		err := rows.Scan(
+			&split.ID,
+			&split.TransactionID,
+			&split.UserID,
+			&split.Amount,
+			&split.Reason,
+			&split.CreatedAt,
+			&split.TotalBillAmount,
+		)
+		if err != nil {
+			return nil, err
+		}
+		splits = append(splits, split)
+	}
+
+	return splits, nil
 }

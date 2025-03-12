@@ -10,6 +10,9 @@ type Config struct {
 	MailConfig     *MailConfig
 	DatabaseConfig *DatabaseConfig
 	TelegramBot    *TelegramBotConfig
+	SMTP           *SMTPConfig
+	VietQR         *VietQRConfig
+	AWS            *AWSConfig
 }
 
 func NewConfig() *Config {
@@ -30,9 +33,23 @@ func NewConfig() *Config {
 		"MAIL_USERNAME",
 		"MAIL_PASSWORD",
 		"MAIL_MAILBOX",
+		"MAIL_HOST",
+		"MAIL_PORT",
+		"MAIL_FROM",
 
 		"DB_PATH",
 		"TELEGRAM_BOT_TOKEN",
+
+		"VIETQR_CLIENT_ID",
+		"VIETQR_API_KEY",
+		"VIETQR_BANK_ID",
+		"VIETQR_ACCOUNT_NO",
+		"VIETQR_TEMPLATE",
+		"VIETQR_ACCOUNT_NAME",
+
+		"AWS_PROFILE",
+		"AWS_REGION",
+		"AWS_S3_BUCKET",
 	}
 
 	for _, r := range required {
@@ -53,6 +70,26 @@ func NewConfig() *Config {
 		},
 		TelegramBot: &TelegramBotConfig{
 			Token: viper.GetString("TELEGRAM_BOT_TOKEN"),
+		},
+		SMTP: &SMTPConfig{
+			Host: viper.GetString("MAIL_HOST"),
+			Port: viper.GetInt64("MAIL_PORT"),
+			From: viper.GetString("MAIL_FROM"),
+			User: viper.GetString("MAIL_USERNAME"),
+			Pass: viper.GetString("MAIL_PASSWORD"),
+		},
+		VietQR: &VietQRConfig{
+			ClientID:    viper.GetString("VIETQR_CLIENT_ID"),
+			APIKey:      viper.GetString("VIETQR_API_KEY"),
+			BankID:      viper.GetInt64("VIETQR_BANK_ID"),
+			AccountNo:   viper.GetString("VIETQR_ACCOUNT_NO"),
+			AccountName: viper.GetString("VIETQR_ACCOUNT_NAME"),
+			Template:    viper.GetString("VIETQR_TEMPLATE"),
+		},
+		AWS: &AWSConfig{
+			Profile:  viper.GetString("AWS_PROFILE"),
+			Region:   viper.GetString("AWS_REGION"),
+			S3Bucket: viper.GetString("AWS_S3_BUCKET"),
 		},
 	}
 }

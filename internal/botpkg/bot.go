@@ -3,6 +3,7 @@ package botpkg
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
 	"math"
@@ -69,6 +70,10 @@ func InitBot(cfg *config.Config, ctx context.Context, injector *BotInjector) *Bo
 		{
 			Command:     "addtag",
 			Description: "Thêm tag mới",
+		},
+		{
+			Command:     "remind",
+			Description: "Gửi email nhắc nhở thanh toán",
 		},
 	}
 
@@ -388,6 +393,17 @@ func (b *Bot) handleCallbackQuery(callback *tgbotapi.CallbackQuery) {
 		b.handleSplitEqually(callback.Message.Chat.ID, transactionID)
 	case "reset_split":
 		b.handleResetSplit(callback.Message.Chat.ID, transactionID)
+	case "send_reminder":
+		if len(parts) < 2 {
+			return
+		}
+		var userIDs []int64
+		err := json.Unmarshal([]byte(parts[1]), &userIDs)
+		if err != nil {
+			log.Printf("Error parsing userIDs: %v", err)
+			return
+		}
+		b.handleSendReminder(callback.Message.Chat.ID, userIDs)
 	}
 }
 
@@ -766,6 +782,8 @@ func (b *Bot) handleCommand(message *tgbotapi.Message) {
 		b.handleAddUser(message.Chat.ID, nil)
 	case "addtag":
 		b.handleAddGlobalTag(message.Chat.ID)
+	case "remind":
+		b.handleRemindCommand(message.Chat.ID)
 	}
 }
 
@@ -838,6 +856,7 @@ func (b *Bot) NotifyNewTransaction(transaction *models.Transaction, email string
 		err := b.SendMessageWithButtons(chatID, formatNewTransactionMessage(transaction), transaction.ID, tx)
 		if err != nil {
 			log.Printf("Error sending notification to chat ID %d: %v", chatID, err)
+			return err
 		}
 	}
 
@@ -1285,4 +1304,154 @@ func (b *Bot) handleAddGlobalTag(chatID int64) {
 	b.pendingActions[sent.MessageID] = PendingAction{
 		Type: "add_global_tag",
 	}
+}
+
+func (b *Bot) handleRemindCommand(chatID int64) {
+	// Get all pending splits for this use
+	totalSplits, err := b.BotInjector.TransactionSplitRepository.GetPendingSplits()
+	if err != nil {
+		log.Printf("Error getting pending splits: %v", err)
+		b.SendMessage(chatID, fmt.Sprintf("❌ Có lỗi xảy ra khi lấy thông tin chia bill %v", err))
+		return
+	}
+
+	if len(totalSplits) == 0 {
+		b.SendMessage(chatID, "✅ Không có khoản thanh toán nào cần nhắc nhở.")
+		return
+	}
+
+	groupSplitByUser := make(map[int64][]*models.TransactionSplit)
+	for _, split := range totalSplits {
+		groupSplitByUser[split.UserID] = append(groupSplitByUser[split.UserID], split)
+	}
+
+	userIDs := make([]int64, 0, len(groupSplitByUser))
+	for userID := range groupSplitByUser {
+		userIDs = append(userIDs, userID)
+	}
+
+	users, err := b.BotInjector.UserRepository.GetInIDs(userIDs)
+	if err != nil {
+		b.SendMessage(chatID, fmt.Sprintf("❌ Có lỗi xảy ra khi lấy thông tin người dùng %v", err))
+		return
+	}
+
+	userMap := make(map[int64]*models.User)
+	for _, user := range users {
+		userMap[user.ID] = user
+	}
+
+	// Build preview message
+	var preview strings.Builder
+	preview.WriteString("📧 *Danh sách nhắc nhở*\n\n")
+
+	var totalAmount int64
+	var totalBills int
+
+	for _, userID := range userIDs {
+		user, ok := userMap[userID]
+		if !ok {
+			continue
+		}
+
+		splits := groupSplitByUser[userID]
+		totalBills += len(splits)
+
+		// Calculate user's total amount
+		var userAmount int64
+		for _, split := range splits {
+			userAmount += split.Amount
+		}
+		totalAmount += userAmount
+
+		// Add user preview to message
+		preview.WriteString(fmt.Sprintf(
+			"*%s*\n"+
+				"Email: %s\n"+
+				"Số lượng bill: %d\n"+
+				"Tổng tiền: %s\n\n",
+			user.Name,
+			user.Email,
+			len(splits),
+			currency.FormatCurrency(float64(userAmount)),
+		))
+	}
+
+	// Add summary
+	preview.WriteString(fmt.Sprintf(
+		"*Tổng cộng:*\n"+
+			"Số người: %d\n"+
+			"Số bill: %d\n"+
+			"Tổng tiền: %s\n",
+		len(userIDs),
+		totalBills,
+		currency.FormatCurrency(float64(totalAmount)),
+	))
+
+	// Create keyboard with single send button
+	keyboard := tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData(
+				"📤 Gửi mail cho tất cả",
+				fmt.Sprintf("send_reminder:%s", strings.Join(strings.Fields(fmt.Sprint(userIDs)), ",")),
+			),
+		),
+	)
+
+	msg := tgbotapi.NewMessage(chatID, preview.String())
+	msg.ReplyMarkup = keyboard
+	b.Send(msg)
+}
+
+func (b *Bot) handleSendReminder(chatID int64, userIDs []int64) {
+	// If userID contains commas, it's a list of IDs
+	if len(userIDs) > 0 {
+		for _, userID := range userIDs {
+			b.sendReminderToUser(chatID, userID)
+		}
+	}
+}
+
+func (b *Bot) sendReminderToUser(chatID int64, userID int64) {
+	user, err := b.BotInjector.UserRepository.GetByID(userID)
+	if err != nil {
+		b.SendMessage(chatID, fmt.Sprintf("❌ Không tìm thấy người dùng: %v", err))
+		return
+	}
+
+	allSplits, err := b.BotInjector.TransactionSplitRepository.GetPendingSplitsByUserID(userID)
+	if err != nil {
+		b.SendMessage(chatID, fmt.Sprintf("❌ Có lỗi xảy ra khi lấy thông tin chia bill: %v", err))
+		return
+	}
+
+	if len(allSplits) == 0 {
+		b.SendMessage(chatID, fmt.Sprintf("✅ Không có khoản thanh toán nào cần nhắc nhở cho %s", user.Name))
+		return
+	}
+
+	authUser, err := b.BotInjector.TelegramUserRepository.GetByChatID(chatID)
+	if err != nil {
+		b.SendMessage(chatID, fmt.Sprintf("❌ Có lỗi xảy ra khi lấy thông tin người dùng: %v", err))
+		return
+	}
+
+	splitIDs := make([]int64, 0, len(allSplits))
+	for _, split := range allSplits {
+		splitIDs = append(splitIDs, split.ID)
+	}
+
+	hash, err := b.BotInjector.SplitHashRepository.GenerateHash(splitIDs)
+	if err != nil {
+		b.SendMessage(chatID, fmt.Sprintf("❌ Có lỗi xảy ra khi tạo hash: %v", err))
+		return
+	}
+
+	err = b.BotInjector.SMTP.SendBulkSplitReminders(user, allSplits, authUser.Email, hash)
+	if err != nil {
+		b.SendMessage(chatID, fmt.Sprintf("❌ Có lỗi xảy ra khi gửi email nhắc nhở: %v", err))
+		return
+	}
+
+	b.SendMessage(chatID, fmt.Sprintf("✅ Đã gửi email nhắc nhở cho %s", user.Name))
 }

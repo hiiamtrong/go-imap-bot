@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS transactions (
         to_account TEXT,
         description TEXT,
         timestamp INTEGER,
+        completed BOOLEAN DEFAULT FALSE,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -33,6 +34,7 @@ CREATE TABLE IF NOT EXISTS transaction_splits (
         user_id INTEGER,
         amount INTEGER,
         reason TEXT DEFAULT '',
+        completed BOOLEAN DEFAULT FALSE,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (transaction_id) REFERENCES transactions(id),
         FOREIGN KEY (user_id) REFERENCES users(id)
@@ -62,4 +64,10 @@ CREATE TABLE IF NOT EXISTS authorized_telegram_users (
 
 
 
+CREATE TABLE IF NOT EXISTS split_hashes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        hash TEXT UNIQUE NOT NULL,
+        split_ids TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
 

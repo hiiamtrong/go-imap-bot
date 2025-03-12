@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/hiiamtrong/imap-bot-go/internal/database"
+	"github.com/hiiamtrong/imap-bot-go/internal/models"
 )
 
 type TelegramUserRepository struct {
@@ -90,4 +91,13 @@ func (r *TelegramUserRepository) GetChatIDsByEmail(email string, tx *sql.Tx) ([]
 	}
 
 	return chatIDs, nil
+}
+
+func (r *TelegramUserRepository) GetByChatID(chatID int64) (*models.TelegramUser, error) {
+	var user models.TelegramUser
+	err := r.db.Conn.QueryRow("SELECT chat_id, username, email FROM authorized_telegram_users WHERE chat_id = ?", chatID).Scan(&user.ChatID, &user.Username, &user.Email)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user: %v", err)
+	}
+	return &user, nil
 }
