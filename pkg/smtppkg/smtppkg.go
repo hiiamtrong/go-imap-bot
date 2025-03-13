@@ -18,11 +18,15 @@ import (
 //go:embed templates/split_bill.html
 var mailTemplates embed.FS
 
+//go:embed templates/split_bill_angry.html
+var mailTemplatesAngry embed.FS
+
 type SMTPService struct {
-	config   *config.Config
-	auth     smtp.Auth
-	template *template.Template
-	vietQR   *vietqr.VietQRService
+	config        *config.Config
+	auth          smtp.Auth
+	template      *template.Template
+	templateAngry *template.Template
+	vietQR        *vietqr.VietQRService
 }
 
 type EmailData struct {
@@ -57,69 +61,29 @@ func NewSMTPService(cfg *config.Config, vietQR *vietqr.VietQRService) (*SMTPServ
 		return nil, fmt.Errorf("error parsing email template: %v", err)
 	}
 
+	tmplAngry, err := template.ParseFS(mailTemplatesAngry, "templates/split_bill_angry.html")
+	if err != nil {
+		return nil, fmt.Errorf("error parsing email template: %v", err)
+	}
+
 	return &SMTPService{
-		config:   cfg,
-		auth:     auth,
-		template: tmpl,
-		vietQR:   vietQR,
+		config:        cfg,
+		auth:          auth,
+		template:      tmpl,
+		templateAngry: tmplAngry,
+		vietQR:        vietQR,
 	}, nil
 }
 
-func (s *SMTPService) SendSplitReminder(toEmail string, split *models.TransactionSplit, fromUser string, amount string) error {
-	// Prepare email data
-	data := EmailData{
-		FromUser:    fromUser,
-		Amount:      amount,
-		Reason:      split.Reason,
-		Transaction: fmt.Sprintf("%d", split.TransactionID),
-		CreatedAt:   split.CreatedAt.Format("02/01/2006 15:04:05"),
-	}
-
-	// Execute template
-	var body bytes.Buffer
-	if err := s.template.Execute(&body, data); err != nil {
-		return fmt.Errorf("error executing template: %v", err)
-	}
-
-	// Email headers
-	headers := make(map[string]string)
-	headers["From"] = s.config.SMTP.From
-	headers["To"] = toEmail
-	headers["Subject"] = "Nhắc nhở thanh toán"
-	headers["MIME-Version"] = "1.0"
-	headers["Content-Type"] = "text/html; charset=UTF-8"
-
-	// Build email message
-	var message bytes.Buffer
-	for k, v := range headers {
-		message.WriteString(fmt.Sprintf("%s: %s\r\n", k, v))
-	}
-	message.WriteString("\r\n")
-	message.Write(body.Bytes())
-
-	// Send email
-	err := smtp.SendMail(
-		fmt.Sprintf("%s:%d", s.config.SMTP.Host, s.config.SMTP.Port),
-		s.auth,
-		s.config.SMTP.From,
-		[]string{toEmail},
-		message.Bytes(),
-	)
-	if err != nil {
-		return fmt.Errorf("error sending email: %v", err)
-	}
-
-	return nil
-}
-
-func (s *SMTPService) SendBulkSplitReminders(user *models.User, splits []*models.TransactionSplit, fromUser string, hash string) error {
+func (s *SMTPService) SendBulkSplitReminders(user *models.User, splits []*models.TransactionSplit, fromUser string, hash string, mode string) error {
+	fmt.Println("SendBulkSplitReminders", user, splits, fromUser, hash, mode)
 	splitData := make([]SplitData, len(splits))
 	totalAmount := int64(0)
 	for i, split := range splits {
 		splitData[i] = SplitData{
 			Amount:          currency.FormatCurrency(float64(split.Amount)),
 			Reason:          split.Reason,
-			CreatedAt:       split.CreatedAt.Format("02/01/2006 15:04:05"),
+			CreatedAt:       split.BillCreatedAt.Format("02/01/2006 15:04:05"),
 			TotalBillAmount: currency.FormatCurrency(float64(split.TotalBillAmount)),
 		}
 		totalAmount += split.Amount
@@ -140,8 +104,14 @@ func (s *SMTPService) SendBulkSplitReminders(user *models.User, splits []*models
 
 	// Execute template
 	var body bytes.Buffer
-	if err := s.template.Execute(&body, data); err != nil {
-		return fmt.Errorf("error executing template: %v", err)
+	if mode == "angry" {
+		if err := s.templateAngry.Execute(&body, data); err != nil {
+			return fmt.Errorf("error executing template: %v", err)
+		}
+	} else {
+		if err := s.template.Execute(&body, data); err != nil {
+			return fmt.Errorf("error executing template: %v", err)
+		}
 	}
 
 	// Fix email headers format

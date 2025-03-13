@@ -91,17 +91,17 @@
 
         <table class="splits-table">
           <tr>
+            <th>Tổng bill</th>
             <th>Số tiền</th>
             <th>Lý do</th>
             <th>Thời gian</th>
-            <th>Tổng bill</th>
           </tr>
           {{range .Splits}}
           <tr>
+            <td>{{.TotalBillAmount}}</td>
             <td>{{.Amount}}</td>
             <td>{{if .Reason}}{{.Reason}}{{else}}-{{end}}</td>
             <td>{{.CreatedAt}}</td>
-            <td>{{.TotalBillAmount}}</td>
           </tr>
           {{end}}
         </table>

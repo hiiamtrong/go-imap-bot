@@ -11,4 +11,5 @@ type TransactionSplit struct {
 	Completed       bool
 	CreatedAt       time.Time
 	TotalBillAmount int64
+	BillCreatedAt   time.Time
 }

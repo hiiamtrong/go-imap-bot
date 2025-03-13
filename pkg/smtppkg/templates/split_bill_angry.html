@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        line-height: 1.6;
+        color: #333;
+        margin: 0;
+        padding: 0;
+        background-color: #fff0f0;
+      }
+      .container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 10px;
+        background: #fff0f0;
+      }
+      .header {
+        background-color: #ff0000;
+        padding: 15px;
+        text-align: center;
+        border-radius: 5px;
+        color: white;
+        animation: shake 0.5s infinite;
+        box-shadow: 0 4px 8px rgba(255, 0, 0, 0.3);
+        margin-bottom: 15px;
+      }
+      @keyframes shake {
+        0% {
+          transform: translateX(0);
+        }
+        25% {
+          transform: translateX(-3px);
+        }
+        75% {
+          transform: translateX(3px);
+        }
+        100% {
+          transform: translateX(0);
+        }
+      }
+      .content {
+        padding: 15px;
+        background-color: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      }
+      .footer {
+        text-align: center;
+        padding: 15px;
+        font-size: 12px;
+        color: #666;
+        margin-top: 15px;
+      }
+      .amount {
+        font-size: 28px;
+        font-weight: bold;
+        color: #ff0000;
+        text-shadow: 2px 2px 4px rgba(255, 0, 0, 0.2);
+        animation: pulse 1s infinite;
+        display: inline-block;
+      }
+      @keyframes pulse {
+        0% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.05);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+      .splits-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        border: 2px solid #ff0000;
+        font-size: 14px;
+      }
+      .splits-table th,
+      .splits-table td {
+        border: 1px solid #ffb3b3;
+        padding: 8px;
+        text-align: left;
+      }
+      .splits-table th {
+        background-color: #ff0000;
+        color: white;
+      }
+      .qr-container {
+        text-align: center;
+        margin: 20px auto;
+        padding: 15px;
+        background-color: #fff;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(255, 0, 0, 0.2);
+        border: 3px dashed #ff0000;
+        max-width: 350px;
+      }
+      .qr-title {
+        font-size: 18px;
+        color: #ff0000;
+        margin-bottom: 15px;
+        font-weight: bold;
+        text-transform: uppercase;
+      }
+      .qr-code {
+        max-width: 250px;
+        width: 100%;
+        height: auto;
+        padding: 5px;
+        background: white;
+        border: 3px solid #ff0000;
+        border-radius: 4px;
+        margin: 0 auto;
+        display: block;
+      }
+      .qr-note {
+        font-size: 14px;
+        color: #ff0000;
+        margin-top: 10px;
+        font-style: italic;
+      }
+      .angry-emoji {
+        font-size: 24px;
+        margin: 0 3px;
+        display: inline-block;
+      }
+      .highlight {
+        background-color: #ffff00;
+        padding: 2px 5px;
+        font-weight: bold;
+        color: #ff0000;
+      }
+      .message-box {
+        background-color: #fff9f9;
+        border-left: 5px solid #ff0000;
+        padding: 10px;
+        margin: 15px 0;
+      }
+
+      /* Responsive adjustments */
+      @media (max-width: 480px) {
+        .container {
+          padding: 5px;
+        }
+        .content {
+          padding: 10px;
+        }
+        .splits-table {
+          font-size: 12px;
+        }
+        .splits-table th,
+        .splits-table td {
+          padding: 6px;
+        }
+        .qr-container {
+          padding: 10px;
+          margin: 15px auto;
+        }
+        .qr-code {
+          max-width: 200px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h2>🔥 ĐÒI NỢ LẦN THỨ 1.000.000 🔥</h2>
+      </div>
+      <div class="content">
+        <p><span class="angry-emoji">😤</span> Ê,</p>
+        <p>
+          Có phải bạn đang cố tình <span class="highlight">LÀM NGƠ</span> các
+          khoản thanh toán cho <strong>{{.FromUser}}</strong> không?
+          <span class="angry-emoji">🧐</span>
+        </p>
+
+        <p>
+          Số tiền mà bạn <span class="highlight">ĐANG NỢ</span>:
+          <span class="amount">{{.TotalAmount}}</span>
+          <span class="angry-emoji">💸</span>
+        </p>
+
+        <div class="message-box">
+          <p>Danh sách những món nợ mà bạn đang cố "quên":</p>
+        </div>
+
+        <table class="splits-table">
+          <tr>
+            <th>Tổng bill 🧾</th>
+            <th>Số tiền 💰</th>
+            <th>Lý do 📝</th>
+            <th>Thời gian ⏰</th>
+          </tr>
+          {{range .Splits}}
+          <tr>
+            <td>{{.TotalBillAmount}}</td>
+            <td>{{.Amount}}</td>
+            <td>
+              {{if .Reason}}{{.Reason}}{{else}}Bạn còn không nhớ lý do luôn
+              à?{{end}}
+            </td>
+            <td>{{.CreatedAt}}</td>
+          </tr>
+          {{end}}
+        </table>
+
+        <div class="qr-container">
+          <p class="qr-title">
+            <span class="angry-emoji">👇</span>
+            QUÉT MÃ QR NÀY NGAY
+            <span class="angry-emoji">👇</span>
+          </p>
+          <img src="{{.QRCode}}" alt="QR Code" class="qr-code" />
+          <p class="qr-note">
+            Mở camera lên, quét mã này, trả tiền đi!
+            <span class="angry-emoji">🙏</span>
+          </p>
+        </div>
+
+        <div class="message-box">
+          <p>
+            <span class="highlight">LỜI NHẮN QUAN TRỌNG:</span>
+            Thanh toán ngay để tránh bị "spam" email mỗi 5 phút một lần nhé!
+            <span class="angry-emoji">😊</span>
+          </p>
+        </div>
+
+        <p>
+          P/S: Mình vẫn là bạn tốt của nhau mà, phải không?
+          <span class="angry-emoji">🥺</span>
+        </p>
+      </div>
+      <div class="footer">
+        <p>
+          Email này được gửi từ một người bạn đang rất "nhớ" tiền của họ
+          <span class="angry-emoji">💝</span>
+        </p>
+      </div>
+    </div>
+  </body>
+</html>

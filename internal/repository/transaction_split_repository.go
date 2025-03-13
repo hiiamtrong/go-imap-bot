@@ -223,7 +223,8 @@ func (r *TransactionSplitRepository) GetPendingSplitsByUserID(userID int64) ([]*
 			ts.amount,
 			ts.reason,
 			ts.created_at,
-			t.amount as total_bill_amount
+			t.amount as total_bill_amount,
+			t.timestamp as bill_created_at
 		FROM transaction_splits ts
 		INNER JOIN transactions t ON t.id = ts.transaction_id
 		WHERE ts.completed = 0
@@ -239,6 +240,7 @@ func (r *TransactionSplitRepository) GetPendingSplitsByUserID(userID int64) ([]*
 
 	var splits []*models.TransactionSplit
 	for rows.Next() {
+		var billCreatedAt int64
 		split := &models.TransactionSplit{}
 		err := rows.Scan(
 			&split.ID,
@@ -248,10 +250,12 @@ func (r *TransactionSplitRepository) GetPendingSplitsByUserID(userID int64) ([]*
 			&split.Reason,
 			&split.CreatedAt,
 			&split.TotalBillAmount,
+			&billCreatedAt,
 		)
 		if err != nil {
 			return nil, err
 		}
+		split.BillCreatedAt = time.Unix(billCreatedAt, 0)
 		splits = append(splits, split)
 	}
 
