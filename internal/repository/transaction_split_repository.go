@@ -261,3 +261,44 @@ func (r *TransactionSplitRepository) GetPendingSplitsByUserID(userID int64) ([]*
 
 	return splits, nil
 }
+
+func (r *TransactionSplitRepository) GetSplitsByIDs(splitIDs []int64) ([]*models.TransactionSplit, error) {
+	placeholders := make([]string, len(splitIDs))
+	args := make([]interface{}, len(splitIDs))
+	for i, id := range splitIDs {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+
+	query := `
+		SELECT id, transaction_id, user_id, amount, reason, created_at
+		FROM transaction_splits
+		WHERE id IN (%s)
+	`
+	query = fmt.Sprintf(query, strings.Join(placeholders, ","))
+
+	rows, err := r.db.Conn.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var splits []*models.TransactionSplit
+	for rows.Next() {
+		split := &models.TransactionSplit{}
+		err := rows.Scan(
+			&split.ID,
+			&split.TransactionID,
+			&split.UserID,
+			&split.Amount,
+			&split.Reason,
+			&split.CreatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		splits = append(splits, split)
+	}
+
+	return splits, nil
+}

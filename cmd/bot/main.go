@@ -361,7 +361,17 @@ func processEmail(msg *imapclient.FetchMessageData, bot *botpkg.Bot) {
 			return
 		}
 
-		bot.BotInjector.TransactionSplitRepository.UpdateSplitStatus(splitIDs, tx)
+		err = bot.BotInjector.TransactionSplitRepository.UpdateSplitStatus(splitIDs, tx)
+		if err != nil {
+			log.Printf("failed to update split status: %v", err)
+			return
+		}
+
+		err = bot.NotifySplitBillComplete(recipientEmail, splitIDs, transaction.ID, tx)
+		if err != nil {
+			log.Printf("failed to notify split bill: %v", err)
+			return
+		}
 	}
 
 	err = bot.NotifyNewTransaction(transaction, recipientEmail, tx)

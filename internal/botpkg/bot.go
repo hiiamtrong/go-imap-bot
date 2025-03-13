@@ -868,6 +868,35 @@ func (b *Bot) NotifyNewTransaction(transaction *models.Transaction, email string
 	return nil
 }
 
+func (b *Bot) NotifySplitBillComplete(mail string, splitIDs []int64, transactionID int64, tx *sql.Tx) error {
+	splits, err := b.BotInjector.TransactionSplitRepository.GetSplitsByIDs(splitIDs)
+	if err != nil {
+		return fmt.Errorf("failed to get splits: %v", err)
+	}
+
+	user, err := b.BotInjector.UserRepository.GetByID(splits[0].UserID)
+	if err != nil {
+		return fmt.Errorf("failed to get user: %v", err)
+	}
+
+	authUser, err := b.BotInjector.TelegramUserRepository.GetChatIDsByEmail(mail, tx)
+	if err != nil {
+		return fmt.Errorf("failed to get auth user: %v", err)
+	}
+
+	// Notify that the splits of user are completed in transaction
+	msg := tgbotapi.NewMessage(authUser[0], fmt.Sprintf("✅ Các khoản chia bill của %s - %s đã được thanh toán trong giao dịch #%d", user.Name, user.Email, transactionID))
+
+	for _, chatID := range authUser {
+		err = b.SendMessage(chatID, msg.Text)
+		if err != nil {
+			return fmt.Errorf("failed to send message: %v", err)
+		}
+	}
+
+	return nil
+}
+
 func formatNewTransactionMessage(t *models.Transaction) string {
 	amountType := "Tăng"
 	if t.Type == string(models.TransactionTypeSubtract) {
