@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/hiiamtrong/imap-bot-go/internal/database"
-	"github.com/hiiamtrong/imap-bot-go/internal/models"
+	"github.com/hiiamtrong/go-imap-bot/internal/database"
+	"github.com/hiiamtrong/go-imap-bot/internal/models"
 )
 
 type UserRepository struct {
@@ -80,7 +80,7 @@ func (r *UserRepository) CreateTx(tx *sql.Tx, user *models.User) error {
 func (r *UserRepository) GetByID(id int64) (*models.User, error) {
 	query := `SELECT id, name, email, is_whitelisted FROM users WHERE id = ?`
 	user := &models.User{}
-	err := r.db.Conn.QueryRow(query, id).Scan(&user.ID, &user.Name, &user.Email, &user.IsWhitelisted	)
+	err := r.db.Conn.QueryRow(query, id).Scan(&user.ID, &user.Name, &user.Email, &user.IsWhitelisted)
 	if err != nil {
 		return nil, err
 	}

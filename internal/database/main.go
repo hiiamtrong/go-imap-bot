@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/hiiamtrong/imap-bot-go/internal/config"
+	"github.com/hiiamtrong/go-imap-bot/internal/config"
 )
 
 type Database struct {

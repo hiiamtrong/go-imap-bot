@@ -1,4 +1,4 @@
-package smtppkg
+package smtp
 
 import (
 	"bytes"
@@ -9,10 +9,10 @@ import (
 	"net/smtp"
 	"time"
 
-	"github.com/hiiamtrong/imap-bot-go/internal/config"
-	"github.com/hiiamtrong/imap-bot-go/internal/models"
-	"github.com/hiiamtrong/imap-bot-go/internal/vietqr"
-	"github.com/hiiamtrong/imap-bot-go/pkg/currencypkg"
+	"github.com/hiiamtrong/go-imap-bot/internal/config"
+	"github.com/hiiamtrong/go-imap-bot/internal/models"
+	"github.com/hiiamtrong/go-imap-bot/internal/vietqr"
+	"github.com/hiiamtrong/go-imap-bot/pkg/currencypkg"
 )
 
 //go:embed templates/split_bill.html

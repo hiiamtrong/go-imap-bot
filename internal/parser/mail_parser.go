@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hiiamtrong/imap-bot-go/internal/models"
+	"github.com/hiiamtrong/go-imap-bot/internal/models"
 )
 
 type TransactionDetails struct {

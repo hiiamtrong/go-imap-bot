@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/hiiamtrong/imap-bot-go/internal/config"
-	"github.com/hiiamtrong/imap-bot-go/pkg/s3pkg"
+	"github.com/hiiamtrong/go-imap-bot/internal/config"
+	"github.com/hiiamtrong/go-imap-bot/internal/s3"
 )
 
 const (
@@ -22,7 +22,7 @@ type VietQRService struct {
 	accountName string
 	template    string
 
-	s3Service *s3pkg.S3Service
+	s3Service *s3.S3Service
 }
 
 type GenerateQRRequest struct {
@@ -45,7 +45,7 @@ type GenerateQRResponse struct {
 	} `json:"data"`
 }
 
-func NewVietQRService(config *config.Config, s3Service *s3pkg.S3Service) *VietQRService {
+func NewVietQRService(config *config.Config, s3Service *s3.S3Service) *VietQRService {
 	return &VietQRService{
 		clientID:    config.VietQR.ClientID,
 		apiKey:      config.VietQR.APIKey,

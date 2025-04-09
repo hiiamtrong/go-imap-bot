@@ -13,16 +13,16 @@ import (
 	"github.com/emersion/go-imap/v2"
 	"github.com/emersion/go-imap/v2/imapclient"
 	"github.com/emersion/go-message/mail"
-	"github.com/hiiamtrong/imap-bot-go/internal/botpkg"
-	"github.com/hiiamtrong/imap-bot-go/internal/config"
-	"github.com/hiiamtrong/imap-bot-go/internal/database"
-	"github.com/hiiamtrong/imap-bot-go/internal/models"
-	"github.com/hiiamtrong/imap-bot-go/internal/parser"
-	"github.com/hiiamtrong/imap-bot-go/internal/repository"
-	"github.com/hiiamtrong/imap-bot-go/internal/vietqr"
-	"github.com/hiiamtrong/imap-bot-go/pkg/regexpkg"
-	"github.com/hiiamtrong/imap-bot-go/pkg/s3pkg"
-	"github.com/hiiamtrong/imap-bot-go/pkg/smtppkg"
+	"github.com/hiiamtrong/go-imap-bot/internal/config"
+	"github.com/hiiamtrong/go-imap-bot/internal/database"
+	"github.com/hiiamtrong/go-imap-bot/internal/imapbot"
+	"github.com/hiiamtrong/go-imap-bot/internal/models"
+	"github.com/hiiamtrong/go-imap-bot/internal/parser"
+	"github.com/hiiamtrong/go-imap-bot/internal/repository"
+	"github.com/hiiamtrong/go-imap-bot/internal/s3"
+	"github.com/hiiamtrong/go-imap-bot/internal/smtp"
+	"github.com/hiiamtrong/go-imap-bot/internal/vietqr"
+	"github.com/hiiamtrong/go-imap-bot/pkg/regexpkg"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -35,14 +35,14 @@ func main() {
 	}
 	defer db.Conn.Close()
 
-	s3Service, err := s3pkg.NewS3Service(cfg)
+	s3Service, err := s3.NewS3Service(cfg)
 	if err != nil {
 		log.Fatalf("Failed to get S3 service: %v", err)
 	}
 
 	vietQR := vietqr.NewVietQRService(cfg, s3Service)
 
-	smtp, err := smtppkg.NewSMTPService(cfg, vietQR)
+	smtp, err := smtp.NewSMTPService(cfg, vietQR)
 	if err != nil {
 		log.Fatalf("Failed to get SMTP service: %v", err)
 	}
@@ -55,7 +55,7 @@ func main() {
 	transactionSplitRepo := repository.NewTransactionSplitRepository(db)
 	splitHashRepo := repository.NewSplitHashRepository(db)
 
-	botInjector := botpkg.NewBotInjector(
+	botInjector := imapbot.NewBotInjector(
 		db,
 		mailRepo,
 		transactionRepo,
@@ -66,7 +66,7 @@ func main() {
 		splitHashRepo,
 		smtp,
 	)
-	bot := botpkg.InitBot(cfg, context.Background(), botInjector)
+	bot := imapbot.InitBot(cfg, context.Background(), botInjector)
 
 	// Connect to the IMAP server using TLS
 	c, err := imapclient.DialTLS(cfg.MailConfig.Server, nil)
@@ -99,7 +99,7 @@ func main() {
 func runBot(
 	cfg *config.Config,
 	c *imapclient.Client,
-	bot *botpkg.Bot,
+	bot *imapbot.Bot,
 ) {
 	// Select the mailbox (e.g., INBOX)
 	_, err := c.Select(cfg.MailConfig.Mailbox, nil).Wait()
@@ -171,7 +171,7 @@ func searchEmails(c *imapclient.Client) []int64 {
 	return availableMails
 }
 
-func processEmails(c *imapclient.Client, bot *botpkg.Bot, cfg *config.Config, nonProcessedMails []int64) {
+func processEmails(c *imapclient.Client, bot *imapbot.Bot, cfg *config.Config, nonProcessedMails []int64) {
 	seqSet := imap.SeqSet{}
 	for _, mail := range nonProcessedMails {
 		seqSet.AddNum(uint32(mail))
@@ -199,7 +199,7 @@ func processEmails(c *imapclient.Client, bot *botpkg.Bot, cfg *config.Config, no
 	}
 }
 
-func processEmail(msg *imapclient.FetchMessageData, bot *botpkg.Bot) {
+func processEmail(msg *imapclient.FetchMessageData, bot *imapbot.Bot) {
 	var bodySection imapclient.FetchItemDataBodySection
 	ok := false
 	for {

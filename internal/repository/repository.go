@@ -3,7 +3,7 @@ package repository
 import (
 	"database/sql"
 
-	"github.com/hiiamtrong/imap-bot-go/internal/models"
+	"github.com/hiiamtrong/go-imap-bot/internal/models"
 )
 
 // Repository defines common transaction methods for all repositories

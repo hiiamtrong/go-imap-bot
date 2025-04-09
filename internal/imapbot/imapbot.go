@@ -1,4 +1,4 @@
-package botpkg
+package imapbot
 
 import (
 	"context"
@@ -12,9 +12,9 @@ import (
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"github.com/hiiamtrong/imap-bot-go/internal/config"
-	"github.com/hiiamtrong/imap-bot-go/internal/models"
-	"github.com/hiiamtrong/imap-bot-go/pkg/currencypkg"
+	"github.com/hiiamtrong/go-imap-bot/internal/config"
+	"github.com/hiiamtrong/go-imap-bot/internal/models"
+	"github.com/hiiamtrong/go-imap-bot/pkg/currencypkg"
 )
 
 type Bot struct {

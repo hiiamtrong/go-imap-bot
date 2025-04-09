@@ -1,4 +1,4 @@
-package s3pkg
+package s3
 
 import (
 	"bytes"
@@ -11,7 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	appconfig "github.com/hiiamtrong/imap-bot-go/internal/config"
+	appconfig "github.com/hiiamtrong/go-imap-bot/internal/config"
 )
 
 type S3Service struct {

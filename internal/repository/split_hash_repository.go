@@ -7,7 +7,7 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/hiiamtrong/imap-bot-go/internal/database"
+	"github.com/hiiamtrong/go-imap-bot/internal/database"
 )
 
 type SplitHashRepository struct {

@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hiiamtrong/imap-bot-go/internal/database"
-	"github.com/hiiamtrong/imap-bot-go/internal/models"
+	"github.com/hiiamtrong/go-imap-bot/internal/database"
+	"github.com/hiiamtrong/go-imap-bot/internal/models"
 )
 
 type TransactionSplitRepository struct {
