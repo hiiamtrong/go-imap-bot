@@ -12,7 +12,7 @@ import (
 	"github.com/hiiamtrong/imap-bot-go/internal/config"
 	"github.com/hiiamtrong/imap-bot-go/internal/models"
 	"github.com/hiiamtrong/imap-bot-go/internal/vietqr"
-	"github.com/hiiamtrong/imap-bot-go/pkg/currency"
+	"github.com/hiiamtrong/imap-bot-go/pkg/currencypkg"
 )
 
 //go:embed templates/split_bill.html
@@ -81,10 +81,10 @@ func (s *SMTPService) SendBulkSplitReminders(user *models.User, splits []*models
 	totalAmount := int64(0)
 	for i, split := range splits {
 		splitData[i] = SplitData{
-			Amount:          currency.FormatCurrency(float64(split.Amount)),
+			Amount:          currencypkg.FormatCurrency(float64(split.Amount)),
 			Reason:          split.Reason,
 			CreatedAt:       split.BillCreatedAt.Format("02/01/2006 15:04:05"),
-			TotalBillAmount: currency.FormatCurrency(float64(split.TotalBillAmount)),
+			TotalBillAmount: currencypkg.FormatCurrency(float64(split.TotalBillAmount)),
 		}
 		totalAmount += split.Amount
 	}
@@ -96,7 +96,7 @@ func (s *SMTPService) SendBulkSplitReminders(user *models.User, splits []*models
 
 	data := BulkEmailData{
 		FromUser:    fromUser,
-		TotalAmount: currency.FormatCurrency(float64(totalAmount)),
+		TotalAmount: currencypkg.FormatCurrency(float64(totalAmount)),
 		Splits:      splitData,
 		CreatedAt:   time.Now().Format("02/01/2006 15:04:05"),
 		QRCode:      qrCode,

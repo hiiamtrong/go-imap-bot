@@ -14,7 +14,7 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/hiiamtrong/imap-bot-go/internal/config"
 	"github.com/hiiamtrong/imap-bot-go/internal/models"
-	"github.com/hiiamtrong/imap-bot-go/pkg/currency"
+	"github.com/hiiamtrong/imap-bot-go/pkg/currencypkg"
 )
 
 type Bot struct {
@@ -199,7 +199,7 @@ func (b *Bot) handleUpdates(ctx context.Context) {
 					delete(b.pendingActions, replyToID)
 
 				case "split_amount":
-					amount, err := currency.ParseCurrency(update.Message.Text)
+					amount, err := currencypkg.ParseCurrency(update.Message.Text)
 					if err != nil {
 						b.SendMessage(update.Message.Chat.ID, "Số tiền không hợp lệ. Vui lòng thử lại.")
 						continue
@@ -285,7 +285,7 @@ func (b *Bot) handleUpdates(ctx context.Context) {
 						message.WriteString(fmt.Sprintf(
 							"- %s: %s\n",
 							user.Name,
-							currency.FormatCurrency(float64(split.Amount)),
+							currencypkg.FormatCurrency(float64(split.Amount)),
 						))
 					}
 
@@ -548,7 +548,7 @@ func (b *Bot) handleSplitBill(chatID int64, transactionID int64) {
 	}
 
 	// Format amount for display
-	formattedAmount := currency.FormatCurrency(math.Abs(float64(transaction.Amount)))
+	formattedAmount := currencypkg.FormatCurrency(math.Abs(float64(transaction.Amount)))
 
 	// Build split summary
 	var splitSummary strings.Builder
@@ -581,13 +581,13 @@ func (b *Bot) handleSplitBill(chatID int64, transactionID int64) {
 			}
 			splitSummary.WriteString(fmt.Sprintf("- %s: %s\n",
 				user.Name,
-				currency.FormatCurrency(float64(split.Amount)),
+				currencypkg.FormatCurrency(float64(split.Amount)),
 			))
 			totalSplit += split.Amount
 		}
-		splitSummary.WriteString(fmt.Sprintf("\nTổng đã chia: %s", currency.FormatCurrency(float64(totalSplit))))
+		splitSummary.WriteString(fmt.Sprintf("\nTổng đã chia: %s", currencypkg.FormatCurrency(float64(totalSplit))))
 		if totalSplit < transaction.Amount {
-			splitSummary.WriteString(fmt.Sprintf("\nCòn lại: %s", currency.FormatCurrency(float64(transaction.Amount-totalSplit))))
+			splitSummary.WriteString(fmt.Sprintf("\nCòn lại: %s", currencypkg.FormatCurrency(float64(transaction.Amount-totalSplit))))
 		}
 	}
 
@@ -933,8 +933,8 @@ func formatNewTransactionMessage(t *models.Transaction) string {
 		amountType = "Giảm"
 	}
 
-	formattedAmount := currency.FormatCurrency(math.Abs(float64(t.Amount)))
-	formattedBalance := currency.FormatCurrency(math.Abs(float64(t.CurrentBalance)))
+	formattedAmount := currencypkg.FormatCurrency(math.Abs(float64(t.Amount)))
+	formattedBalance := currencypkg.FormatCurrency(math.Abs(float64(t.CurrentBalance)))
 
 	// Load Asia/Ho_Chi_Minh location
 	location, _ := time.LoadLocation("Asia/Ho_Chi_Minh")
@@ -962,8 +962,8 @@ func formatTransactionMessage(t *models.Transaction, tagsText string) string {
 		amountType = "Giảm"
 	}
 
-	formattedAmount := currency.FormatCurrency(math.Abs(float64(t.Amount)))
-	formattedBalance := currency.FormatCurrency(math.Abs(float64(t.CurrentBalance)))
+	formattedAmount := currencypkg.FormatCurrency(math.Abs(float64(t.Amount)))
+	formattedBalance := currencypkg.FormatCurrency(math.Abs(float64(t.CurrentBalance)))
 
 	location, _ := time.LoadLocation("Asia/Ho_Chi_Minh")
 
@@ -1109,8 +1109,8 @@ func (b *Bot) handleConfirmSplit(chatID int64, transactionID int64) {
 		b.SendMessage(chatID, fmt.Sprintf(
 			"⚠️ Tổng số tiền chia (%s) không khớp với số tiền giao dịch (%s).\n"+
 				"Vui lòng kiểm tra lại.",
-			currency.FormatCurrency(float64(totalSplit)),
-			currency.FormatCurrency(float64(transaction.Amount)),
+			currencypkg.FormatCurrency(float64(totalSplit)),
+			currencypkg.FormatCurrency(float64(transaction.Amount)),
 		))
 		return
 	}
@@ -1179,7 +1179,7 @@ func (b *Bot) handleSplitEqually(chatID int64, transactionID int64) {
 	keyboard := tgbotapi.NewInlineKeyboardMarkup(rows...)
 
 	// Format amount for display
-	formattedAmount := currency.FormatCurrency(math.Abs(float64(transaction.Amount)))
+	formattedAmount := currencypkg.FormatCurrency(math.Abs(float64(transaction.Amount)))
 
 	// Send message with user selection buttons
 	msg := tgbotapi.NewMessage(chatID, fmt.Sprintf(
@@ -1445,7 +1445,7 @@ func (b *Bot) handleRemindCommand(chatID int64) {
 			user.Name,
 			user.Email,
 			len(splits),
-			currency.FormatCurrency(float64(userAmount)),
+			currencypkg.FormatCurrency(float64(userAmount)),
 			whitelisted,
 		))
 	}
@@ -1458,7 +1458,7 @@ func (b *Bot) handleRemindCommand(chatID int64) {
 			"Tổng tiền: %s\n",
 		len(userIDs),
 		totalBills,
-		currency.FormatCurrency(float64(totalAmount)),
+		currencypkg.FormatCurrency(float64(totalAmount)),
 	))
 
 	// If user is whitelisted, don't send reminder
@@ -1572,7 +1572,7 @@ func (b *Bot) handleAddBill(chatID int64) {
 
 func (b *Bot) handleAddBillAmount(chatID int64, amountStr string) {
 	// Parse amount
-	amount, err := currency.ParseCurrency(amountStr)
+	amount, err := currencypkg.ParseCurrency(amountStr)
 	if err != nil {
 		b.SendMessage(chatID, "Số tiền không hợp lệ. Vui lòng thử lại.")
 		return
@@ -1601,7 +1601,7 @@ func (b *Bot) handleAddBillAmount(chatID int64, amountStr string) {
 	// Send success message and show transaction view
 	b.SendMessage(chatID, fmt.Sprintf("✅ Đã tạo bill mới #%d với số tiền %s",
 		transaction.ID,
-		currency.FormatCurrency(float64(transaction.Amount))))
+		currencypkg.FormatCurrency(float64(transaction.Amount))))
 
 	// Show transaction view with options
 	b.handleBackToTransaction(chatID, transaction.ID)
@@ -1700,7 +1700,7 @@ func (b *Bot) handleDoneBillManual(chatID int64) {
 				"Số tiền: %s\n\n",
 			user.Name,
 			user.Email,
-			currency.FormatCurrency(float64(userAmount)),
+			currencypkg.FormatCurrency(float64(userAmount)),
 		))
 	}
 

@@ -1,4 +1,4 @@
-package currency
+package currencypkg
 
 import (
 	"fmt"
