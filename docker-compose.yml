@@ -7,7 +7,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: imap-bot
-    restart: unless-stopped
+    restart: always
     environment:
       - MAIL_SERVER=${MAIL_SERVER:-imap.gmail.com:993}
       - MAIL_USERNAME=${MAIL_USERNAME}

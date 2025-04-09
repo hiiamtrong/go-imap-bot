@@ -25,7 +25,8 @@ CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         email TEXT UNIQUE NOT NULL,
         name TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        is_whitelisted BOOLEAN DEFAULT FALSE
 );
 
 CREATE TABLE IF NOT EXISTS transaction_splits (

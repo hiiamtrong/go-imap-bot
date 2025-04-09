@@ -75,6 +75,14 @@ func InitBot(cfg *config.Config, ctx context.Context, injector *BotInjector) *Bo
 			Command:     "remind",
 			Description: "Gửi email nhắc nhở thanh toán",
 		},
+		{
+			Command:     "addbill",
+			Description: "Thêm bill mới",
+		},
+		{
+			Command:     "donebillmanual",
+			Description: "Hoàn tất bill thủ công",
+		},
 	}
 
 	// Set bot commands
@@ -290,6 +298,11 @@ func (b *Bot) handleUpdates(ctx context.Context) {
 
 					// Return to transaction view
 					b.handleBackToTransaction(update.Message.Chat.ID, action.TransactionID)
+
+				case "add_bill_amount":
+					amount := update.Message.Text
+					b.handleAddBillAmount(update.Message.Chat.ID, amount)
+					delete(b.pendingActions, replyToID)
 				}
 			}
 		}
@@ -313,6 +326,32 @@ func (b *Bot) handleCallbackQuery(callback *tgbotapi.CallbackQuery) {
 	// Parse the callback data
 	parts := strings.Split(callback.Data, ":")
 	action := parts[0]
+
+	// Handle menu actions that don't require transaction ID
+	switch action {
+	case "recent_transactions":
+		b.handleTransactionsCommand(callback.Message.Chat.ID)
+		return
+	case "statistics":
+		b.handleStatistics(callback.Message.Chat.ID)
+		return
+	case "settings":
+		b.handleSettings(callback.Message.Chat.ID)
+		return
+	case "select_done_user":
+		if len(parts) < 2 {
+			return
+		}
+		userID, _ := strconv.ParseInt(parts[1], 10, 64)
+		b.handleSelectDoneUser(callback.Message.Chat.ID, userID)
+		return
+	case "confirm_done_users":
+		b.handleConfirmDoneUsers(callback.Message.Chat.ID)
+		return
+	case "cancel_done_users":
+		b.handleCancelDoneUsers(callback.Message.Chat.ID)
+		return
+	}
 
 	// For actions that require transaction ID, ensure we have enough parts
 	if len(parts) < 2 {
@@ -339,19 +378,6 @@ func (b *Bot) handleCallbackQuery(callback *tgbotapi.CallbackQuery) {
 	// Answer the callback query to remove the loading indicator
 	callbackConfig := tgbotapi.NewCallback(callback.ID, "")
 	b.TelegramBot.Request(callbackConfig)
-
-	// Handle menu actions that don't require transaction ID
-	switch action {
-	case "recent_transactions":
-		b.handleTransactionsCommand(callback.Message.Chat.ID)
-		return
-	case "statistics":
-		b.handleStatistics(callback.Message.Chat.ID)
-		return
-	case "settings":
-		b.handleSettings(callback.Message.Chat.ID)
-		return
-	}
 
 	// Handle transaction-specific actions
 	switch action {
@@ -787,8 +813,12 @@ func (b *Bot) handleCommand(message *tgbotapi.Message) {
 		b.handleAddUser(message.Chat.ID, nil)
 	case "addtag":
 		b.handleAddGlobalTag(message.Chat.ID)
+	case "addbill":
+		b.handleAddBill(message.Chat.ID)
 	case "remind":
 		b.handleRemindCommand(message.Chat.ID)
+	case "donebillmanual":
+		b.handleDoneBillManual(message.Chat.ID)
 	}
 }
 
@@ -1382,6 +1412,8 @@ func (b *Bot) handleRemindCommand(chatID int64) {
 	var totalAmount int64
 	var totalBills int
 
+	needSendReminder := make([]int64, 0, len(userIDs))
+
 	for _, userID := range userIDs {
 		user, ok := userMap[userID]
 		if !ok {
@@ -1398,16 +1430,23 @@ func (b *Bot) handleRemindCommand(chatID int64) {
 		}
 		totalAmount += userAmount
 
+		whitelisted := "🟢"
+		if !user.IsWhitelisted {
+			whitelisted = "🔴"
+			needSendReminder = append(needSendReminder, userID)
+		}
 		// Add user preview to message
 		preview.WriteString(fmt.Sprintf(
 			"*%s*\n"+
 				"Email: %s\n"+
 				"Số lượng bill: %d\n"+
-				"Tổng tiền: %s\n\n",
+				"Tổng tiền: %s\n"+
+				"Trạng thái: %s\n\n",
 			user.Name,
 			user.Email,
 			len(splits),
 			currency.FormatCurrency(float64(userAmount)),
+			whitelisted,
 		))
 	}
 
@@ -1422,8 +1461,9 @@ func (b *Bot) handleRemindCommand(chatID int64) {
 		currency.FormatCurrency(float64(totalAmount)),
 	))
 
+	// If user is whitelisted, don't send reminder
 	// Create keyboard with normal and angry send buttons
-	userIDsStr := strings.Join(strings.Fields(fmt.Sprint(userIDs)), ",")
+	userIDsStr := strings.Join(strings.Fields(fmt.Sprint(needSendReminder)), ",")
 	keyboard := tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData(
@@ -1509,4 +1549,313 @@ func (b *Bot) sendReminderToUser(chatID int64, userID int64, mode string) error 
 	}
 	b.SendMessage(chatID, fmt.Sprintf("✅ Đã gửi email nhắc nhở (%s) cho %s", modeText, user.Name))
 	return nil
+}
+
+func (b *Bot) handleAddBill(chatID int64) {
+	// Send message asking for amount
+	msg := tgbotapi.NewMessage(chatID, "Nhập số tiền cho bill mới:\n(Ví dụ: 100,000 hoặc 100000)\nHoặc gửi /cancel để hủy")
+	msg.ReplyMarkup = tgbotapi.ForceReply{
+		ForceReply: true,
+		Selective:  true,
+	}
+	sent, err := b.Send(msg)
+	if err != nil {
+		log.Printf("Error sending message: %v", err)
+		return
+	}
+
+	// Store pending action
+	b.pendingActions[sent.MessageID] = PendingAction{
+		Type: "add_bill_amount",
+	}
+}
+
+func (b *Bot) handleAddBillAmount(chatID int64, amountStr string) {
+	// Parse amount
+	amount, err := currency.ParseCurrency(amountStr)
+	if err != nil {
+		b.SendMessage(chatID, "Số tiền không hợp lệ. Vui lòng thử lại.")
+		return
+	}
+
+	// Create virtual transaction
+	transaction := &models.Transaction{
+		Amount:         int64(amount),
+		CurrentBalance: 0, // Virtual transaction doesn't have balance
+		Description:    "Bill ảo",
+		Type:           string(models.TransactionTypeSubtract),
+		Timestamp:      time.Now(),
+		CreatedAt:      time.Now(),
+		From:           "Virtual Bill",
+		To:             "Virtual Bill",
+	}
+
+	// Create transaction in database
+	err = b.BotInjector.TransactionRepository.Create(transaction)
+	if err != nil {
+		log.Printf("Error creating virtual transaction: %v", err)
+		b.SendMessage(chatID, "Không thể tạo bill mới. Vui lòng thử lại.")
+		return
+	}
+
+	// Send success message and show transaction view
+	b.SendMessage(chatID, fmt.Sprintf("✅ Đã tạo bill mới #%d với số tiền %s",
+		transaction.ID,
+		currency.FormatCurrency(float64(transaction.Amount))))
+
+	// Show transaction view with options
+	b.handleBackToTransaction(chatID, transaction.ID)
+}
+
+func (b *Bot) handleDoneBillManual(chatID int64) {
+	// Get all pending splits
+	splits, err := b.BotInjector.TransactionSplitRepository.GetPendingSplits()
+	if err != nil {
+		log.Printf("Error getting pending splits: %v", err)
+		b.SendMessage(chatID, "❌ Có lỗi xảy ra khi lấy thông tin chia bill.")
+		return
+	}
+
+	if len(splits) == 0 {
+		b.SendMessage(chatID, "✅ Không có khoản thanh toán nào cần hoàn thành.")
+		return
+	}
+
+	// Group splits by transaction
+	transactionSplits := make(map[int64][]*models.TransactionSplit)
+	for _, split := range splits {
+		transactionSplits[split.TransactionID] = append(transactionSplits[split.TransactionID], split)
+	}
+
+	// Get all unique user IDs from splits
+	userIDs := make(map[int64]bool)
+	for _, split := range splits {
+		userIDs[split.UserID] = true
+	}
+
+	// Convert map to slice
+	uniqueUserIDs := make([]int64, 0, len(userIDs))
+	for userID := range userIDs {
+		uniqueUserIDs = append(uniqueUserIDs, userID)
+	}
+
+	// Get user details
+	users, err := b.BotInjector.UserRepository.GetInIDs(uniqueUserIDs)
+	if err != nil {
+		log.Printf("Error getting users: %v", err)
+		b.SendMessage(chatID, "❌ Có lỗi xảy ra khi lấy thông tin người dùng.")
+		return
+	}
+
+	// Create user map for easy lookup
+	userMap := make(map[int64]*models.User)
+	for _, user := range users {
+		userMap[user.ID] = user
+	}
+
+	// Create keyboard with user selection buttons
+	var rows [][]tgbotapi.InlineKeyboardButton
+	var currentRow []tgbotapi.InlineKeyboardButton
+
+	// Add users in rows of max 3
+	for i, user := range users {
+		currentRow = append(currentRow, tgbotapi.NewInlineKeyboardButtonData(
+			"☐ "+user.Name,
+			fmt.Sprintf("select_done_user:%d", user.ID),
+		))
+
+		// Add row when we have 3 users or it's the last user
+		if len(currentRow) == 3 || i == len(users)-1 {
+			rows = append(rows, currentRow)
+			currentRow = []tgbotapi.InlineKeyboardButton{}
+		}
+	}
+
+	// Add "Confirm" and "Cancel" buttons at the bottom
+	rows = append(rows, tgbotapi.NewInlineKeyboardRow(
+		tgbotapi.NewInlineKeyboardButtonData("✅ Xác nhận", "confirm_done_users"),
+	))
+	rows = append(rows, tgbotapi.NewInlineKeyboardRow(
+		tgbotapi.NewInlineKeyboardButtonData("❌ Hủy", "cancel_done_users"),
+	))
+
+	keyboard := tgbotapi.NewInlineKeyboardMarkup(rows...)
+
+	// Build preview message
+	var preview strings.Builder
+	preview.WriteString("💰 *Chọn người đã thanh toán*\n\n")
+
+	for _, user := range users {
+		// Calculate user's total pending amount
+		var userAmount int64
+		for _, split := range splits {
+			if split.UserID == user.ID {
+				userAmount += split.Amount
+			}
+		}
+
+		preview.WriteString(fmt.Sprintf(
+			"*%s*\n"+
+				"Email: %s\n"+
+				"Số tiền: %s\n\n",
+			user.Name,
+			user.Email,
+			currency.FormatCurrency(float64(userAmount)),
+		))
+	}
+
+	msg := tgbotapi.NewMessage(chatID, preview.String())
+	msg.ReplyMarkup = keyboard
+	b.Send(msg)
+}
+
+func (b *Bot) handleSelectDoneUser(chatID int64, userID int64) {
+	// Initialize the map for selected users if it doesn't exist
+	if _, exists := b.selectedUsers[0]; !exists {
+		b.selectedUsers[0] = make(map[int64]bool)
+	}
+
+	// Toggle the selection
+	b.selectedUsers[0][userID] = !b.selectedUsers[0][userID]
+
+	splits, err := b.BotInjector.TransactionSplitRepository.GetPendingSplits()
+	if err != nil {
+		log.Printf("Error getting pending splits: %v", err)
+		b.SendMessage(chatID, "❌ Có lỗi xảy ra khi lấy thông tin chia bill.")
+		return
+	}
+
+	uniqueUserIDs := make(map[int64]bool)
+	for _, split := range splits {
+		uniqueUserIDs[split.UserID] = true
+	}
+
+	uniqueUserIDsSlice := make([]int64, 0, len(uniqueUserIDs))
+	for userID := range uniqueUserIDs {
+		uniqueUserIDsSlice = append(uniqueUserIDsSlice, userID)
+	}
+
+	// Get all users to rebuild the keyboard
+	users, err := b.BotInjector.UserRepository.GetInIDs(uniqueUserIDsSlice)
+	if err != nil {
+		log.Printf("Error getting users: %v", err)
+		b.SendMessage(chatID, "❌ Có lỗi xảy ra khi lấy thông tin người dùng.")
+		return
+	}
+
+	// Create keyboard with user selection buttons
+	var rows [][]tgbotapi.InlineKeyboardButton
+	var currentRow []tgbotapi.InlineKeyboardButton
+
+	// Add users in rows of max 3
+	for i, user := range users {
+		prefix := "☐"
+		if b.selectedUsers[0][user.ID] {
+			prefix = "☑"
+		}
+
+		currentRow = append(currentRow, tgbotapi.NewInlineKeyboardButtonData(
+			prefix+" "+user.Name,
+			fmt.Sprintf("select_done_user:%d", user.ID),
+		))
+
+		// Add row when we have 3 users or it's the last user
+		if len(currentRow) == 3 || i == len(users)-1 {
+			rows = append(rows, currentRow)
+			currentRow = []tgbotapi.InlineKeyboardButton{}
+		}
+	}
+
+	// Add "Confirm" and "Cancel" buttons at the bottom
+	rows = append(rows, tgbotapi.NewInlineKeyboardRow(
+		tgbotapi.NewInlineKeyboardButtonData("✅ Xác nhận", "confirm_done_users"),
+	))
+	rows = append(rows, tgbotapi.NewInlineKeyboardRow(
+		tgbotapi.NewInlineKeyboardButtonData("❌ Hủy", "cancel_done_users"),
+	))
+
+	keyboard := tgbotapi.NewInlineKeyboardMarkup(rows...)
+
+	// Update the message with the new keyboard
+	edit := tgbotapi.NewEditMessageReplyMarkup(chatID, b.lastMessageID, keyboard)
+	_, err = b.Send(edit)
+	if err != nil {
+		log.Printf("Error updating message: %v", err)
+	}
+}
+
+func (b *Bot) handleConfirmDoneUsers(chatID int64) {
+	// Get selected users
+	selectedUsers := b.selectedUsers[0]
+	if len(selectedUsers) == 0 {
+		b.SendMessage(chatID, "⚠️ Vui lòng chọn ít nhất một người đã thanh toán.")
+		return
+	}
+	// Get all pending splits
+	splits, err := b.BotInjector.TransactionSplitRepository.GetPendingSplits()
+	if err != nil {
+		log.Printf("Error getting pending splits: %v", err)
+		b.SendMessage(chatID, "❌ Có lỗi xảy ra khi lấy thông tin chia bill.")
+		return
+	}
+	// Mark splits as completed for selected users
+	splitsShouldUpdate := make([]int64, 0)
+	for _, split := range splits {
+		if selectedUsers[split.UserID] {
+			splitsShouldUpdate = append(splitsShouldUpdate, split.ID)
+		}
+	}
+	tx, err := b.BotInjector.Database.BeginTx(context.Background())
+	if err != nil {
+		log.Printf("Error beginning transaction: %v", err)
+		b.SendMessage(chatID, "❌ Có lỗi xảy ra khi cập nhật trạng thái thanh toán.")
+		return
+	}
+	defer tx.Rollback()
+
+	err = b.BotInjector.TransactionSplitRepository.UpdateSplitStatus(splitsShouldUpdate, tx)
+	if err != nil {
+		log.Printf("Error updating split status: %v", err)
+		b.SendMessage(chatID, "❌ Có lỗi xảy ra khi cập nhật trạng thái thanh toán.")
+		return
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		log.Printf("Error committing transaction: %v", err)
+		b.SendMessage(chatID, "❌ Có lỗi xảy ra khi cập nhật trạng thái thanh toán.")
+		return
+	}
+
+	// Get user details for the success message
+	userIDs := make([]int64, 0, len(selectedUsers))
+	for userID := range selectedUsers {
+		userIDs = append(userIDs, userID)
+	}
+
+	users, err := b.BotInjector.UserRepository.GetInIDs(userIDs)
+	if err != nil {
+		log.Printf("Error getting users: %v", err)
+		b.SendMessage(chatID, "✅ Đã cập nhật trạng thái thanh toán.")
+		return
+	}
+
+	// Build success message
+	var message strings.Builder
+	message.WriteString("✅ Đã cập nhật trạng thái thanh toán cho:\n\n")
+
+	for _, user := range users {
+		message.WriteString(fmt.Sprintf("- %s (%s)\n", user.Name, user.Email))
+	}
+
+	b.SendMessage(chatID, message.String())
+
+	// Clean up the selected users map
+	delete(b.selectedUsers, 0)
+}
+
+func (b *Bot) handleCancelDoneUsers(chatID int64) {
+	// Clean up the selected users map
+	delete(b.selectedUsers, 0)
+	b.SendMessage(chatID, "❌ Đã hủy thao tác cập nhật trạng thái thanh toán.")
 }

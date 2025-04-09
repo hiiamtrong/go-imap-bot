@@ -165,7 +165,7 @@ func (r *TransactionRepository) GetByID(id int64) (*models.Transaction, error) {
 	row := r.db.Conn.QueryRow(query, id)
 
 	t := &models.Transaction{}
-	var timestampUnix int64
+	var timestampStr string
 	var createdAtStr string
 
 	err := row.Scan(
@@ -177,15 +177,23 @@ func (r *TransactionRepository) GetByID(id int64) (*models.Transaction, error) {
 		&t.From,
 		&t.To,
 		&t.Description,
-		&timestampUnix,
+		&timestampStr,
 		&createdAtStr,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to scan transaction: %v", err)
 	}
 
-	// Convert Unix timestamp to time.Time
-	t.Timestamp = time.Unix(timestampUnix, 0)
+	// Parse the timestamp string
+	timestamp, err := time.Parse("2006-01-02 15:04:05-07:00", timestampStr)
+	if err != nil {
+		// Try alternative format if the first one fails
+		timestamp, err = time.Parse(time.RFC3339, timestampStr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse timestamp: %v", err)
+		}
+	}
+	t.Timestamp = timestamp
 
 	// Parse the created_at string - try both formats
 	createdAt, err := time.Parse(time.RFC3339, createdAtStr)
@@ -344,7 +352,7 @@ func (r *TransactionRepository) GetRecentTransactions(ctx context.Context, limit
 	var transactions []*models.Transaction
 	for rows.Next() {
 		t := &models.Transaction{}
-		var timestampUnix int64
+		var timestampStr string
 		err := rows.Scan(
 			&t.ID,
 			&t.MailID,
@@ -354,13 +362,24 @@ func (r *TransactionRepository) GetRecentTransactions(ctx context.Context, limit
 			&t.From,
 			&t.To,
 			&t.Description,
-			&timestampUnix,
+			&timestampStr,
 			&t.CreatedAt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan transaction: %v", err)
 		}
-		t.Timestamp = time.Unix(timestampUnix, 0)
+
+		// Parse the timestamp string
+		timestamp, err := time.Parse("2006-01-02 15:04:05-07:00", timestampStr)
+		if err != nil {
+			// Try alternative format if the first one fails
+			timestamp, err = time.Parse(time.RFC3339, timestampStr)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse timestamp: %v", err)
+			}
+		}
+		t.Timestamp = timestamp
+
 		transactions = append(transactions, t)
 	}
 

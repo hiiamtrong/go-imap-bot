@@ -322,7 +322,7 @@ func processEmail(msg *imapclient.FetchMessageData, bot *botpkg.Bot) {
 				transaction.From,
 				transaction.To,
 				transaction.Description,
-				transaction.Timestamp.Unix(),
+				transaction.Timestamp,
 				time.Now(),
 			)
 			if err != nil {

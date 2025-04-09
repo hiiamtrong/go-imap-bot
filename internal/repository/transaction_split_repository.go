@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -240,7 +241,7 @@ func (r *TransactionSplitRepository) GetPendingSplitsByUserID(userID int64) ([]*
 
 	var splits []*models.TransactionSplit
 	for rows.Next() {
-		var billCreatedAt int64
+		var billCreatedAtStr string
 		split := &models.TransactionSplit{}
 		err := rows.Scan(
 			&split.ID,
@@ -250,12 +251,27 @@ func (r *TransactionSplitRepository) GetPendingSplitsByUserID(userID int64) ([]*
 			&split.Reason,
 			&split.CreatedAt,
 			&split.TotalBillAmount,
-			&billCreatedAt,
+			&billCreatedAtStr,
 		)
 		if err != nil {
 			return nil, err
 		}
-		split.BillCreatedAt = time.Unix(billCreatedAt, 0)
+
+		// Try to parse as Unix timestamp first
+		if timestamp, err := strconv.ParseInt(billCreatedAtStr, 10, 64); err == nil {
+			split.BillCreatedAt = time.Unix(timestamp, 0)
+		} else {
+			// If not a Unix timestamp, try parsing as formatted time string
+			billCreatedAt, err := time.Parse("2006-01-02 15:04:05-07:00", billCreatedAtStr)
+			if err != nil {
+				// Try alternative format if first parse fails
+				billCreatedAt, err = time.Parse(time.RFC3339, billCreatedAtStr)
+				if err != nil {
+					return nil, fmt.Errorf("failed to parse timestamp: %v", err)
+				}
+			}
+			split.BillCreatedAt = billCreatedAt
+		}
 		splits = append(splits, split)
 	}
 

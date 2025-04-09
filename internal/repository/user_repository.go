@@ -78,9 +78,9 @@ func (r *UserRepository) CreateTx(tx *sql.Tx, user *models.User) error {
 }
 
 func (r *UserRepository) GetByID(id int64) (*models.User, error) {
-	query := `SELECT id, name, email FROM users WHERE id = ?`
+	query := `SELECT id, name, email, is_whitelisted FROM users WHERE id = ?`
 	user := &models.User{}
-	err := r.db.Conn.QueryRow(query, id).Scan(&user.ID, &user.Name, &user.Email)
+	err := r.db.Conn.QueryRow(query, id).Scan(&user.ID, &user.Name, &user.Email, &user.IsWhitelisted	)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +88,7 @@ func (r *UserRepository) GetByID(id int64) (*models.User, error) {
 }
 
 func (r *UserRepository) GetAll() ([]*models.User, error) {
-	query := `SELECT id, name, email FROM users`
+	query := `SELECT id, name, email, is_whitelisted FROM users`
 	rows, err := r.db.Conn.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query users: %v", err)
@@ -98,7 +98,7 @@ func (r *UserRepository) GetAll() ([]*models.User, error) {
 	users := []*models.User{}
 	for rows.Next() {
 		var user models.User
-		if err := rows.Scan(&user.ID, &user.Name, &user.Email); err != nil {
+		if err := rows.Scan(&user.ID, &user.Name, &user.Email, &user.IsWhitelisted); err != nil {
 			return nil, fmt.Errorf("failed to scan user: %v", err)
 		}
 		users = append(users, &user)
@@ -121,7 +121,7 @@ func (r *UserRepository) GetInIDs(ids []int64) ([]*models.User, error) {
 
 	// Build the query with the correct number of placeholders
 	query := fmt.Sprintf(
-		"SELECT id, name, email FROM users WHERE id IN (%s)",
+		"SELECT id, name, email, is_whitelisted FROM users WHERE id IN (%s)",
 		strings.Join(placeholders, ","),
 	)
 
@@ -135,7 +135,7 @@ func (r *UserRepository) GetInIDs(ids []int64) ([]*models.User, error) {
 	users := []*models.User{}
 	for rows.Next() {
 		var user models.User
-		if err := rows.Scan(&user.ID, &user.Name, &user.Email); err != nil {
+		if err := rows.Scan(&user.ID, &user.Name, &user.Email, &user.IsWhitelisted); err != nil {
 			return nil, fmt.Errorf("failed to scan user: %v", err)
 		}
 		users = append(users, &user)
