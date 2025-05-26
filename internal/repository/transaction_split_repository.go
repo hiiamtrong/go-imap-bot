@@ -225,9 +225,10 @@ func (r *TransactionSplitRepository) GetPendingSplitsByUserID(userID int64) ([]*
 			ts.reason,
 			ts.created_at,
 			t.amount as total_bill_amount,
-			t.timestamp as bill_created_at
+			m.timestamp as bill_created_at
 		FROM transaction_splits ts
 		INNER JOIN transactions t ON t.id = ts.transaction_id
+		INNER JOIN mails m ON m.id = t.mail_id
 		WHERE ts.completed = 0
 		AND ts.user_id = ?
 		ORDER BY ts.created_at DESC
