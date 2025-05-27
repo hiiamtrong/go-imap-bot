@@ -1578,8 +1578,24 @@ func (b *Bot) handleAddBillAmount(chatID int64, amountStr string) {
 		return
 	}
 
+	mail := &models.Mail{
+		Subject: "Bill ảo",
+		From:    "Virtual Bill",
+		To:      "Virtual Bill",
+		Date:    time.Now(),
+		UID:     0,
+	}
+
+	err = b.BotInjector.MailRepository.Create(mail)
+	if err != nil {
+		log.Printf("Error creating virtual mail: %v", err)
+		b.SendMessage(chatID, "Không thể tạo bill mới. Vui lòng thử lại.")
+		return
+	}
+
 	// Create virtual transaction
 	transaction := &models.Transaction{
+		MailID:         mail.ID,
 		Amount:         int64(amount),
 		CurrentBalance: 0, // Virtual transaction doesn't have balance
 		Description:    "Bill ảo",
