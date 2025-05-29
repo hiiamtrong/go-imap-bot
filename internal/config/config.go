@@ -39,6 +39,7 @@ func NewConfig() *Config {
 
 		"DB_PATH",
 		"TELEGRAM_BOT_TOKEN",
+		"TELEGRAM_BOT_API_ENDPOINT",
 
 		"VIETQR_CLIENT_ID",
 		"VIETQR_API_KEY",
@@ -69,7 +70,8 @@ func NewConfig() *Config {
 			DatabasePath: viper.GetString("DB_PATH"),
 		},
 		TelegramBot: &TelegramBotConfig{
-			Token: viper.GetString("TELEGRAM_BOT_TOKEN"),
+			Token:       viper.GetString("TELEGRAM_BOT_TOKEN"),
+			APIEndpoint: viper.GetString("TELEGRAM_BOT_API_ENDPOINT"),
 		},
 		SMTP: &SMTPConfig{
 			Host: viper.GetString("MAIL_HOST"),

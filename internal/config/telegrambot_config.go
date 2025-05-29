@@ -1,5 +1,6 @@
 package config
 
 type TelegramBotConfig struct {
-	Token string
+	Token       string
+	APIEndpoint string
 }

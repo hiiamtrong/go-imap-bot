@@ -42,7 +42,7 @@ func InitBot(cfg *config.Config, ctx context.Context, injector *BotInjector) *Bo
 	}
 
 	// Initialize Telegram bot
-	telegramBot, err := tgbotapi.NewBotAPI(cfg.TelegramBot.Token)
+	telegramBot, err := tgbotapi.NewBotAPIWithAPIEndpoint(cfg.TelegramBot.Token, cfg.TelegramBot.APIEndpoint)
 	if err != nil {
 		log.Fatalf("Failed to initialize Telegram bot: %v", err)
 	}

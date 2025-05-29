@@ -56,6 +56,7 @@ go build -o go-imap-bot cmd/bot/main.go
 1. Create a `.env` file in the project root with the following variables:
 ```
 TELEGRAM_BOT_TOKEN=your_telegram_bot_token
+TELEGRAM_BOT_API_ENDPOINT=https://api.telegram.org/bot%s/%s
 IMAP_SERVER=imap.example.com
 IMAP_PORT=993
 IMAP_USERNAME=your_email@example.com

@@ -25,6 +25,7 @@ services:
       - DB_PATH=/app/data/mail.db
       - DB_DRIVER=sqlite3
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_BOT_API_ENDPOINT=${TELEGRAM_BOT_API_ENDPOINT}
       - TELEGRAM_BOT_CHAT_ID=${TELEGRAM_BOT_CHAT_ID}
       - AWS_PROFILE=${AWS_PROFILE:-imap-bot}
       - AWS_REGION=${AWS_REGION:-ap-southeast-1}
