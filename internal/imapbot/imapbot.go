@@ -3,7 +3,6 @@ package imapbot
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"log"
 	"math"
@@ -424,10 +423,17 @@ func (b *Bot) handleCallbackQuery(callback *tgbotapi.CallbackQuery) {
 			return
 		}
 		var userIDs []int64
-		err := json.Unmarshal([]byte(parts[1]), &userIDs)
-		if err != nil {
-			log.Printf("Error parsing userIDs: %v", err)
-			return
+		if parts[1] != "" {
+			userIDStrings := strings.Split(parts[1], ",")
+			userIDs = make([]int64, len(userIDStrings))
+			for i, userIDStr := range userIDStrings {
+				userID, err := strconv.ParseInt(userIDStr, 10, 64)
+				if err != nil {
+					log.Printf("Error parsing userID %s: %v", userIDStr, err)
+					return
+				}
+				userIDs[i] = userID
+			}
 		}
 
 		mode := "normal"
@@ -1463,7 +1469,15 @@ func (b *Bot) handleRemindCommand(chatID int64) {
 
 	// If user is whitelisted, don't send reminder
 	// Create keyboard with normal and angry send buttons
-	userIDsStr := strings.Join(strings.Fields(fmt.Sprint(needSendReminder)), ",")
+	userIDsStr := ""
+	if len(needSendReminder) > 0 {
+		userIDsStrSlice := make([]string, len(needSendReminder))
+		for i, userID := range needSendReminder {
+			userIDsStrSlice[i] = fmt.Sprintf("%d", userID)
+		}
+		userIDsStr = strings.Join(userIDsStrSlice, ",")
+	}
+
 	keyboard := tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData(
@@ -1481,7 +1495,13 @@ func (b *Bot) handleRemindCommand(chatID int64) {
 
 	msg := tgbotapi.NewMessage(chatID, preview.String())
 	msg.ReplyMarkup = keyboard
-	b.Send(msg)
+	fmt.Println("needSendReminder", needSendReminder)
+	_, err = b.Send(msg)
+	if err != nil {
+		log.Printf("Error sending message: %v", err)
+	}
+
+	b.SendMessage(chatID, "Đã gửi danh sách nhắc nhở.")
 }
 
 func (b *Bot) handleSendReminder(chatID int64, userIDs []int64, mode string) {

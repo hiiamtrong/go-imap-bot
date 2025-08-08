@@ -116,7 +116,7 @@ func (s *SMTPService) SendBulkSplitReminders(user *models.User, splits []*models
 
 	// Fix email headers format
 	headers := map[string]string{
-		"From":                      fmt.Sprintf("Bill Split Reminder <%s>", s.config.SMTP.From),
+		"From":                      fmt.Sprintf("Bill Split Reminder <%s> to <%s>", s.config.SMTP.From, user.Name),
 		"To":                        user.Email,
 		"Subject":                   "=?utf-8?B?" + base64.StdEncoding.EncodeToString([]byte("Tổng hợp các khoản cần thanh toán")) + "?=",
 		"MIME-Version":              "1.0",
