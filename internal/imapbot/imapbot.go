@@ -299,8 +299,12 @@ func (b *Bot) handleUpdates(ctx context.Context) {
 					b.handleBackToTransaction(update.Message.Chat.ID, action.TransactionID)
 
 				case "add_bill_amount":
-					amount := update.Message.Text
-					b.handleAddBillAmount(update.Message.Chat.ID, amount)
+					// Text must be `amount - description`
+					splits := strings.SplitN(update.Message.Text, "-", 2)
+					if len(splits) != 2 {
+						b.SendMessage(update.Message.Chat.ID, "Định dạng không hợp lệ. Vui lòng nhập theo định dạng:\nSố tiền - Mô tả\nVí dụ: 100000 - Tiền điện\nHoặc gửi /cancel để hủy")
+					}
+					b.handleAddBillAmount(update.Message.Chat.ID, splits[0], splits[1])
 					delete(b.pendingActions, replyToID)
 				}
 			}
@@ -1590,7 +1594,7 @@ func (b *Bot) handleAddBill(chatID int64) {
 	}
 }
 
-func (b *Bot) handleAddBillAmount(chatID int64, amountStr string) {
+func (b *Bot) handleAddBillAmount(chatID int64, amountStr string, descriptionStr string) {
 	// Parse amount
 	amount, err := currencypkg.ParseCurrency(amountStr)
 	if err != nil {
@@ -1599,7 +1603,7 @@ func (b *Bot) handleAddBillAmount(chatID int64, amountStr string) {
 	}
 
 	mail := &models.Mail{
-		Subject: "Bill ảo",
+		Subject: "Virtual Bill",
 		From:    "Virtual Bill",
 		To:      "Virtual Bill",
 		Date:    time.Now(),
@@ -1618,7 +1622,7 @@ func (b *Bot) handleAddBillAmount(chatID int64, amountStr string) {
 		MailID:         mail.ID,
 		Amount:         int64(amount),
 		CurrentBalance: 0, // Virtual transaction doesn't have balance
-		Description:    "Bill ảo",
+		Description:    descriptionStr,
 		Type:           string(models.TransactionTypeSubtract),
 		Timestamp:      time.Now(),
 		CreatedAt:      time.Now(),
