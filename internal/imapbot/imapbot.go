@@ -300,11 +300,12 @@ func (b *Bot) handleUpdates(ctx context.Context) {
 
 				case "add_bill_amount":
 					// Text must be `amount - description`
-					splits := strings.SplitN(update.Message.Text, "-", 2)
+					splits := strings.SplitN(update.Message.Text, " - ", 2)
 					if len(splits) != 2 {
 						b.SendMessage(update.Message.Chat.ID, "Định dạng không hợp lệ. Vui lòng nhập theo định dạng:\nSố tiền - Mô tả\nVí dụ: 100000 - Tiền điện\nHoặc gửi /cancel để hủy")
+						continue
 					}
-					b.handleAddBillAmount(update.Message.Chat.ID, splits[0], splits[1])
+					b.handleAddBillAmount(update.Message.Chat.ID, strings.TrimSpace(splits[0]), strings.TrimSpace(splits[1]))
 					delete(b.pendingActions, replyToID)
 				}
 			}
@@ -1577,7 +1578,7 @@ func (b *Bot) sendReminderToUser(chatID int64, userID int64, mode string) error 
 
 func (b *Bot) handleAddBill(chatID int64) {
 	// Send message asking for amount
-	msg := tgbotapi.NewMessage(chatID, "Nhập số tiền cho bill mới:\n(Ví dụ: 100,000 hoặc 100000)\nHoặc gửi /cancel để hủy")
+	msg := tgbotapi.NewMessage(chatID, "Nhập số tiền cho bill mới:\n(Ví dụ: 100000 - description)\nHoặc gửi /cancel để hủy")
 	msg.ReplyMarkup = tgbotapi.ForceReply{
 		ForceReply: true,
 		Selective:  true,
