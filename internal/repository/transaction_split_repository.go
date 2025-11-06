@@ -319,3 +319,18 @@ func (r *TransactionSplitRepository) GetSplitsByIDs(splitIDs []int64) ([]*models
 
 	return splits, nil
 }
+
+// GetByIDs is an alias for GetSplitsByIDs for consistency
+func (r *TransactionSplitRepository) GetByIDs(splitIDs []int64) ([]*models.TransactionSplit, error) {
+	return r.GetSplitsByIDs(splitIDs)
+}
+
+// Delete deletes a transaction split by ID
+func (r *TransactionSplitRepository) Delete(ctx context.Context, id int64) error {
+	query := `DELETE FROM transaction_splits WHERE id = ?`
+	_, err := r.db.Conn.Exec(query, id)
+	if err != nil {
+		return fmt.Errorf("failed to delete split: %v", err)
+	}
+	return nil
+}

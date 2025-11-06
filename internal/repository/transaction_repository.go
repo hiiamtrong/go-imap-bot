@@ -385,3 +385,13 @@ func (r *TransactionRepository) GetRecentTransactions(ctx context.Context, limit
 
 	return transactions, nil
 }
+
+// RemoveTagFromTransaction removes a tag from a transaction
+func (r *TransactionRepository) RemoveTagFromTransaction(transactionID, tagID int64) error {
+	query := `DELETE FROM transaction_tags WHERE transaction_id = ? AND tag_id = ?`
+	_, err := r.db.Conn.Exec(query, transactionID, tagID)
+	if err != nil {
+		return fmt.Errorf("failed to remove tag from transaction: %v", err)
+	}
+	return nil
+}
