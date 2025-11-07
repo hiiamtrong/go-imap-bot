@@ -9,6 +9,10 @@
 	let showAddModal = $state(false);
 	let editingUser = $state<User | null>(null);
 
+	// Filter states
+	let searchQuery = $state('');
+	let whitelistFilter = $state<'all' | 'whitelisted' | 'not-whitelisted'>('all');
+
 	let formData = $state({
 		name: '',
 		email: '',
@@ -23,7 +27,18 @@
 		loading = true;
 		error = null;
 
-		const response = await api.getUsers();
+		// Build filters object
+		const filters: any = {};
+
+		if (searchQuery) {
+			filters.search = searchQuery;
+		}
+
+		if (whitelistFilter !== 'all') {
+			filters.whitelist = whitelistFilter === 'whitelisted';
+		}
+
+		const response = await api.getUsers(filters);
 		if (response.error) {
 			error = response.error;
 		} else if (response.data) {
@@ -32,6 +47,18 @@
 
 		loading = false;
 	}
+
+	// Reload when filters change
+	$effect(() => {
+		void searchQuery;
+		void whitelistFilter;
+
+		const timeoutId = setTimeout(() => {
+			loadUsers();
+		}, 300);
+
+		return () => clearTimeout(timeoutId);
+	});
 
 	function openAddModal() {
 		editingUser = null;
@@ -103,6 +130,40 @@
 			{error}
 		</div>
 	{/if}
+
+	<!-- Filters -->
+	<div class="card">
+		<div class="flex flex-col md:flex-row gap-4">
+			<div class="flex-1">
+				<input
+					type="text"
+					placeholder="Search by name or email..."
+					bind:value={searchQuery}
+					class="input"
+				/>
+			</div>
+			<div class="flex gap-2">
+				<button
+					onclick={() => (whitelistFilter = 'all')}
+					class="btn {whitelistFilter === 'all' ? 'btn-primary' : 'btn-secondary'}"
+				>
+					All
+				</button>
+				<button
+					onclick={() => (whitelistFilter = 'whitelisted')}
+					class="btn {whitelistFilter === 'whitelisted' ? 'btn-primary' : 'btn-secondary'}"
+				>
+					Whitelisted
+				</button>
+				<button
+					onclick={() => (whitelistFilter = 'not-whitelisted')}
+					class="btn {whitelistFilter === 'not-whitelisted' ? 'btn-primary' : 'btn-secondary'}"
+				>
+					Not Whitelisted
+				</button>
+			</div>
+		</div>
+	</div>
 
 	<div class="card">
 		{#if loading}

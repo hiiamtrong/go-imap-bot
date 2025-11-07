@@ -163,3 +163,52 @@ func (r *UserRepository) Delete(id int64) error {
 	}
 	return nil
 }
+
+// UserFilters holds filter parameters for user queries
+type UserFilters struct {
+	Search    string // Search in name or email
+	Whitelist *bool  // Filter by whitelist status (nil = all, true = whitelisted, false = not whitelisted)
+}
+
+// GetAllWithFilters returns users matching the given filters
+func (r *UserRepository) GetAllWithFilters(filters UserFilters) ([]*models.User, error) {
+	query := `SELECT id, name, email, is_whitelisted FROM users`
+	args := []interface{}{}
+	conditions := []string{}
+
+	// Search in name or email
+	if filters.Search != "" {
+		conditions = append(conditions, "(name LIKE ? OR email LIKE ?)")
+		searchPattern := "%" + filters.Search + "%"
+		args = append(args, searchPattern, searchPattern)
+	}
+
+	// Filter by whitelist status
+	if filters.Whitelist != nil {
+		conditions = append(conditions, "is_whitelisted = ?")
+		args = append(args, *filters.Whitelist)
+	}
+
+	// Add WHERE clause if there are conditions
+	if len(conditions) > 0 {
+		query += " WHERE " + strings.Join(conditions, " AND ")
+	}
+
+	query += " ORDER BY name"
+
+	rows, err := r.db.Conn.Query(query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query users: %v", err)
+	}
+	defer rows.Close()
+
+	users := []*models.User{}
+	for rows.Next() {
+		var user models.User
+		if err := rows.Scan(&user.ID, &user.Name, &user.Email, &user.IsWhitelisted); err != nil {
+			return nil, fmt.Errorf("failed to scan user: %v", err)
+		}
+		users = append(users, &user)
+	}
+	return users, nil
+}

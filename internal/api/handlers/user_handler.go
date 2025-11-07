@@ -25,10 +25,28 @@ func NewUserHandler(userRepo *repository.UserRepository) *UserHandler {
 // GetUsers godoc
 // @Summary Get all users
 // @Tags users
+// @Param search query string false "Search in name or email"
+// @Param whitelist query bool false "Filter by whitelist status"
 // @Success 200 {object} dto.Response{data=[]dto.UserResponse}
 // @Router /api/users [get]
 func (h *UserHandler) GetUsers(c echo.Context) error {
-	users, err := h.userRepo.GetAll()
+	// Parse filters
+	filters := repository.UserFilters{
+		Search: c.QueryParam("search"),
+	}
+
+	// Parse whitelist filter
+	if whitelistStr := c.QueryParam("whitelist"); whitelistStr != "" {
+		if whitelistStr == "true" {
+			whitelist := true
+			filters.Whitelist = &whitelist
+		} else if whitelistStr == "false" {
+			whitelist := false
+			filters.Whitelist = &whitelist
+		}
+	}
+
+	users, err := h.userRepo.GetAllWithFilters(filters)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, dto.Response{
 			Error: "Failed to get users: " + err.Error(),
