@@ -143,3 +143,23 @@ func (r *UserRepository) GetInIDs(ids []int64) ([]*models.User, error) {
 
 	return users, nil
 }
+
+// Update updates a user
+func (r *UserRepository) Update(user *models.User) error {
+	query := `UPDATE users SET name = ?, email = ?, is_whitelisted = ? WHERE id = ?`
+	_, err := r.db.Conn.Exec(query, user.Name, user.Email, user.IsWhitelisted, user.ID)
+	if err != nil {
+		return fmt.Errorf("failed to update user: %v", err)
+	}
+	return nil
+}
+
+// Delete deletes a user by ID
+func (r *UserRepository) Delete(id int64) error {
+	query := `DELETE FROM users WHERE id = ?`
+	_, err := r.db.Conn.Exec(query, id)
+	if err != nil {
+		return fmt.Errorf("failed to delete user: %v", err)
+	}
+	return nil
+}
