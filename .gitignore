@@ -3,3 +3,10 @@
 *.db-journal
 
 ./data
+
+# Build artifacts
+bin/
+*.exe
+*.dll
+*.so
+*.dylib
