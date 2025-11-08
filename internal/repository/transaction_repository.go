@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/hiiamtrong/go-imap-bot/internal/database"
@@ -397,4 +398,119 @@ func (r *TransactionRepository) RemoveTagFromTransaction(transactionID, tagID in
 		return fmt.Errorf("failed to remove tag from transaction: %v", err)
 	}
 	return nil
+}
+
+// TransactionFilters holds filter parameters for transaction queries
+type TransactionFilters struct {
+	Type        string    // "add", "subtract", or empty for all
+	StartDate   time.Time // Filter by start date
+	EndDate     time.Time // Filter by end date
+	MinAmount   int64     // Minimum amount
+	MaxAmount   int64     // Maximum amount
+	TagIDs      []int64   // Filter by tag IDs
+	Description string    // Search in description
+}
+
+// GetRecentTransactionsWithFilters returns transactions matching the given filters
+func (r *TransactionRepository) GetRecentTransactionsWithFilters(ctx context.Context, limit int64, offset int64, filters TransactionFilters) ([]*models.Transaction, error) {
+	query := `SELECT DISTINCT t.id, t.mail_id, t.amount, t.current_balance, t.type,
+		t.from_account, t.to_account, t.description, t.timestamp, t.created_at
+		FROM transactions t`
+
+	args := []interface{}{}
+	conditions := []string{"t.completed = 0"}
+
+	// Join with transaction_tags if filtering by tags
+	if len(filters.TagIDs) > 0 {
+		placeholders := make([]string, len(filters.TagIDs))
+		for i, tagID := range filters.TagIDs {
+			placeholders[i] = "?"
+			args = append(args, tagID)
+		}
+		query += ` INNER JOIN transaction_tags tt ON t.id = tt.transaction_id`
+		conditions = append(conditions, fmt.Sprintf("tt.tag_id IN (%s)", strings.Join(placeholders, ",")))
+	}
+
+	// Filter by type
+	if filters.Type != "" {
+		conditions = append(conditions, "t.type = ?")
+		args = append(args, filters.Type)
+	}
+
+	// Filter by date range
+	if !filters.StartDate.IsZero() {
+		conditions = append(conditions, "t.timestamp >= ?")
+		args = append(args, filters.StartDate.Format(time.RFC3339))
+	}
+	if !filters.EndDate.IsZero() {
+		conditions = append(conditions, "t.timestamp <= ?")
+		args = append(args, filters.EndDate.Format(time.RFC3339))
+	}
+
+	// Filter by amount range
+	if filters.MinAmount > 0 {
+		conditions = append(conditions, "t.amount >= ?")
+		args = append(args, filters.MinAmount)
+	}
+	if filters.MaxAmount > 0 {
+		conditions = append(conditions, "t.amount <= ?")
+		args = append(args, filters.MaxAmount)
+	}
+
+	// Search in description
+	if filters.Description != "" {
+		conditions = append(conditions, "t.description LIKE ?")
+		args = append(args, "%"+filters.Description+"%")
+	}
+
+	// Add WHERE clause
+	if len(conditions) > 0 {
+		query += " WHERE " + strings.Join(conditions, " AND ")
+	}
+
+	// Order and pagination
+	query += " ORDER BY t.timestamp DESC LIMIT ? OFFSET ?"
+	args = append(args, limit, offset)
+
+	rows, err := r.db.Conn.Query(query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get filtered transactions: %v", err)
+	}
+	defer rows.Close()
+
+	var transactions []*models.Transaction
+	for rows.Next() {
+		t := &models.Transaction{}
+		var timestampStr string
+		err := rows.Scan(
+			&t.ID,
+			&t.MailID,
+			&t.Amount,
+			&t.CurrentBalance,
+			&t.Type,
+			&t.From,
+			&t.To,
+			&t.Description,
+			&timestampStr,
+			&t.CreatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan transaction: %v", err)
+		}
+
+		// Parse the timestamp string
+		timestamp, err := time.Parse("2006-01-02 15:04:05-07:00", timestampStr)
+		if err != nil {
+			// Try alternative format if the first one fails
+			timestamp, err = time.Parse(time.RFC3339, timestampStr)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse timestamp: %v", err)
+			}
+		}
+		t.Timestamp = timestamp
+
+		transactions = append(transactions, t)
+	}
+
+	return transactions, nil
 }

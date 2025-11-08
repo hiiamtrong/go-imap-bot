@@ -47,15 +47,38 @@ class ApiClient {
     }
   }
 
-  // Transactions
-  async getTransactions(
-    limit = 20,
-    offset = 0
-  ): Promise<ApiResponse<Transaction[]>> {
-    return this.request<Transaction[]>(
-      `/transactions?limit=${limit}&offset=${offset}`
-    );
-  }
+	// Transactions
+	async getTransactions(
+		limit = 20,
+		offset = 0,
+		filters?: {
+			type?: string;
+			start_date?: string;
+			end_date?: string;
+			min_amount?: number;
+			max_amount?: number;
+			tag_ids?: number[];
+			search?: string;
+		}
+	): Promise<ApiResponse<Transaction[]>> {
+		const params = new URLSearchParams({
+			limit: limit.toString(),
+			offset: offset.toString()
+		});
+
+		if (filters) {
+			if (filters.type) params.append('type', filters.type);
+			if (filters.start_date) params.append('start_date', filters.start_date);
+			if (filters.end_date) params.append('end_date', filters.end_date);
+			if (filters.min_amount) params.append('min_amount', filters.min_amount.toString());
+			if (filters.max_amount) params.append('max_amount', filters.max_amount.toString());
+			if (filters.tag_ids && filters.tag_ids.length > 0)
+				params.append('tag_ids', filters.tag_ids.join(','));
+			if (filters.search) params.append('search', filters.search);
+		}
+
+		return this.request<Transaction[]>(`/transactions?${params.toString()}`);
+	}
 
   async getTransaction(id: number): Promise<ApiResponse<Transaction>> {
     return this.request<Transaction>(`/transactions/${id}`);
@@ -77,10 +100,18 @@ class ApiClient {
     });
   }
 
-  // Users
-  async getUsers(): Promise<ApiResponse<User[]>> {
-    return this.request<User[]>("/users");
-  }
+	// Users
+	async getUsers(filters?: { search?: string; whitelist?: boolean }): Promise<ApiResponse<User[]>> {
+		const params = new URLSearchParams();
+
+		if (filters) {
+			if (filters.search) params.append('search', filters.search);
+			if (filters.whitelist !== undefined) params.append('whitelist', filters.whitelist.toString());
+		}
+
+		const query = params.toString();
+		return this.request<User[]>(`/users${query ? '?' + query : ''}`);
+	}
 
   async getUser(id: number): Promise<ApiResponse<User>> {
     return this.request<User>(`/users/${id}`);

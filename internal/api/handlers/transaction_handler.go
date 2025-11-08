@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/hiiamtrong/go-imap-bot/internal/api/dto"
@@ -39,6 +40,13 @@ func NewTransactionHandler(
 // @Tags transactions
 // @Param limit query int false "Limit" default(20)
 // @Param offset query int false "Offset" default(0)
+// @Param type query string false "Transaction type (add/subtract)"
+// @Param start_date query string false "Start date (RFC3339 format)"
+// @Param end_date query string false "End date (RFC3339 format)"
+// @Param min_amount query int false "Minimum amount"
+// @Param max_amount query int false "Maximum amount"
+// @Param tag_ids query string false "Comma-separated tag IDs"
+// @Param search query string false "Search in description"
 // @Success 200 {object} dto.Response{data=[]dto.TransactionResponse}
 // @Router /api/transactions [get]
 func (h *TransactionHandler) GetTransactions(c echo.Context) error {
@@ -60,7 +68,47 @@ func (h *TransactionHandler) GetTransactions(c echo.Context) error {
 		}
 	}
 
-	transactions, err := h.transactionRepo.GetRecentTransactions(context.Background(), limit, offset)
+	// Parse filters
+	filters := repository.TransactionFilters{
+		Type:        c.QueryParam("type"),
+		Description: c.QueryParam("search"),
+	}
+
+	// Parse date range
+	if startDateStr := c.QueryParam("start_date"); startDateStr != "" {
+		if startDate, err := time.Parse(time.RFC3339, startDateStr); err == nil {
+			filters.StartDate = startDate
+		}
+	}
+	if endDateStr := c.QueryParam("end_date"); endDateStr != "" {
+		if endDate, err := time.Parse(time.RFC3339, endDateStr); err == nil {
+			filters.EndDate = endDate
+		}
+	}
+
+	// Parse amount range
+	if minAmountStr := c.QueryParam("min_amount"); minAmountStr != "" {
+		if minAmount, err := strconv.ParseInt(minAmountStr, 10, 64); err == nil {
+			filters.MinAmount = minAmount
+		}
+	}
+	if maxAmountStr := c.QueryParam("max_amount"); maxAmountStr != "" {
+		if maxAmount, err := strconv.ParseInt(maxAmountStr, 10, 64); err == nil {
+			filters.MaxAmount = maxAmount
+		}
+	}
+
+	// Parse tag IDs
+	if tagIDsStr := c.QueryParam("tag_ids"); tagIDsStr != "" {
+		tagIDStrs := strings.Split(tagIDsStr, ",")
+		for _, tidStr := range tagIDStrs {
+			if tid, err := strconv.ParseInt(strings.TrimSpace(tidStr), 10, 64); err == nil {
+				filters.TagIDs = append(filters.TagIDs, tid)
+			}
+		}
+	}
+
+	transactions, err := h.transactionRepo.GetRecentTransactionsWithFilters(context.Background(), limit, offset, filters)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, dto.Response{
 			Error: "Failed to get transactions: " + err.Error(),

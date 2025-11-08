@@ -9,11 +9,15 @@
   let showAddModal = $state(false);
   let editingUser = $state<User | null>(null);
 
-  let formData = $state({
-    name: "",
-    email: "",
-    whitelist: false,
-  });
+	// Filter states
+	let searchQuery = $state('');
+	let whitelistFilter = $state<'all' | 'whitelisted' | 'not-whitelisted'>('all');
+
+	let formData = $state({
+		name: '',
+		email: '',
+		whitelist: false
+	});
 
   onMount(async () => {
     await loadUsers();
@@ -23,22 +27,44 @@
     loading = true;
     error = null;
 
-    const response = await api.getUsers();
-    console.log(response);
-    if (response.error) {
-      error = response.error;
-    } else if (response.data) {
-      users = response.data;
-    }
+		// Build filters object
+		const filters: any = {};
+
+		if (searchQuery) {
+			filters.search = searchQuery;
+		}
+
+		if (whitelistFilter !== 'all') {
+			filters.whitelist = whitelistFilter === 'whitelisted';
+		}
+
+		const response = await api.getUsers(filters);
+		if (response.error) {
+			error = response.error;
+		} else if (response.data) {
+			users = response.data;
+		}
 
     loading = false;
   }
 
-  function openAddModal() {
-    editingUser = null;
-    formData = { name: "", email: "", whitelist: false };
-    showAddModal = true;
-  }
+	// Reload when filters change
+	$effect(() => {
+		void searchQuery;
+		void whitelistFilter;
+
+		const timeoutId = setTimeout(() => {
+			loadUsers();
+		}, 300);
+
+		return () => clearTimeout(timeoutId);
+	});
+
+	function openAddModal() {
+		editingUser = null;
+		formData = { name: '', email: '', whitelist: false };
+		showAddModal = true;
+	}
 
   function openEditModal(user: User) {
     editingUser = user;
@@ -112,85 +138,101 @@
     </div>
   {/if}
 
-  <div class="card">
-    {#if loading}
-      <div class="text-center py-8">
-        <div
-          class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"
-        ></div>
-        <p class="mt-2 text-gray-600">Loading users...</p>
-      </div>
-    {:else if users.length === 0}
-      <p class="text-gray-500 text-center py-8">No users yet</p>
-    {:else}
-      <div class="space-y-3">
-        {#each users as user}
-          <div
-            class="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
-          >
-            <div class="flex items-center gap-4 flex-1">
-              <div
-                class="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold text-lg"
-              >
-                {user.name.charAt(0).toUpperCase()}
-              </div>
-              <div>
-                <p class="font-medium text-gray-900">{user.name}</p>
-                <p class="text-sm text-gray-500">{user.email}</p>
-                {#if user.whitelist}
-                  <span
-                    class="inline-block px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full mt-1"
-                  >
-                    Whitelisted
-                  </span>
-                {/if}
-              </div>
-            </div>
-            <div class="flex gap-2">
-              <button
-                onclick={() => openEditModal(user)}
-                class="px-3 py-1 text-primary-600 hover:text-primary-700"
-                aria-label="Edit user"
-              >
-                <svg
-                  class="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                  />
-                </svg>
-              </button>
-              <button
-                onclick={() => handleDelete(user.id)}
-                class="px-3 py-1 text-red-600 hover:text-red-700"
-                aria-label="Delete user"
-              >
-                <svg
-                  class="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                  />
-                </svg>
-              </button>
-            </div>
-          </div>
-        {/each}
-      </div>
-    {/if}
-  </div>
+	<!-- Filters -->
+	<div class="card">
+		<div class="flex flex-col md:flex-row gap-4">
+			<div class="flex-1">
+				<input
+					type="text"
+					placeholder="Search by name or email..."
+					bind:value={searchQuery}
+					class="input"
+				/>
+			</div>
+			<div class="flex gap-2">
+				<button
+					onclick={() => (whitelistFilter = 'all')}
+					class="btn {whitelistFilter === 'all' ? 'btn-primary' : 'btn-secondary'}"
+				>
+					All
+				</button>
+				<button
+					onclick={() => (whitelistFilter = 'whitelisted')}
+					class="btn {whitelistFilter === 'whitelisted' ? 'btn-primary' : 'btn-secondary'}"
+				>
+					Whitelisted
+				</button>
+				<button
+					onclick={() => (whitelistFilter = 'not-whitelisted')}
+					class="btn {whitelistFilter === 'not-whitelisted' ? 'btn-primary' : 'btn-secondary'}"
+				>
+					Not Whitelisted
+				</button>
+			</div>
+		</div>
+	</div>
+
+	<div class="card">
+		{#if loading}
+			<div class="text-center py-8">
+				<div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+				<p class="mt-2 text-gray-600">Loading users...</p>
+			</div>
+		{:else if users.length === 0}
+			<p class="text-gray-500 text-center py-8">No users yet</p>
+		{:else}
+			<div class="space-y-3">
+				{#each users as user}
+					<div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+						<div class="flex items-center gap-4 flex-1">
+							<div
+								class="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold text-lg"
+							>
+								{user.name.charAt(0).toUpperCase()}
+							</div>
+							<div>
+								<p class="font-medium text-gray-900">{user.name}</p>
+								<p class="text-sm text-gray-500">{user.email}</p>
+								{#if user.whitelist}
+									<span class="inline-block px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full mt-1">
+										Whitelisted
+									</span>
+								{/if}
+							</div>
+						</div>
+						<div class="flex gap-2">
+							<button
+								onclick={() => openEditModal(user)}
+								class="px-3 py-1 text-primary-600 hover:text-primary-700"
+							>
+								<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+									/>
+								</svg>
+							</button>
+							<button
+								onclick={() => handleDelete(user.id)}
+								class="px-3 py-1 text-red-600 hover:text-red-700"
+							>
+								<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+									/>
+								</svg>
+							</button>
+						</div>
+					</div>
+				{/each}
+			</div>
+		{/if}
+	</div>
 </div>
 
 <!-- Add/Edit User Modal -->
