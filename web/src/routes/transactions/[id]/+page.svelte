@@ -1,10 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
-	import { goto } from '$app/navigation';
 	import { api } from '$lib/api/client';
 	import { formatCurrency, formatDate, formatAmount } from '$lib/utils/format';
-	import type { Transaction, User, Tag, TransactionSplit } from '$lib/types';
+	import type { Transaction } from '$lib/types';
 	import BillSplitModal from '$lib/components/BillSplitModal.svelte';
 	import TagSelector from '$lib/components/TagSelector.svelte';
 
@@ -14,7 +13,7 @@
 	let showSplitModal = $state(false);
 	let showTagSelector = $state(false);
 
-	const transactionId = $derived(parseInt($page.params.id));
+	const transactionId = $derived(parseInt($page.params.id || '0'));
 
 	onMount(async () => {
 		await loadTransaction();
@@ -54,6 +53,19 @@
 		}
 	}
 
+	async function handleCompleteTransaction() {
+		if (!transaction || transaction.completed) return;
+
+		if (!confirm('Are you sure you want to mark this transaction as completed?')) return;
+
+		const response = await api.completeTransaction(transactionId);
+		if (response.error) {
+			alert('Error: ' + response.error);
+		} else {
+			await loadTransaction();
+		}
+	}
+
 	function getTransactionTypeColor(type: 'add' | 'subtract'): string {
 		return type === 'add' ? 'text-green-600' : 'text-red-600';
 	}
@@ -61,7 +73,7 @@
 
 <div class="space-y-6">
 	<div class="flex items-center gap-4">
-		<a href="/transactions" class="text-gray-600 hover:text-gray-900">
+		<a href="/transactions" class="text-gray-600 hover:text-gray-900" aria-label="Back to transactions">
 			<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
 			</svg>
@@ -85,7 +97,17 @@
 		<div class="card">
 			<div class="flex justify-between items-start">
 				<div class="flex-1">
-					<h2 class="text-2xl font-bold text-gray-900">{transaction.description}</h2>
+					<div class="flex items-center gap-3">
+						<h2 class="text-2xl font-bold text-gray-900">{transaction.description}</h2>
+						{#if transaction.completed}
+							<span class="inline-flex items-center px-3 py-1 bg-green-100 text-green-700 text-sm font-medium rounded-full">
+								<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+								</svg>
+								Completed
+							</span>
+						{/if}
+					</div>
 					<p class="text-gray-500 mt-2">{formatDate(transaction.timestamp)}</p>
 
 					{#if transaction.tags && transaction.tags.length > 0}
@@ -107,7 +129,7 @@
 			</div>
 
 			<div class="flex gap-3 mt-6">
-				<button onclick={() => (showSplitModal = true)} class="btn btn-primary">
+				<button onclick={() => (showSplitModal = true)} class="btn btn-primary" disabled={transaction.completed}>
 					<svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path
 							stroke-linecap="round"
@@ -129,6 +151,14 @@
 					</svg>
 					Add Tag
 				</button>
+				{#if !transaction.completed}
+					<button onclick={handleCompleteTransaction} class="btn bg-green-600 hover:bg-green-700 text-white">
+						<svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+						</svg>
+						Mark as Completed
+					</button>
+				{/if}
 			</div>
 		</div>
 
@@ -168,6 +198,7 @@
 								<button
 									onclick={() => handleDeleteSplit(split.id)}
 									class="ml-3 text-red-600 hover:text-red-700"
+									aria-label="Delete split"
 								>
 									<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 										<path

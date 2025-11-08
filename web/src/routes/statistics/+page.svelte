@@ -8,13 +8,13 @@
 	let stats = $state<Statistics | null>(null);
 	let loading = $state(true);
 	let error = $state<string | null>(null);
-	let monthlyChartCanvas: HTMLCanvasElement;
-	let tagChartCanvas: HTMLCanvasElement;
+	let monthlyChartCanvas = $state<HTMLCanvasElement>();
+	let tagChartCanvas = $state<HTMLCanvasElement>();
 	let monthlyChart: Chart | null = null;
 	let tagChart: Chart | null = null;
 
-	onMount(async () => {
-		await loadStatistics();
+	onMount(() => {
+		loadStatistics();
 		return () => {
 			if (monthlyChart) monthlyChart.destroy();
 			if (tagChart) tagChart.destroy();
@@ -76,7 +76,7 @@
 						tooltip: {
 							callbacks: {
 								label: function (context) {
-									return formatCurrency(context.parsed.y);
+									return formatCurrency(context.parsed.y ?? 0);
 								}
 							}
 						}

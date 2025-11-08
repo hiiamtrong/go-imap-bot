@@ -998,7 +998,7 @@ func formatTransactionMessage(t *models.Transaction, tagsText string) string {
 
 func (b *Bot) handleTransactionsCommand(chatID int64) {
 	// Get recent transactions from the database
-	transactions, err := b.BotInjector.TransactionRepository.GetRecentTransactions(context.Background(), 5, 0)
+	transactions, err := b.BotInjector.TransactionRepository.GetRecentTransactions(context.Background(), 10, 0, false)
 	if err != nil {
 		log.Printf("Error getting recent transactions: %v", err)
 		b.SendMessage(chatID, "Sorry, I couldn't retrieve your transactions right now.")

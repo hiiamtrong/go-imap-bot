@@ -30,10 +30,15 @@ func initDatabase(conn *sql.DB) error {
 }
 
 func GetDatabase(cfg *config.DatabaseConfig) (*Database, error) {
-	conn, err := sql.Open("sqlite3", cfg.DatabasePath)
+	// Enable WAL mode for better concurrent access
+	conn, err := sql.Open("sqlite3", cfg.DatabasePath+"?_journal_mode=WAL&_synchronous=NORMAL")
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %v", err)
 	}
+
+	// Set connection pool settings
+	conn.SetMaxOpenConns(1) // SQLite works best with single connection
+	conn.SetMaxIdleConns(1)
 
 	if err := initDatabase(conn); err != nil {
 		return nil, fmt.Errorf("failed to initialize database: %v", err)

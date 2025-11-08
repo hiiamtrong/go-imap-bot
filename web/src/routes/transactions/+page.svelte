@@ -158,8 +158,18 @@
 											</svg>
 										{/if}
 									</div>
-									<div>
-										<p class="font-medium text-gray-900">{transaction.description}</p>
+									<div class="flex-1">
+										<div class="flex items-center gap-2">
+											<p class="font-medium text-gray-900">{transaction.description}</p>
+											{#if transaction.completed}
+												<span class="inline-flex items-center px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+													<svg class="w-3 h-3 mr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+													</svg>
+													Completed
+												</span>
+											{/if}
+										</div>
 										<p class="text-sm text-gray-500">
 											{formatRelativeTime(transaction.timestamp)} • {formatDate(transaction.timestamp)}
 										</p>

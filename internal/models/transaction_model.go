@@ -18,6 +18,7 @@ type Transaction struct {
 	To             string
 	Description    string
 	Type           string
+	Completed      bool
 	Timestamp      time.Time
 	CreatedAt      time.Time
 }

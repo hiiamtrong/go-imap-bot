@@ -9,7 +9,10 @@
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
+		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+		"format": "prettier --write .",
+		"lint": "eslint .",
+		"lint:fix": "eslint . --fix"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-auto": "^7.0.0",
@@ -17,12 +20,18 @@
 		"@sveltejs/vite-plugin-svelte": "^6.2.1",
 		"@tailwindcss/postcss": "^4.1.16",
 		"@tailwindcss/typography": "^0.5.19",
+		"@typescript-eslint/eslint-plugin": "^8.46.3",
+		"@typescript-eslint/parser": "^8.46.3",
 		"autoprefixer": "^10.4.21",
+		"eslint": "^9.39.1",
+		"eslint-plugin-svelte": "^2.46.1",
+		"globals": "^15.15.0",
 		"postcss": "^8.5.6",
 		"svelte": "^5.41.0",
 		"svelte-check": "^4.3.3",
 		"tailwindcss": "^4.1.16",
 		"typescript": "^5.9.3",
+		"typescript-eslint": "^8.46.3",
 		"vite": "^7.1.10"
 	},
 	"dependencies": {

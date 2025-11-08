@@ -84,7 +84,7 @@
 		<div class="p-6">
 			<div class="flex justify-between items-center mb-6">
 				<h2 class="text-2xl font-bold text-gray-900">Manage Tags</h2>
-				<button onclick={onClose} class="text-gray-500 hover:text-gray-700">
+				<button onclick={onClose} class="text-gray-500 hover:text-gray-700" aria-label="Close modal">
 					<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path
 							stroke-linecap="round"
@@ -104,7 +104,7 @@
 
 			<!-- Create New Tag -->
 			<div class="mb-6">
-				<label class="label">Create New Tag</label>
+				<div class="label mb-2">Create New Tag</div>
 				<div class="flex gap-2">
 					<input
 						type="text"
@@ -125,7 +125,7 @@
 
 			<!-- Existing Tags -->
 			<div>
-				<label class="label">Available Tags</label>
+				<div class="label mb-2">Available Tags</div>
 				<div class="space-y-2 max-h-60 overflow-y-auto">
 					{#if allTags.length === 0}
 						<p class="text-gray-500 text-center py-4">No tags yet</p>

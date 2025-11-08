@@ -331,6 +331,53 @@ func (h *TransactionHandler) RemoveTagFromTransaction(c echo.Context) error {
 	})
 }
 
+// CompleteTransaction godoc
+// @Summary Mark a transaction as completed
+// @Tags transactions
+// @Param id path int true "Transaction ID"
+// @Success 200 {object} dto.Response
+// @Router /api/transactions/{id}/complete [post]
+func (h *TransactionHandler) CompleteTransaction(c echo.Context) error {
+	idStr := c.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, dto.Response{
+			Error: "Invalid transaction ID",
+		})
+	}
+
+	// Check if transaction exists
+	transaction, err := h.transactionRepo.GetByID(id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return c.JSON(http.StatusNotFound, dto.Response{
+				Error: "Transaction not found",
+			})
+		}
+		return c.JSON(http.StatusInternalServerError, dto.Response{
+			Error: "Failed to get transaction: " + err.Error(),
+		})
+	}
+
+	// Check if already completed
+	if transaction.Completed {
+		return c.JSON(http.StatusBadRequest, dto.Response{
+			Error: "Transaction is already completed",
+		})
+	}
+
+	// Mark transaction as completed
+	if err := h.transactionRepo.Complete(context.Background(), id); err != nil {
+		return c.JSON(http.StatusInternalServerError, dto.Response{
+			Error: "Failed to complete transaction: " + err.Error(),
+		})
+	}
+
+	return c.JSON(http.StatusOK, dto.Response{
+		Message: "Transaction marked as completed",
+	})
+}
+
 // Helper function to convert model to DTO
 func (h *TransactionHandler) toTransactionDTO(t *models.Transaction) dto.TransactionResponse {
 	return dto.TransactionResponse{
@@ -340,6 +387,7 @@ func (h *TransactionHandler) toTransactionDTO(t *models.Transaction) dto.Transac
 		Balance:     t.CurrentBalance,
 		Type:        t.Type,
 		Description: t.Description,
+		Completed:   t.Completed,
 		Timestamp:   t.Timestamp,
 		Tags:        []dto.TagResponse{},
 		Splits:      []dto.SplitResponse{},

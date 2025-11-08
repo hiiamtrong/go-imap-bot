@@ -170,7 +170,7 @@ func (h *SplitHandler) GetSplitsForTransaction(c echo.Context) error {
 }
 
 // CompleteSplit godoc
-// @Summary Mark a split as paid
+// @Summary Mark all pending splits for a user as paid
 // @Tags splits
 // @Param id path int true "Split ID"
 // @Success 200 {object} dto.Response
@@ -184,16 +184,24 @@ func (h *SplitHandler) CompleteSplit(c echo.Context) error {
 		})
 	}
 
-	// Update split status
-	err = h.splitRepo.UpdateSplitStatus([]int64{id}, nil)
+	// Get the split to find the user ID
+	split, err := h.splitRepo.GetByID(id)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, dto.Response{
+			Error: "Split not found",
+		})
+	}
+
+	// Complete all pending splits for this user (same logic as handleConfirmDoneUsers)
+	err = h.splitRepo.CompleteAllSplitsForUser(split.UserID)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, dto.Response{
-			Error: "Failed to complete split: " + err.Error(),
+			Error: "Failed to complete splits: " + err.Error(),
 		})
 	}
 
 	return c.JSON(http.StatusOK, dto.Response{
-		Message: "Split completed successfully",
+		Message: "All pending splits for user completed successfully",
 	})
 }
 
@@ -223,8 +231,70 @@ func (h *SplitHandler) DeleteSplit(c echo.Context) error {
 	})
 }
 
-// // SendReminders godoc
-// // @Summary Send payment reminders
+// GetPendingSplitsSummary godoc
+// @Summary Get pending splits grouped by user
+// @Tags splits
+// @Success 200 {object} dto.Response{data=[]dto.UserSplitSummary}
+// @Router /api/splits/pending [get]
+func (h *SplitHandler) GetPendingSplitsSummary(c echo.Context) error {
+	// Get all pending splits
+	splits, err := h.splitRepo.GetPendingSplits()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, dto.Response{
+			Error: "Failed to get pending splits: " + err.Error(),
+		})
+	}
+
+	// Group by user
+	userMap := make(map[int64]*dto.UserSplitSummary)
+
+	for _, split := range splits {
+		if _, exists := userMap[split.UserID]; !exists {
+			// Get user info
+			user, err := h.userRepo.GetByID(split.UserID)
+			if err != nil {
+				continue
+			}
+
+			userMap[split.UserID] = &dto.UserSplitSummary{
+				User: dto.UserResponse{
+					ID:        user.ID,
+					Name:      user.Name,
+					Email:     user.Email,
+					Whitelist: user.IsWhitelisted,
+					CreatedAt: user.CreatedAt,
+				},
+				Splits:      []dto.SplitResponse{},
+				TotalAmount: 0,
+				BillCount:   0,
+			}
+		}
+
+		summary := userMap[split.UserID]
+		summary.Splits = append(summary.Splits, dto.SplitResponse{
+			ID:            split.ID,
+			TransactionID: split.TransactionID,
+			UserID:        split.UserID,
+			Amount:        split.Amount,
+			Reason:        split.Reason,
+			Completed:     split.Completed,
+			// SplitHash removed
+		})
+		summary.TotalAmount += split.Amount
+		summary.BillCount++
+	}
+
+	// Convert map to slice
+	var response []dto.UserSplitSummary
+	for _, summary := range userMap {
+		response = append(response, *summary)
+	}
+
+	return c.JSON(http.StatusOK, dto.Response{Data: response})
+}
+
+// SendReminders godoc
+// @Summary Send payment reminders
 // @Tags reminders
 // @Accept json
 // @Produce json

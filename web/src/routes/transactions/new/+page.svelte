@@ -35,7 +35,7 @@
 
 <div class="space-y-6 max-w-2xl mx-auto">
 	<div class="flex items-center gap-4">
-		<a href="/transactions" class="text-gray-600 hover:text-gray-900">
+		<a href="/transactions" class="text-gray-600 hover:text-gray-900" aria-label="Back to transactions">
 			<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
 			</svg>
@@ -56,8 +56,9 @@
 
 		<form onsubmit={(e) => { e.preventDefault(); handleSubmit(); }} class="space-y-6">
 			<div>
-				<label class="label">Description *</label>
+				<label for="description" class="label">Description *</label>
 				<input
+					id="description"
 					type="text"
 					bind:value={description}
 					placeholder="e.g., Dinner at restaurant, Uber ride, Coffee shop"
@@ -70,8 +71,9 @@
 			</div>
 
 			<div>
-				<label class="label">Amount (VND) *</label>
+				<label for="amount" class="label">Amount (VND) *</label>
 				<input
+					id="amount"
 					type="number"
 					bind:value={amount}
 					placeholder="0"

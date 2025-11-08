@@ -17,6 +17,7 @@ type TransactionResponse struct {
 	Balance     int64             `json:"balance"`
 	Type        string            `json:"type"`
 	Description string            `json:"description"`
+	Completed   bool              `json:"completed"`
 	Timestamp   time.Time         `json:"timestamp"`
 	Tags        []TagResponse     `json:"tags,omitempty"`
 	Splits      []SplitResponse   `json:"splits,omitempty"`
@@ -109,4 +110,11 @@ type TagSpending struct {
 	Tag    string `json:"tag"`
 	Amount int64  `json:"amount"`
 	Count  int    `json:"count"`
+}
+// UserSplitSummary DTOs
+type UserSplitSummary struct {
+	User        UserResponse    `json:"user"`
+	Splits      []SplitResponse `json:"splits"`
+	TotalAmount int64           `json:"total_amount"`
+	BillCount   int             `json:"bill_count"`
 }

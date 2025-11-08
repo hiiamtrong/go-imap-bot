@@ -116,10 +116,10 @@ func (r *TransactionRepository) CreateTx(tx *sql.Tx, transaction *models.Transac
 
 func (r *TransactionRepository) GetByMailID(mailID int64) ([]*models.Transaction, error) {
 	query := `
-		SELECT 
+		SELECT
 			id, mail_id, amount, current_balance, type,
 			from_account, to_account, description,
-			timestamp, created_at
+			completed, timestamp, created_at
 		FROM transactions
 		WHERE mail_id = ?
 	`
@@ -141,6 +141,7 @@ func (r *TransactionRepository) GetByMailID(mailID int64) ([]*models.Transaction
 			&t.From,
 			&t.To,
 			&t.Description,
+			&t.Completed,
 			&t.Timestamp,
 			&t.CreatedAt,
 		)
@@ -155,10 +156,10 @@ func (r *TransactionRepository) GetByMailID(mailID int64) ([]*models.Transaction
 
 func (r *TransactionRepository) GetByID(id int64) (*models.Transaction, error) {
 	query := `
-		SELECT 
+		SELECT
 			id, mail_id, amount, current_balance, type,
 			from_account, to_account, description,
-			timestamp, created_at
+			completed, timestamp, created_at
 		FROM transactions
 		WHERE id = ?
 	`
@@ -177,6 +178,7 @@ func (r *TransactionRepository) GetByID(id int64) (*models.Transaction, error) {
 		&t.From,
 		&t.To,
 		&t.Description,
+		&t.Completed,
 		&timestampStr,
 		&createdAtStr,
 	)
@@ -339,11 +341,11 @@ func (r *TransactionRepository) IsCompleted(ctx context.Context, transactionID i
 	return completed, nil
 }
 
-func (r *TransactionRepository) GetRecentTransactions(ctx context.Context, limit int64, offset int64) ([]*models.Transaction, error) {
-	query := `SELECT id, mail_id, amount, current_balance, type, from_account, to_account, description, timestamp, created_at FROM transactions 
-	WHERE completed = 0
+func (r *TransactionRepository) GetRecentTransactions(ctx context.Context, limit int64, offset int64, isCompleted bool) ([]*models.Transaction, error) {
+	query := `SELECT id, mail_id, amount, current_balance, type, from_account, to_account, description, completed, timestamp, created_at FROM transactions
+	WHERE completed = ?
 	ORDER BY timestamp DESC LIMIT ? OFFSET ?`
-	rows, err := r.db.Conn.Query(query, limit, offset)
+	rows, err := r.db.Conn.Query(query, isCompleted, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get all transactions: %v", err)
 	}
@@ -362,6 +364,7 @@ func (r *TransactionRepository) GetRecentTransactions(ctx context.Context, limit
 			&t.From,
 			&t.To,
 			&t.Description,
+			&t.Completed,
 			&timestampStr,
 			&t.CreatedAt,
 		)

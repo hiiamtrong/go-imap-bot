@@ -162,8 +162,8 @@ func (r *TransactionSplitRepository) UpdateSplitStatus(splitIDs []int64, tx *sql
 		args[i] = id
 	}
 	query := `
-		UPDATE transaction_splits 
-		SET completed = 1 
+		UPDATE transaction_splits
+		SET completed = 1
 		WHERE id IN (%s)
 	`
 	query = fmt.Sprintf(query, strings.Join(placeholders, ","))
@@ -173,6 +173,49 @@ func (r *TransactionSplitRepository) UpdateSplitStatus(splitIDs []int64, tx *sql
 		return fmt.Errorf("failed to update split status: %v", err)
 	}
 	return nil
+}
+
+// CompleteSplit marks a single split as completed without requiring a transaction
+func (r *TransactionSplitRepository) CompleteSplit(splitID int64) error {
+	query := `UPDATE transaction_splits SET completed = 1 WHERE id = ?`
+	_, err := r.db.Conn.Exec(query, splitID)
+	if err != nil {
+		return fmt.Errorf("failed to complete split: %v", err)
+	}
+	return nil
+}
+
+// CompleteAllSplitsForUser marks all pending splits for a user as completed
+func (r *TransactionSplitRepository) CompleteAllSplitsForUser(userID int64) error {
+	query := `UPDATE transaction_splits SET completed = 1 WHERE user_id = ? AND completed = 0`
+	_, err := r.db.Conn.Exec(query, userID)
+	if err != nil {
+		return fmt.Errorf("failed to complete splits for user: %v", err)
+	}
+	return nil
+}
+
+// GetByID gets a single split by ID
+func (r *TransactionSplitRepository) GetByID(id int64) (*models.TransactionSplit, error) {
+	query := `
+		SELECT id, transaction_id, user_id, amount, reason, created_at, completed
+		FROM transaction_splits
+		WHERE id = ?
+	`
+	split := &models.TransactionSplit{}
+	err := r.db.Conn.QueryRow(query, id).Scan(
+		&split.ID,
+		&split.TransactionID,
+		&split.UserID,
+		&split.Amount,
+		&split.Reason,
+		&split.CreatedAt,
+		&split.Completed,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get split: %v", err)
+	}
+	return split, nil
 }
 
 func (r *TransactionSplitRepository) GetPendingSplits() ([]*models.TransactionSplit, error) {
@@ -334,3 +377,4 @@ func (r *TransactionSplitRepository) Delete(ctx context.Context, id int64) error
 	}
 	return nil
 }
+

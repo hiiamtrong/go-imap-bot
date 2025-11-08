@@ -34,12 +34,16 @@
 
 			<div class="hidden md:flex space-x-1">
 				{#each navItems as item}
+					{@const isActive = item.path === '/'
+						? $page.url.pathname === '/'
+						: $page.url.pathname.startsWith(item.path)}
 					<a
 						href={item.path}
-						class="px-3 py-2 rounded-md text-sm font-medium transition-colors
-							{$page.url.pathname === item.path
-							? 'bg-primary-600 text-white'
-							: 'text-gray-700 hover:bg-gray-100'}"
+						class="px-3 py-2 rounded-md text-sm font-medium transition-colors"
+						class:bg-blue-600={isActive}
+						class:text-white={isActive}
+						class:text-gray-700={!isActive}
+						class:hover:bg-gray-100={!isActive}
 					>
 						{item.label}
 					</a>
@@ -48,7 +52,7 @@
 
 			<!-- Mobile menu button -->
 			<div class="md:hidden">
-				<button class="text-gray-700 hover:text-gray-900">
+				<button class="text-gray-700 hover:text-gray-900" aria-label="Toggle menu">
 					<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path
 							stroke-linecap="round"

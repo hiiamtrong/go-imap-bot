@@ -81,6 +81,7 @@ func main() {
 	api.GET("/transactions", transactionHandler.GetTransactions)
 	api.GET("/transactions/:id", transactionHandler.GetTransaction)
 	api.POST("/transactions/virtual", transactionHandler.CreateVirtualBill)
+	api.POST("/transactions/:id/complete", transactionHandler.CompleteTransaction)
 	api.DELETE("/transactions/:id", transactionHandler.DeleteTransaction)
 	api.POST("/transactions/:id/tags/:tagId", transactionHandler.AddTagToTransaction)
 	api.DELETE("/transactions/:id/tags/:tagId", transactionHandler.RemoveTagFromTransaction)
@@ -97,6 +98,7 @@ func main() {
 	api.POST("/tags", tagHandler.CreateTag)
 
 	// Split routes
+	api.GET("/splits/pending", splitHandler.GetPendingSplitsSummary)
 	api.POST("/splits", splitHandler.CreateSplit)
 	api.GET("/transactions/:id/splits", splitHandler.GetSplitsForTransaction)
 	api.POST("/splits/:id/complete", splitHandler.CompleteSplit)
