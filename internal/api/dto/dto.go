@@ -11,16 +11,16 @@ type Response struct {
 
 // Transaction DTOs
 type TransactionResponse struct {
-	ID          int64             `json:"id"`
-	MailID      int64             `json:"mail_id"`
-	Amount      int64             `json:"amount"`
-	Balance     int64             `json:"balance"`
-	Type        string            `json:"type"`
-	Description string            `json:"description"`
-	Completed   bool              `json:"completed"`
-	Timestamp   time.Time         `json:"timestamp"`
-	Tags        []TagResponse     `json:"tags,omitempty"`
-	Splits      []SplitResponse   `json:"splits,omitempty"`
+	ID          int64           `json:"id"`
+	MailID      int64           `json:"mail_id"`
+	Amount      int64           `json:"amount"`
+	Balance     int64           `json:"balance"`
+	Type        string          `json:"type"`
+	Description string          `json:"description"`
+	Completed   bool            `json:"completed"`
+	Timestamp   time.Time       `json:"timestamp"`
+	Tags        []TagResponse   `json:"tags,omitempty"`
+	Splits      []SplitResponse `json:"splits,omitempty"`
 }
 
 type CreateVirtualBillRequest struct {
@@ -77,9 +77,9 @@ type CreateSplitRequest struct {
 }
 
 type SplitUserRequest struct {
-	UserID int64  `json:"user_id" validate:"required"`
-	Amount int64  `json:"amount" validate:"required,gt=0"`
-	Reason string `json:"reason"`
+	UserID int64   `json:"user_id" validate:"required"`
+	Amount float64 `json:"amount" validate:"required,gt=0"`
+	Reason string  `json:"reason"`
 }
 
 // Reminder DTOs
@@ -90,14 +90,14 @@ type SendReminderRequest struct {
 
 // Statistics DTOs
 type StatisticsResponse struct {
-	TotalSpent       int64                 `json:"totalSpent"`
-	TotalReceived    int64                 `json:"totalReceived"`
-	Balance          int64                 `json:"balance"`
-	TransactionCount int                   `json:"transactionCount"`
-	PendingSplits    int                   `json:"pendingSplits"`
-	CompletedSplits  int                   `json:"completedSplits"`
-	SpendingByMonth  []MonthlySpending     `json:"spendingByMonth,omitempty"`
-	SpendingByTag    []TagSpending         `json:"spendingByTag,omitempty"`
+	TotalSpent       int64             `json:"totalSpent"`
+	TotalReceived    int64             `json:"totalReceived"`
+	Balance          int64             `json:"balance"`
+	TransactionCount int               `json:"transactionCount"`
+	PendingSplits    int               `json:"pendingSplits"`
+	CompletedSplits  int               `json:"completedSplits"`
+	SpendingByMonth  []MonthlySpending `json:"spendingByMonth,omitempty"`
+	SpendingByTag    []TagSpending     `json:"spendingByTag,omitempty"`
 }
 
 type MonthlySpending struct {
@@ -111,6 +111,7 @@ type TagSpending struct {
 	Amount int64  `json:"amount"`
 	Count  int    `json:"count"`
 }
+
 // UserSplitSummary DTOs
 type UserSplitSummary struct {
 	User        UserResponse    `json:"user"`

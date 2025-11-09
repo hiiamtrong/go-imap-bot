@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -69,32 +70,36 @@ func (h *TransactionHandler) GetTransactions(c echo.Context) error {
 	}
 
 	// Parse filters
-	filters := repository.TransactionFilters{
-		Type:        c.QueryParam("type"),
-		Description: c.QueryParam("search"),
+	filters := repository.TransactionFilters{}
+
+	if typeParam := c.QueryParam("type"); typeParam != "" {
+		filters.Type = &typeParam
+	}
+	if searchParam := c.QueryParam("search"); searchParam != "" {
+		filters.Description = &searchParam
 	}
 
 	// Parse date range
 	if startDateStr := c.QueryParam("start_date"); startDateStr != "" {
 		if startDate, err := time.Parse(time.RFC3339, startDateStr); err == nil {
-			filters.StartDate = startDate
+			filters.StartDate = &startDate
 		}
 	}
 	if endDateStr := c.QueryParam("end_date"); endDateStr != "" {
 		if endDate, err := time.Parse(time.RFC3339, endDateStr); err == nil {
-			filters.EndDate = endDate
+			filters.EndDate = &endDate
 		}
 	}
 
 	// Parse amount range
 	if minAmountStr := c.QueryParam("min_amount"); minAmountStr != "" {
 		if minAmount, err := strconv.ParseInt(minAmountStr, 10, 64); err == nil {
-			filters.MinAmount = minAmount
+			filters.MinAmount = &minAmount
 		}
 	}
 	if maxAmountStr := c.QueryParam("max_amount"); maxAmountStr != "" {
 		if maxAmount, err := strconv.ParseInt(maxAmountStr, 10, 64); err == nil {
-			filters.MaxAmount = maxAmount
+			filters.MaxAmount = &maxAmount
 		}
 	}
 
@@ -108,6 +113,8 @@ func (h *TransactionHandler) GetTransactions(c echo.Context) error {
 		}
 	}
 
+	fmt.Printf("%+v\n", filters)
+
 	transactions, err := h.transactionRepo.GetRecentTransactionsWithFilters(context.Background(), limit, offset, filters)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, dto.Response{
@@ -115,7 +122,7 @@ func (h *TransactionHandler) GetTransactions(c echo.Context) error {
 		})
 	}
 
-	var response []dto.TransactionResponse
+	response := make([]dto.TransactionResponse, 0, len(transactions))
 	for _, t := range transactions {
 		transactionDTO := h.toTransactionDTO(t)
 
@@ -256,7 +263,7 @@ func (h *TransactionHandler) CreateVirtualBill(c echo.Context) error {
 	}
 
 	// Get latest transaction to determine current balance
-	transactions, err := h.transactionRepo.GetRecentTransactions(context.Background(), 1, 0)
+	transactions, err := h.transactionRepo.GetRecentTransactions(context.Background(), 1, 0, nil)
 	currentBalance := int64(0)
 	if err == nil && len(transactions) > 0 {
 		currentBalance = transactions[0].CurrentBalance

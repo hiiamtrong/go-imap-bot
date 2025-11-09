@@ -18,6 +18,8 @@
   let reasons = $state<Record<number, string>>({});
   let loading = $state(false);
   let error = $state<string | null>(null);
+  let searchQuery = $state("");
+  let globalReason = $state("");
 
   onMount(async () => {
     const response = await api.getUsers();
@@ -25,6 +27,15 @@
       users = response.data;
     }
   });
+
+  // Filter users based on search query
+  let filteredUsers = $derived(
+    users.filter(
+      (user) =>
+        user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+  );
 
   function toggleUser(userId: number) {
     const newSet = new Set(selectedUsers);
@@ -73,13 +84,16 @@
     loading = true;
     error = null;
 
+    // Use global reason if provided, otherwise use individual reasons, or fall back to transaction description
+    const defaultReason = globalReason || transaction.description;
+
     const splits = Array.from(selectedUsers).map((userId) => ({
       user_id: userId,
       amount:
         splitMode === "equal"
           ? calculateEqualSplit()
           : parseFloat(customAmounts[userId] || "0"),
-      reason: reasons[userId],
+      reason: reasons[userId] || defaultReason,
     }));
 
     const response = await api.createBillSplit({
@@ -110,8 +124,8 @@
             <h2 class="text-2xl font-bold text-gray-900">Split Bill</h2>
             {#if selectedUsers.size > 0}
               <p class="text-sm text-gray-600 mt-1">
-                {selectedUsers.size} user{selectedUsers.size !== 1 ? 's' : ''} selected
-                {#if splitMode === 'equal'}
+                {selectedUsers.size} user{selectedUsers.size !== 1 ? "s" : ""} selected
+                {#if splitMode === "equal"}
                   • {formatCurrency(calculateEqualSplit())} each
                 {:else}
                   • {formatCurrency(calculateTotal())} total
@@ -181,56 +195,91 @@
         </div>
       </div>
 
+      <!-- Global Reason -->
+      <div class="mb-6">
+        <label for="globalReason" class="label mb-2">
+          Reason for Split (Optional)
+        </label>
+        <input
+          id="globalReason"
+          type="text"
+          placeholder={`Leave empty to use: "${transaction.description}"`}
+          bind:value={globalReason}
+          class="input w-full"
+        />
+        <p class="text-xs text-gray-500 mt-1">
+          This reason will be applied to all users unless they have individual
+          reasons below.
+        </p>
+      </div>
+
       <!-- User Selection -->
       <div class="mb-6">
         <div class="label mb-2">Select Users</div>
-        <div class="space-y-2 max-h-60 overflow-y-auto">
-          {#each users as user}
-            <div
-              class="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-            >
-              <label class="flex items-center flex-1 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={selectedUsers.has(user.id)}
-                  onchange={() => toggleUser(user.id)}
-                  class="mr-3"
-                />
-                <div>
-                  <p class="font-medium text-gray-900">{user.name}</p>
-                  <p class="text-sm text-gray-500">{user.email}</p>
-                </div>
-              </label>
 
-              {#if selectedUsers.has(user.id)}
-                <div class="ml-4">
-                  {#if splitMode === "equal"}
-                    <p class="text-sm font-medium text-primary-600">
-                      {formatCurrency(calculateEqualSplit())}
-                    </p>
-                  {:else}
+        <!-- Search Input -->
+        <div class="mb-3">
+          <input
+            type="text"
+            placeholder="Search users by name or email..."
+            bind:value={searchQuery}
+            class="input w-full"
+          />
+        </div>
+
+        <div class="space-y-3 max-h-60 overflow-y-auto">
+          {#if filteredUsers.length === 0}
+            <p class="text-gray-500 text-center py-4">No users found</p>
+          {:else}
+            {#each filteredUsers as user}
+              <div class="space-y-2">
+                <div
+                  class="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                >
+                  <label class="flex items-center flex-1 cursor-pointer">
                     <input
-                      type="number"
-                      placeholder="Amount"
-                      bind:value={customAmounts[user.id]}
-                      class="input w-32 text-sm"
+                      type="checkbox"
+                      checked={selectedUsers.has(user.id)}
+                      onchange={() => toggleUser(user.id)}
+                      class="mr-3"
                     />
+                    <div>
+                      <p class="font-medium text-gray-900">{user.name}</p>
+                      <p class="text-sm text-gray-500">{user.email}</p>
+                    </div>
+                  </label>
+
+                  {#if selectedUsers.has(user.id)}
+                    <div class="ml-4">
+                      {#if splitMode === "equal"}
+                        <p class="text-sm font-medium text-primary-600">
+                          {formatCurrency(calculateEqualSplit())}
+                        </p>
+                      {:else}
+                        <input
+                          type="number"
+                          placeholder="Amount"
+                          bind:value={customAmounts[user.id]}
+                          class="input w-32 text-sm"
+                        />
+                      {/if}
+                    </div>
                   {/if}
                 </div>
-              {/if}
-            </div>
 
-            {#if selectedUsers.has(user.id)}
-              <div class="ml-4">
-                <input
-                  type="text"
-                  placeholder="Reason (optional)"
-                  bind:value={reasons[user.id]}
-                  class="input text-sm"
-                />
+                {#if selectedUsers.has(user.id)}
+                  <div class="ml-4">
+                    <input
+                      type="text"
+                      placeholder="Reason (optional)"
+                      bind:value={reasons[user.id]}
+                      class="input text-sm"
+                    />
+                  </div>
+                {/if}
               </div>
-            {/if}
-          {/each}
+            {/each}
+          {/if}
         </div>
       </div>
 

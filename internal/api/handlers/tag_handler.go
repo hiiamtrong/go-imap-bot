@@ -31,7 +31,7 @@ func (h *TagHandler) GetTags(c echo.Context) error {
 		})
 	}
 
-	var response []dto.TagResponse
+	response := make([]dto.TagResponse, 0, len(tags))
 	for _, tag := range tags {
 		response = append(response, dto.TagResponse{
 			ID:   tag.ID,

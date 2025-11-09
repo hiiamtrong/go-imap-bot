@@ -1,11 +1,12 @@
 version: '3.8'
 
 services:
-  app:
+  bot:
     image: go-imap-bot
     build:
       context: .
       dockerfile: Dockerfile
+      target: bot
     container_name: imap-bot
     restart: always
     environment:
@@ -34,9 +35,65 @@ services:
       - TZ=Asia/Ho_Chi_Minh
     volumes:
       - ./data:/app/data
-      - ${HOME}/.aws:/root/.aws:ro  # Mount AWS credentials if using AWS services
+      - ${HOME}/.aws:/root/.aws:ro
     networks:
       - imap-bot-network
+    depends_on:
+      - api
+
+  api:
+    image: go-imap-bot-api
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: api
+    container_name: imap-bot-api
+    restart: always
+    environment:
+      - MAIL_SERVER=${MAIL_SERVER:-imap.gmail.com:993}
+      - MAIL_USERNAME=${MAIL_USERNAME}
+      - MAIL_PASSWORD=${MAIL_PASSWORD}
+      - MAIL_MAILBOX=${MAIL_MAILBOX:-[Gmail]/All Mail}
+      - MAIL_FROM=${MAIL_FROM}
+      - MAIL_HOST=${MAIL_HOST:-smtp.gmail.com}
+      - MAIL_PORT=${MAIL_PORT:-587}
+      - DB_PATH=/app/data/mail.db
+      - DB_DRIVER=sqlite3
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_BOT_API_ENDPOINT=${TELEGRAM_BOT_API_ENDPOINT:-https://api.telegram.org}
+      - VIETQR_CLIENT_ID=${VIETQR_CLIENT_ID}
+      - VIETQR_API_KEY=${VIETQR_API_KEY}
+      - VIETQR_BANK_ID=${VIETQR_BANK_ID:-963388}
+      - VIETQR_ACCOUNT_NO=${VIETQR_ACCOUNT_NO}
+      - VIETQR_ACCOUNT_NAME=${VIETQR_ACCOUNT_NAME}
+      - VIETQR_TEMPLATE=${VIETQR_TEMPLATE:-print}
+      - AWS_PROFILE=${AWS_PROFILE:-imap-bot}
+      - AWS_REGION=${AWS_REGION:-ap-southeast-1}
+      - AWS_S3_BUCKET=${AWS_S3_BUCKET:-imap-bot-qr-code}
+      - TZ=Asia/Ho_Chi_Minh
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/app/data
+      - ${HOME}/.aws:/root/.aws:ro
+    networks:
+      - imap-bot-network
+
+  web:
+    image: go-imap-bot-web
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=${VITE_API_URL:-http://localhost:8080/api}
+    container_name: imap-bot-web
+    restart: always
+    ports:
+      - "5173:80"
+    networks:
+      - imap-bot-network
+    depends_on:
+      - api
 
 networks:
   imap-bot-network:

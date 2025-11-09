@@ -342,11 +342,18 @@ func (r *TransactionRepository) IsCompleted(ctx context.Context, transactionID i
 	return completed, nil
 }
 
-func (r *TransactionRepository) GetRecentTransactions(ctx context.Context, limit int64, offset int64, isCompleted bool) ([]*models.Transaction, error) {
+func (r *TransactionRepository) GetRecentTransactions(ctx context.Context, limit int64, offset int64, isCompleted *bool) ([]*models.Transaction, error) {
 	query := `SELECT id, mail_id, amount, current_balance, type, from_account, to_account, description, completed, timestamp, created_at FROM transactions
-	WHERE completed = ?
-	ORDER BY timestamp DESC LIMIT ? OFFSET ?`
-	rows, err := r.db.Conn.Query(query, isCompleted, limit, offset)
+	WHERE 1=1`
+	args := []interface{}{}
+	if isCompleted != nil {
+		query += ` AND completed = ?`
+		args = append(args, *isCompleted)
+	}
+	query += ` ORDER BY timestamp DESC LIMIT ? OFFSET ?`
+	args = append(args, limit, offset)
+
+	rows, err := r.db.Conn.Query(query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get all transactions: %v", err)
 	}
@@ -402,13 +409,13 @@ func (r *TransactionRepository) RemoveTagFromTransaction(transactionID, tagID in
 
 // TransactionFilters holds filter parameters for transaction queries
 type TransactionFilters struct {
-	Type        string    // "add", "subtract", or empty for all
-	StartDate   time.Time // Filter by start date
-	EndDate     time.Time // Filter by end date
-	MinAmount   int64     // Minimum amount
-	MaxAmount   int64     // Maximum amount
-	TagIDs      []int64   // Filter by tag IDs
-	Description string    // Search in description
+	Type        *string    // "add", "subtract", or empty for all
+	StartDate   *time.Time // Filter by start date
+	EndDate     *time.Time // Filter by end date
+	MinAmount   *int64     // Minimum amount
+	MaxAmount   *int64     // Maximum amount
+	TagIDs      []int64    // Filter by tag IDs
+	Description *string    // Search in description
 }
 
 // GetRecentTransactionsWithFilters returns transactions matching the given filters
@@ -418,7 +425,7 @@ func (r *TransactionRepository) GetRecentTransactionsWithFilters(ctx context.Con
 		FROM transactions t`
 
 	args := []interface{}{}
-	conditions := []string{"t.completed = 0"}
+	conditions := []string{}
 
 	// Join with transaction_tags if filtering by tags
 	if len(filters.TagIDs) > 0 {
@@ -432,41 +439,43 @@ func (r *TransactionRepository) GetRecentTransactionsWithFilters(ctx context.Con
 	}
 
 	// Filter by type
-	if filters.Type != "" {
+	if filters.Type != nil && *filters.Type != "" {
 		conditions = append(conditions, "t.type = ?")
-		args = append(args, filters.Type)
+		args = append(args, *filters.Type)
 	}
 
 	// Filter by date range
-	if !filters.StartDate.IsZero() {
+	if filters.StartDate != nil && !filters.StartDate.IsZero() {
 		conditions = append(conditions, "t.timestamp >= ?")
 		args = append(args, filters.StartDate.Format(time.RFC3339))
 	}
-	if !filters.EndDate.IsZero() {
+	if filters.EndDate != nil && !filters.EndDate.IsZero() {
 		conditions = append(conditions, "t.timestamp <= ?")
 		args = append(args, filters.EndDate.Format(time.RFC3339))
 	}
 
 	// Filter by amount range
-	if filters.MinAmount > 0 {
+	if filters.MinAmount != nil && *filters.MinAmount > 0 {
 		conditions = append(conditions, "t.amount >= ?")
-		args = append(args, filters.MinAmount)
+		args = append(args, *filters.MinAmount)
 	}
-	if filters.MaxAmount > 0 {
+	if filters.MaxAmount != nil && *filters.MaxAmount > 0 {
 		conditions = append(conditions, "t.amount <= ?")
-		args = append(args, filters.MaxAmount)
+		args = append(args, *filters.MaxAmount)
 	}
 
 	// Search in description
-	if filters.Description != "" {
+	if filters.Description != nil && *filters.Description != "" {
 		conditions = append(conditions, "t.description LIKE ?")
-		args = append(args, "%"+filters.Description+"%")
+		args = append(args, "%"+*filters.Description+"%")
 	}
 
 	// Add WHERE clause
 	if len(conditions) > 0 {
 		query += " WHERE " + strings.Join(conditions, " AND ")
 	}
+
+	fmt.Println(query)
 
 	// Order and pagination
 	query += " ORDER BY t.timestamp DESC LIMIT ? OFFSET ?"

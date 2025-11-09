@@ -19,13 +19,9 @@ func NewConfig() *Config {
 	viper.SetConfigFile(".env")
 	viper.AutomaticEnv()
 
-	if err := viper.ReadInConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
-			// Config file was found but another error was produced
-			panic(fmt.Errorf("fatal error reading config file: %w", err))
-		}
-		// Config file not found; ignore error if desired
-	}
+	// Try to read config file, but don't panic if it doesn't exist
+	// Environment variables will be used instead
+	_ = viper.ReadInConfig()
 
 	// Validate required fields
 	required := []string{

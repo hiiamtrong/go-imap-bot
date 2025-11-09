@@ -53,7 +53,7 @@ func (h *UserHandler) GetUsers(c echo.Context) error {
 		})
 	}
 
-	var response []dto.UserResponse
+	response := make([]dto.UserResponse, 0, len(users))
 	for _, u := range users {
 		response = append(response, dto.UserResponse{
 			ID:        u.ID,

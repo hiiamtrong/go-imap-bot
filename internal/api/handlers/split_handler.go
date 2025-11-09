@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	
 	"net/http"
 	"strconv"
 	"time"
@@ -77,7 +76,7 @@ func (h *SplitHandler) CreateSplit(c echo.Context) error {
 		split := &models.TransactionSplit{
 			TransactionID:   req.TransactionID,
 			UserID:          userReq.UserID,
-			Amount:          userReq.Amount,
+			Amount:          int64(userReq.Amount), // Convert float64 to int64
 			Reason:          userReq.Reason,
 			Completed:       false,
 			CreatedAt:       time.Now(),
@@ -126,21 +125,21 @@ func (h *SplitHandler) CreateSplit(c echo.Context) error {
 // @Router /api/transactions/{id}/splits [get]
 func (h *SplitHandler) GetSplitsForTransaction(c echo.Context) error {
 	idStr := c.Param("id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
+	transactionID, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, dto.Response{
 			Error: "Invalid transaction ID",
 		})
 	}
 
-	splits, err := h.splitRepo.GetByTransactionID(id)
+	splits, err := h.splitRepo.GetByTransactionID(transactionID)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, dto.Response{
 			Error: "Failed to get splits: " + err.Error(),
 		})
 	}
 
-	var response []dto.SplitResponse
+	response := make([]dto.SplitResponse, 0, len(splits))
 	for _, split := range splits {
 		splitDTO := dto.SplitResponse{
 			ID:            split.ID,
@@ -285,7 +284,7 @@ func (h *SplitHandler) GetPendingSplitsSummary(c echo.Context) error {
 	}
 
 	// Convert map to slice
-	var response []dto.UserSplitSummary
+	response := make([]dto.UserSplitSummary, 0, len(userMap))
 	for _, summary := range userMap {
 		response = append(response, *summary)
 	}
