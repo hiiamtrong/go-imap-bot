@@ -140,3 +140,7 @@ func (s *SMTPService) SendBulkSplitReminders(user *models.User, splits []*models
 		message.Bytes(),
 	)
 }
+
+func (s *SMTPService) GetFromEmail() string {
+	return s.config.SMTP.From
+}

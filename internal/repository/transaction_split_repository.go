@@ -377,4 +377,3 @@ func (r *TransactionSplitRepository) Delete(ctx context.Context, id int64) error
 	}
 	return nil
 }
-

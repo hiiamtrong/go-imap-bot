@@ -18,6 +18,7 @@ type SplitHandler struct {
 	transactionRepo *repository.TransactionRepository
 	userRepo        *repository.UserRepository
 	smtpService     *smtp.SMTPService
+	splitHashRepo   *repository.SplitHashRepository
 }
 
 func NewSplitHandler(
@@ -25,12 +26,14 @@ func NewSplitHandler(
 	transactionRepo *repository.TransactionRepository,
 	userRepo *repository.UserRepository,
 	smtpService *smtp.SMTPService,
+	splitHashRepo *repository.SplitHashRepository,
 ) *SplitHandler {
 	return &SplitHandler{
 		splitRepo:       splitRepo,
 		transactionRepo: transactionRepo,
 		userRepo:        userRepo,
 		smtpService:     smtpService,
+		splitHashRepo:   splitHashRepo,
 	}
 }
 
