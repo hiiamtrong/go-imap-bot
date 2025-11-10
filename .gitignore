@@ -10,3 +10,8 @@ bin/
 *.dll
 *.so
 *.dylib
+
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
