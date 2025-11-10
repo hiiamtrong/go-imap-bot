@@ -15,6 +15,7 @@
   let selectedUsers = $state<Set<number>>(new Set());
   let splitMode = $state<"custom" | "equal">("equal");
   let customAmounts = $state<Record<number, string>>({});
+  let displayAmounts = $state<Record<number, string>>({});
   let reasons = $state<Record<number, string>>({});
   let loading = $state(false);
   let error = $state<string | null>(null);
@@ -42,11 +43,58 @@
     if (newSet.has(userId)) {
       newSet.delete(userId);
       delete customAmounts[userId];
+      delete displayAmounts[userId];
       delete reasons[userId];
     } else {
       newSet.add(userId);
     }
     selectedUsers = newSet;
+  }
+
+  function handleKeyDown(e: KeyboardEvent) {
+    // Allow: backspace, delete, tab, escape, enter
+    if ([8, 9, 27, 13, 46].includes(e.keyCode)) {
+      return;
+    }
+    // Allow: Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X
+    if ((e.ctrlKey || e.metaKey) && [65, 67, 86, 88].includes(e.keyCode)) {
+      return;
+    }
+    // Allow: home, end, left, right, up, down
+    if (e.keyCode >= 35 && e.keyCode <= 40) {
+      return;
+    }
+    // Ensure that it is a number and stop the keypress if not
+    if (
+      (e.shiftKey || e.keyCode < 48 || e.keyCode > 57) &&
+      (e.keyCode < 96 || e.keyCode > 105)
+    ) {
+      e.preventDefault();
+    }
+  }
+
+  function handleAmountInput(e: Event, userId: number) {
+    const input = e.target as HTMLInputElement;
+    // Only allow digits (no decimal separator)
+    const value = input.value.replace(/[^\d]/g, "");
+
+    if (value === "") {
+      customAmounts[userId] = "";
+      displayAmounts[userId] = "";
+      return;
+    }
+
+    // Store the raw numeric value
+    customAmounts[userId] = value;
+
+    // Format for display with thousand separators
+    const numValue = parseInt(value, 10);
+    displayAmounts[userId] = formatCurrency(numValue).replace("₫", "").trim();
+
+    // Update cursor position to the end after formatting
+    setTimeout(() => {
+      input.selectionStart = input.selectionEnd = input.value.length;
+    }, 0);
   }
 
   function calculateEqualSplit(): number {
@@ -256,12 +304,22 @@
                           {formatCurrency(calculateEqualSplit())}
                         </p>
                       {:else}
-                        <input
-                          type="number"
-                          placeholder="Amount"
-                          bind:value={customAmounts[user.id]}
-                          class="input w-32 text-sm"
-                        />
+                        <div class="relative">
+                          <input
+                            type="text"
+                            inputmode="numeric"
+                            placeholder="Amount"
+                            value={displayAmounts[user.id] || ""}
+                            oninput={(e) => handleAmountInput(e, user.id)}
+                            onkeydown={handleKeyDown}
+                            class="input w-32 text-sm pr-8"
+                          />
+                          <span
+                            class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs pointer-events-none"
+                          >
+                            ₫
+                          </span>
+                        </div>
                       {/if}
                     </div>
                   {/if}

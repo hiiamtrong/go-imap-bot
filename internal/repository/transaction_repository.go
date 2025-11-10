@@ -421,7 +421,7 @@ type TransactionFilters struct {
 // GetRecentTransactionsWithFilters returns transactions matching the given filters
 func (r *TransactionRepository) GetRecentTransactionsWithFilters(ctx context.Context, limit int64, offset int64, filters TransactionFilters) ([]*models.Transaction, error) {
 	query := `SELECT DISTINCT t.id, t.mail_id, t.amount, t.current_balance, t.type,
-		t.from_account, t.to_account, t.description, t.timestamp, t.created_at
+		t.from_account, t.to_account, t.description, t.timestamp, t.created_at, t.completed
 		FROM transactions t`
 
 	args := []interface{}{}
@@ -502,6 +502,7 @@ func (r *TransactionRepository) GetRecentTransactionsWithFilters(ctx context.Con
 			&t.Description,
 			&timestampStr,
 			&t.CreatedAt,
+			&t.Completed,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan transaction: %v", err)
