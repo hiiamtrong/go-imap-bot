@@ -50,14 +50,15 @@ func (r *TransactionSplitRepository) Transaction(fn func(tx *sql.Tx) error) erro
 
 func (r *TransactionSplitRepository) Create(split *models.TransactionSplit) error {
 	query := `
-	INSERT INTO transaction_splits (transaction_id, user_id, amount, created_at)
-	VALUES (?, ?, ?, ?)
+	INSERT INTO transaction_splits (transaction_id, user_id, amount, reason, created_at)
+	VALUES (?, ?, ?, ?, ?)
 `
 	result, err := r.db.Conn.Exec(
 		query,
 		split.TransactionID,
 		split.UserID,
 		split.Amount,
+		split.Reason,
 		split.CreatedAt,
 	)
 	if err != nil {
@@ -76,15 +77,16 @@ func (r *TransactionSplitRepository) Create(split *models.TransactionSplit) erro
 func (r *TransactionSplitRepository) CreateTx(tx *sql.Tx, split *models.TransactionSplit) error {
 	query := `
 		INSERT INTO transaction_splits (
-			transaction_id, user_id, amount, created_at
+			transaction_id, user_id, amount, reason, created_at
 		)
-		VALUES (?, ?, ?, ?)
+		VALUES (?, ?, ?, ?, ?)
 	`
 	result, err := tx.Exec(
 		query,
 		split.TransactionID,
 		split.UserID,
 		split.Amount,
+		split.Reason,
 		time.Now(),
 	)
 	if err != nil {
