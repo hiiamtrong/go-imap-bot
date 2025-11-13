@@ -76,11 +76,17 @@ func (h *SplitHandler) CreateSplit(c echo.Context) error {
 	// Create splits
 	var splits []dto.SplitResponse
 	for _, userReq := range req.Users {
+		// Use user reason if provided, otherwise use transaction description
+		reason := userReq.Reason
+		if reason == "" {
+			reason = transaction.Description
+		}
+
 		split := &models.TransactionSplit{
 			TransactionID:   req.TransactionID,
 			UserID:          userReq.UserID,
 			Amount:          int64(userReq.Amount), // Convert float64 to int64
-			Reason:          userReq.Reason,
+			Reason:          reason,
 			Completed:       false,
 			CreatedAt:       time.Now(),
 			TotalBillAmount: transaction.Amount,
