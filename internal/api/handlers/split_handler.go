@@ -286,6 +286,7 @@ func (h *SplitHandler) GetPendingSplitsSummary(c echo.Context) error {
 			Amount:        split.Amount,
 			Reason:        split.Reason,
 			Completed:     split.Completed,
+			CreatedAt:     split.CreatedAt,
 			// SplitHash removed
 		})
 		summary.TotalAmount += split.Amount

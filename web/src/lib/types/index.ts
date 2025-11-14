@@ -43,6 +43,7 @@ export interface TransactionSplit {
   reason?: string;
   user?: User;
   split_hash?: string;
+  created_at: Date;
 }
 
 export interface TelegramUser {
@@ -96,8 +97,8 @@ export interface ApiResponse<T> {
 }
 
 export interface UserSplitSummary {
-	user: User;
-	splits: TransactionSplit[];
-	total_amount: number;
-	bill_count: number;
+  user: User;
+  splits: TransactionSplit[];
+  total_amount: number;
+  bill_count: number;
 }

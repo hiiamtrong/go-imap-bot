@@ -69,6 +69,7 @@ type SplitResponse struct {
 	Completed     bool          `json:"completed"`
 	User          *UserResponse `json:"user,omitempty"`
 	SplitHash     string        `json:"split_hash,omitempty"`
+	CreatedAt     time.Time     `json:"created_at"`
 }
 
 type CreateSplitRequest struct {

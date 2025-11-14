@@ -228,8 +228,10 @@ func (r *TransactionSplitRepository) GetPendingSplits() ([]*models.TransactionSp
 			ts.user_id,
 			ts.amount,
 			ts.reason,
-			ts.created_at
+			ts.created_at,
+			t.description as transaction_description
 		FROM transaction_splits ts
+		JOIN transactions t ON t.id = ts.transaction_id
 		WHERE ts.completed = 0
 		ORDER BY ts.created_at DESC
 	`
@@ -242,6 +244,7 @@ func (r *TransactionSplitRepository) GetPendingSplits() ([]*models.TransactionSp
 
 	var splits []*models.TransactionSplit
 	for rows.Next() {
+		var transactionDescription string
 		split := &models.TransactionSplit{}
 		err := rows.Scan(
 			&split.ID,
@@ -250,9 +253,13 @@ func (r *TransactionSplitRepository) GetPendingSplits() ([]*models.TransactionSp
 			&split.Amount,
 			&split.Reason,
 			&split.CreatedAt,
+			&transactionDescription,
 		)
 		if err != nil {
 			return nil, err
+		}
+		if split.Reason == "" {
+			split.Reason = transactionDescription
 		}
 		splits = append(splits, split)
 	}
@@ -270,7 +277,8 @@ func (r *TransactionSplitRepository) GetPendingSplitsByUserID(userID int64) ([]*
 			ts.reason,
 			ts.created_at,
 			t.amount as total_bill_amount,
-			m.timestamp as bill_created_at
+			m.timestamp as bill_created_at,
+			t.description as transaction_description
 		FROM transaction_splits ts
 		INNER JOIN transactions t ON t.id = ts.transaction_id
 		INNER JOIN mails m ON m.id = t.mail_id
@@ -288,6 +296,7 @@ func (r *TransactionSplitRepository) GetPendingSplitsByUserID(userID int64) ([]*
 	var splits []*models.TransactionSplit
 	for rows.Next() {
 		var billCreatedAtStr string
+		var transactionDescription string
 		split := &models.TransactionSplit{}
 		err := rows.Scan(
 			&split.ID,
@@ -298,6 +307,7 @@ func (r *TransactionSplitRepository) GetPendingSplitsByUserID(userID int64) ([]*
 			&split.CreatedAt,
 			&split.TotalBillAmount,
 			&billCreatedAtStr,
+			&transactionDescription,
 		)
 		if err != nil {
 			return nil, err
@@ -317,6 +327,9 @@ func (r *TransactionSplitRepository) GetPendingSplitsByUserID(userID int64) ([]*
 				}
 			}
 			split.BillCreatedAt = billCreatedAt
+		}
+		if split.Reason == "" {
+			split.Reason = transactionDescription
 		}
 		splits = append(splits, split)
 	}
