@@ -356,7 +356,8 @@ func (r *TransactionSplitRepository) GetSplitsByIDs(splitIDs []int64) ([]*models
 			ts.created_at,
 			t.amount as total_bill_amount,
 			t.created_at as transaction_created_at,
-			m.timestamp as bill_created_at
+			m.timestamp as bill_created_at,
+			t.description as transaction_description
 		FROM transaction_splits ts
 		INNER JOIN transactions t ON t.id = ts.transaction_id
 		INNER JOIN mails m ON m.id = t.mail_id
@@ -374,6 +375,7 @@ func (r *TransactionSplitRepository) GetSplitsByIDs(splitIDs []int64) ([]*models
 	for rows.Next() {
 		var billCreatedAtStr string
 		var transactionCreatedAtStr string
+		var transactionDescription string
 		split := &models.TransactionSplit{}
 		err := rows.Scan(
 			&split.ID,
@@ -421,6 +423,10 @@ func (r *TransactionSplitRepository) GetSplitsByIDs(splitIDs []int64) ([]*models
 				}
 			}
 			split.TransactionCreatedAt = transactionCreatedAt
+		}
+
+		if split.Reason == "" {
+			split.Reason = transactionDescription
 		}
 		splits = append(splits, split)
 	}
