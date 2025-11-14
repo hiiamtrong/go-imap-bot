@@ -80,10 +80,15 @@ func (s *SMTPService) SendBulkSplitReminders(user *models.User, splits []*models
 	splitData := make([]SplitData, len(splits))
 	totalAmount := int64(0)
 	for i, split := range splits {
+		createAt := split.TransactionCreatedAt
+		if createAt.IsZero() {
+			createAt = split.BillCreatedAt
+		}
+
 		splitData[i] = SplitData{
 			Amount:          currencypkg.FormatCurrency(float64(split.Amount)),
 			Reason:          split.Reason,
-			CreatedAt:       split.BillCreatedAt.Format("02/01/2006 15:04:05"),
+			CreatedAt:       createAt.Format("02/01/2006 15:04:05"),
 			TotalBillAmount: currencypkg.FormatCurrency(float64(split.TotalBillAmount)),
 		}
 		totalAmount += split.Amount

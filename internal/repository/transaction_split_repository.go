@@ -342,6 +342,7 @@ func (r *TransactionSplitRepository) GetSplitsByIDs(splitIDs []int64) ([]*models
 			ts.completed,
 			ts.created_at,
 			t.amount as total_bill_amount,
+			t.created_at as transaction_created_at,
 			m.timestamp as bill_created_at
 		FROM transaction_splits ts
 		INNER JOIN transactions t ON t.id = ts.transaction_id
@@ -359,6 +360,7 @@ func (r *TransactionSplitRepository) GetSplitsByIDs(splitIDs []int64) ([]*models
 	var splits []*models.TransactionSplit
 	for rows.Next() {
 		var billCreatedAtStr string
+		var transactionCreatedAtStr string
 		split := &models.TransactionSplit{}
 		err := rows.Scan(
 			&split.ID,
@@ -369,6 +371,7 @@ func (r *TransactionSplitRepository) GetSplitsByIDs(splitIDs []int64) ([]*models
 			&split.Completed,
 			&split.CreatedAt,
 			&split.TotalBillAmount,
+			&transactionCreatedAtStr,
 			&billCreatedAtStr,
 		)
 		if err != nil {
@@ -389,6 +392,22 @@ func (r *TransactionSplitRepository) GetSplitsByIDs(splitIDs []int64) ([]*models
 				}
 			}
 			split.BillCreatedAt = billCreatedAt
+		}
+
+		// Try to parse as Unix timestamp first
+		if timestamp, err := strconv.ParseInt(transactionCreatedAtStr, 10, 64); err == nil {
+			split.TransactionCreatedAt = time.Unix(timestamp, 0)
+		} else {
+			// If not a Unix timestamp, try parsing as formatted time string
+			transactionCreatedAt, err := time.Parse("2006-01-02 15:04:05-07:00", transactionCreatedAtStr)
+			if err != nil {
+				// Try alternative format if first parse fails
+				transactionCreatedAt, err = time.Parse(time.RFC3339, transactionCreatedAtStr)
+				if err != nil {
+					return nil, fmt.Errorf("failed to parse timestamp: %v", err)
+				}
+			}
+			split.TransactionCreatedAt = transactionCreatedAt
 		}
 		splits = append(splits, split)
 	}
