@@ -388,6 +388,7 @@ func (r *TransactionSplitRepository) GetSplitsByIDs(splitIDs []int64) ([]*models
 			&split.TotalBillAmount,
 			&transactionCreatedAtStr,
 			&billCreatedAtStr,
+			&transactionDescription,
 		)
 		if err != nil {
 			return nil, err
