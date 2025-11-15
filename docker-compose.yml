@@ -70,6 +70,10 @@ services:
       - AWS_PROFILE=${AWS_PROFILE:-imap-bot}
       - AWS_REGION=${AWS_REGION:-ap-southeast-1}
       - AWS_S3_BUCKET=${AWS_S3_BUCKET:-imap-bot-qr-code}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - GOOGLE_REDIRECT_URL=${GOOGLE_REDIRECT_URL:-http://localhost:5173/auth/callback}
+      - JWT_SECRET=${JWT_SECRET}
       - TZ=Asia/Ho_Chi_Minh
     ports:
       - "8080:8080"

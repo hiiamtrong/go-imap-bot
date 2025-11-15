@@ -7,6 +7,7 @@ import (
 	"github.com/hiiamtrong/go-imap-bot/internal/api/handlers"
 	"github.com/hiiamtrong/go-imap-bot/internal/config"
 	"github.com/hiiamtrong/go-imap-bot/internal/database"
+	authmiddleware "github.com/hiiamtrong/go-imap-bot/internal/middleware"
 	"github.com/hiiamtrong/go-imap-bot/internal/repository"
 	"github.com/hiiamtrong/go-imap-bot/internal/s3"
 	"github.com/hiiamtrong/go-imap-bot/internal/smtp"
@@ -48,6 +49,7 @@ func main() {
 	splitHashRepo := repository.NewSplitHashRepository(db)
 
 	// Setup handlers
+	authHandler := handlers.NewAuthHandler(cfg)
 	transactionHandler := handlers.NewTransactionHandler(transactionRepo, tagRepo, transactionSplitRepo, userRepo)
 	userHandler := handlers.NewUserHandler(userRepo)
 	tagHandler := handlers.NewTagHandler(tagRepo)
@@ -78,40 +80,52 @@ func main() {
 	// API routes
 	api := e.Group("/api")
 
+	// Auth routes (public)
+	auth := api.Group("/auth")
+	auth.GET("/login", authHandler.Login)
+	auth.GET("/callback", authHandler.Callback)
+
+	// Public auth API routes (with auth required for /me and /refresh)
+	api.GET("/auth/me", authHandler.Me, authmiddleware.JWTMiddleware(cfg.OAuth))
+	api.POST("/auth/refresh", authHandler.Refresh, authmiddleware.JWTMiddleware(cfg.OAuth))
+
+	// Protected API routes - require JWT authentication for all other routes
+	protected := api.Group("", authmiddleware.JWTMiddleware(cfg.OAuth))
+
 	// Transaction routes
-	api.GET("/transactions", transactionHandler.GetTransactions)
-	api.GET("/transactions/:id", transactionHandler.GetTransaction)
-	api.POST("/transactions/virtual", transactionHandler.CreateVirtualBill)
-	api.POST("/transactions/:id/complete", transactionHandler.CompleteTransaction)
-	api.DELETE("/transactions/:id", transactionHandler.DeleteTransaction)
-	api.POST("/transactions/:id/tags/:tagId", transactionHandler.AddTagToTransaction)
-	api.DELETE("/transactions/:id/tags/:tagId", transactionHandler.RemoveTagFromTransaction)
+	protected.GET("/transactions", transactionHandler.GetTransactions)
+	protected.GET("/transactions/:id", transactionHandler.GetTransaction)
+	protected.POST("/transactions/virtual", transactionHandler.CreateVirtualBill)
+	protected.POST("/transactions/:id/complete", transactionHandler.CompleteTransaction)
+	protected.DELETE("/transactions/:id", transactionHandler.DeleteTransaction)
+	protected.POST("/transactions/:id/tags/:tagId", transactionHandler.AddTagToTransaction)
+	protected.DELETE("/transactions/:id/tags/:tagId", transactionHandler.RemoveTagFromTransaction)
 
 	// User routes
-	api.GET("/users", userHandler.GetUsers)
-	api.GET("/users/:id", userHandler.GetUser)
-	api.POST("/users", userHandler.CreateUser)
-	api.PUT("/users/:id", userHandler.UpdateUser)
-	api.DELETE("/users/:id", userHandler.DeleteUser)
+	protected.GET("/users", userHandler.GetUsers)
+	protected.GET("/users/:id", userHandler.GetUser)
+	protected.POST("/users", userHandler.CreateUser)
+	protected.PUT("/users/:id", userHandler.UpdateUser)
+	protected.DELETE("/users/:id", userHandler.DeleteUser)
 
 	// Tag routes
-	api.GET("/tags", tagHandler.GetTags)
-	api.POST("/tags", tagHandler.CreateTag)
+	protected.GET("/tags", tagHandler.GetTags)
+	protected.POST("/tags", tagHandler.CreateTag)
 
 	// Split routes
-	api.GET("/splits/pending", splitHandler.GetPendingSplitsSummary)
-	api.POST("/splits", splitHandler.CreateSplit)
-	api.GET("/transactions/:id/splits", splitHandler.GetSplitsForTransaction)
-	api.POST("/splits/:id/complete", splitHandler.CompleteSplit)
-	api.DELETE("/splits/:id", splitHandler.DeleteSplit)
+	protected.GET("/splits/pending", splitHandler.GetPendingSplitsSummary)
+	protected.POST("/splits", splitHandler.CreateSplit)
+	protected.GET("/transactions/:id/splits", splitHandler.GetSplitsForTransaction)
+	protected.POST("/splits/:id/complete", splitHandler.CompleteSplit)
+	protected.DELETE("/splits/:id", splitHandler.DeleteSplit)
 
 	// Reminder routes
-	api.POST("/reminders", splitHandler.SendReminders)
+	protected.POST("/reminders", splitHandler.SendReminders)
 
 	// Statistics routes
-	api.GET("/statistics", statsHandler.GetStatistics)
-	api.GET("/statistics/monthly", statsHandler.GetMonthlySpending)
-	api.GET("/statistics/tags", statsHandler.GetTagSpending)
+	protected.GET("/statistics", statsHandler.GetStatistics)
+	protected.GET("/statistics/monthly", statsHandler.GetMonthlySpending)
+	protected.GET("/statistics/tags", statsHandler.GetTagSpending)
 
 	// Get port from environment or use default
 	port := os.Getenv("PORT")

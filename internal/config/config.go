@@ -13,6 +13,7 @@ type Config struct {
 	SMTP           *SMTPConfig
 	VietQR         *VietQRConfig
 	AWS            *AWSConfig
+	OAuth          *OAuthConfig
 }
 
 func NewConfig() *Config {
@@ -88,6 +89,12 @@ func NewConfig() *Config {
 			Profile:  viper.GetString("AWS_PROFILE"),
 			Region:   viper.GetString("AWS_REGION"),
 			S3Bucket: viper.GetString("AWS_S3_BUCKET"),
+		},
+		OAuth: &OAuthConfig{
+			GoogleClientID:     viper.GetString("GOOGLE_CLIENT_ID"),
+			GoogleClientSecret: viper.GetString("GOOGLE_CLIENT_SECRET"),
+			GoogleRedirectURL:  viper.GetString("GOOGLE_REDIRECT_URL"),
+			JWTSecret:          viper.GetString("JWT_SECRET"),
 		},
 	}
 }

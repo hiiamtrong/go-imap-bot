@@ -1,0 +1,123 @@
+import { writable, derived } from "svelte/store";
+import { browser } from "$app/environment";
+
+export interface User {
+  name: string;
+  email: string;
+}
+
+export interface AuthState {
+  token: string | null;
+  expiresAt: string | null;
+  user: User | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+}
+
+const STORAGE_KEY = "auth_state";
+
+function getInitialState(): AuthState {
+  if (browser) {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        // Check if token is expired
+        if (parsed.expiresAt && new Date(parsed.expiresAt) > new Date()) {
+          return {
+            ...parsed,
+            isAuthenticated: true,
+            isLoading: false,
+          };
+        }
+      } catch (e) {
+        console.error("Failed to parse stored auth state:", e);
+      }
+    }
+  }
+  return {
+    token: null,
+    expiresAt: null,
+    user: null,
+    isAuthenticated: false,
+    isLoading: false,
+  };
+}
+
+function createAuthStore() {
+  const { subscribe, set, update } = writable<AuthState>(getInitialState());
+
+  return {
+    subscribe,
+    login: (token: string, expiresAt: string, user: User) => {
+      const newState: AuthState = {
+        token,
+        expiresAt,
+        user,
+        isAuthenticated: true,
+        isLoading: false,
+      };
+      if (browser) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(newState));
+      }
+      set(newState);
+    },
+    logout: () => {
+      if (browser) {
+        localStorage.removeItem(STORAGE_KEY);
+      }
+      set({
+        token: null,
+        expiresAt: null,
+        user: null,
+        isAuthenticated: false,
+        isLoading: false,
+      });
+    },
+    setLoading: (isLoading: boolean) => {
+      update((state) => ({ ...state, isLoading }));
+    },
+    refreshToken: async () => {
+      const state = getInitialState();
+      if (!state.token) {
+        throw new Error("No token available");
+      }
+
+      const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
+      const response = await fetch(`${API_URL}/api/auth/refresh`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${state.token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to refresh token");
+      }
+
+      const data = await response.json();
+      const newState: AuthState = {
+        token: data.token,
+        expiresAt: data.expires_at,
+        user: data.user,
+        isAuthenticated: true,
+        isLoading: false,
+      };
+
+      if (browser) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(newState));
+      }
+      set(newState);
+      return data.token;
+    },
+  };
+}
+
+export const auth = createAuthStore();
+
+// Derived store for just the token
+export const authToken = derived(auth, ($auth) => $auth.token);
+
+// Derived store for user
+export const currentUser = derived(auth, ($auth) => $auth.user);

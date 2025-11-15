@@ -87,6 +87,16 @@ func (r *UserRepository) GetByID(id int64) (*models.User, error) {
 	return user, nil
 }
 
+func (r *UserRepository) GetByEmail(email string) (*models.User, error) {
+	query := `SELECT id, name, email, is_whitelisted FROM users WHERE email = ?`
+	user := &models.User{}
+	err := r.db.Conn.QueryRow(query, email).Scan(&user.ID, &user.Name, &user.Email, &user.IsWhitelisted)
+	if err != nil {
+		return nil, err
+	}
+	return user, nil
+}
+
 func (r *UserRepository) GetAll() ([]*models.User, error) {
 	query := `SELECT id, name, email, is_whitelisted FROM users`
 	rows, err := r.db.Conn.Query(query)

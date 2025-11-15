@@ -11,11 +11,27 @@ import type {
   UserSplitSummary,
   ApiResponse,
 } from "$lib/types";
+import { get } from "svelte/store";
+import { auth } from "$lib/stores/auth";
+import { goto } from "$app/navigation";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || "http://localhost:8080/api";
 
 class ApiClient {
+  private getAuthHeaders(): HeadersInit {
+    const authState = get(auth);
+    const headers: HeadersInit = {
+      "Content-Type": "application/json",
+    };
+
+    if (authState.token) {
+      headers["Authorization"] = `Bearer ${authState.token}`;
+    }
+
+    return headers;
+  }
+
   private async request<T>(
     endpoint: string,
     options: RequestInit = {}
@@ -26,10 +42,17 @@ class ApiClient {
       const response = await fetch(url, {
         ...options,
         headers: {
-          "Content-Type": "application/json",
+          ...this.getAuthHeaders(),
           ...options.headers,
         },
       });
+
+      // Handle 401 Unauthorized - token expired or invalid
+      if (response.status === 401) {
+        auth.logout();
+        goto("/login");
+        return { error: "Unauthorized - please login again" };
+      }
 
       if (!response.ok) {
         const error = await response
@@ -47,38 +70,40 @@ class ApiClient {
     }
   }
 
-	// Transactions
-	async getTransactions(
-		limit = 20,
-		offset = 0,
-		filters?: {
-			type?: string;
-			start_date?: string;
-			end_date?: string;
-			min_amount?: number;
-			max_amount?: number;
-			tag_ids?: number[];
-			search?: string;
-		}
-	): Promise<ApiResponse<Transaction[]>> {
-		const params = new URLSearchParams({
-			limit: limit.toString(),
-			offset: offset.toString()
-		});
+  // Transactions
+  async getTransactions(
+    limit = 20,
+    offset = 0,
+    filters?: {
+      type?: string;
+      start_date?: string;
+      end_date?: string;
+      min_amount?: number;
+      max_amount?: number;
+      tag_ids?: number[];
+      search?: string;
+    }
+  ): Promise<ApiResponse<Transaction[]>> {
+    const params = new URLSearchParams({
+      limit: limit.toString(),
+      offset: offset.toString(),
+    });
 
-		if (filters) {
-			if (filters.type) params.append('type', filters.type);
-			if (filters.start_date) params.append('start_date', filters.start_date);
-			if (filters.end_date) params.append('end_date', filters.end_date);
-			if (filters.min_amount) params.append('min_amount', filters.min_amount.toString());
-			if (filters.max_amount) params.append('max_amount', filters.max_amount.toString());
-			if (filters.tag_ids && filters.tag_ids.length > 0)
-				params.append('tag_ids', filters.tag_ids.join(','));
-			if (filters.search) params.append('search', filters.search);
-		}
+    if (filters) {
+      if (filters.type) params.append("type", filters.type);
+      if (filters.start_date) params.append("start_date", filters.start_date);
+      if (filters.end_date) params.append("end_date", filters.end_date);
+      if (filters.min_amount)
+        params.append("min_amount", filters.min_amount.toString());
+      if (filters.max_amount)
+        params.append("max_amount", filters.max_amount.toString());
+      if (filters.tag_ids && filters.tag_ids.length > 0)
+        params.append("tag_ids", filters.tag_ids.join(","));
+      if (filters.search) params.append("search", filters.search);
+    }
 
-		return this.request<Transaction[]>(`/transactions?${params.toString()}`);
-	}
+    return this.request<Transaction[]>(`/transactions?${params.toString()}`);
+  }
 
   async getTransaction(id: number): Promise<ApiResponse<Transaction>> {
     return this.request<Transaction>(`/transactions/${id}`);
@@ -100,18 +125,22 @@ class ApiClient {
     });
   }
 
-	// Users
-	async getUsers(filters?: { search?: string; whitelist?: boolean }): Promise<ApiResponse<User[]>> {
-		const params = new URLSearchParams();
+  // Users
+  async getUsers(filters?: {
+    search?: string;
+    whitelist?: boolean;
+  }): Promise<ApiResponse<User[]>> {
+    const params = new URLSearchParams();
 
-		if (filters) {
-			if (filters.search) params.append('search', filters.search);
-			if (filters.whitelist !== undefined) params.append('whitelist', filters.whitelist.toString());
-		}
+    if (filters) {
+      if (filters.search) params.append("search", filters.search);
+      if (filters.whitelist !== undefined)
+        params.append("whitelist", filters.whitelist.toString());
+    }
 
-		const query = params.toString();
-		return this.request<User[]>(`/users${query ? '?' + query : ''}`);
-	}
+    const query = params.toString();
+    return this.request<User[]>(`/users${query ? "?" + query : ""}`);
+  }
 
   async getUser(id: number): Promise<ApiResponse<User>> {
     return this.request<User>(`/users/${id}`);
@@ -225,7 +254,9 @@ class ApiClient {
     return this.request<Statistics>("/statistics");
   }
 
-  async getSpendingByMonth(year?: number): Promise<ApiResponse<{ months: MonthlySpending[] }>> {
+  async getSpendingByMonth(
+    year?: number
+  ): Promise<ApiResponse<{ months: MonthlySpending[] }>> {
     const url = year
       ? `/statistics/monthly?year=${year}`
       : "/statistics/monthly";
