@@ -137,18 +137,18 @@
 </script>
 
 <div class="space-y-6">
-  <div class="flex justify-between items-center">
-    <h1 class="text-3xl font-bold text-gray-900">📧 Danh sách nhắc nhở</h1>
+  <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+    <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">📧 Danh sách nhắc nhở</h1>
     <div class="flex gap-2">
       <button
         onclick={selectAll}
         disabled={loading || userSummaries.length === 0}
-        class="btn btn-secondary disabled:opacity-50"
+        class="btn btn-secondary disabled:opacity-50 text-sm sm:text-base"
       >
         Select All
       </button>
       {#if selectedUsers.size > 0}
-        <button onclick={clearSelection} class="btn btn-secondary">
+        <button onclick={clearSelection} class="btn btn-secondary text-sm sm:text-base">
           Clear
         </button>
       {/if}
@@ -165,18 +165,18 @@
 
   <!-- Reminder Options -->
   <div class="card">
-    <div class="flex items-center justify-between">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
       <div class="flex items-center gap-4">
         <label class="flex items-center cursor-pointer">
           <input type="checkbox" bind:checked={angryMode} class="mr-2" />
-          <span class="text-gray-700"> Use "Angry" reminder template </span>
+          <span class="text-sm sm:text-base text-gray-700"> Use "Angry" reminder template </span>
         </label>
       </div>
       {#if selectedUsers.size > 0}
         <button
           onclick={sendReminders}
           disabled={sending}
-          class="btn btn-primary disabled:opacity-50"
+          class="btn btn-primary disabled:opacity-50 text-sm sm:text-base w-full sm:w-auto"
         >
           {sending
             ? "Sending..."
@@ -216,23 +216,23 @@
       <div class="space-y-3">
         {#each userSummaries as summary}
           <div class="border border-gray-200 rounded-lg overflow-hidden">
-            <div class="flex items-start justify-between p-4">
-              <label class="flex items-start gap-3 flex-1 cursor-pointer">
+            <div class="p-4 flex flex-col sm:flex-row sm:items-start gap-4">
+              <label class="flex items-start gap-3 flex-1 cursor-pointer min-w-0">
                 <input
                   type="checkbox"
                   checked={selectedUsers.has(summary.user.id)}
                   onchange={() => toggleUser(summary.user.id)}
-                  class="mt-1"
+                  class="mt-1 flex-shrink-0"
                 />
-                <div class="flex-1">
+                <div class="flex-1 min-w-0">
                   <div class="flex items-center gap-2 mb-1">
-                    <h3 class="font-bold text-gray-900">{summary.user.name}</h3>
-                    <span class="text-xl">{getStatusIcon(summary)}</span>
+                    <h3 class="font-bold text-gray-900 truncate">{summary.user.name}</h3>
+                    <span class="text-xl flex-shrink-0">{getStatusIcon(summary)}</span>
                   </div>
-                  <p class="text-sm text-gray-600 mb-1">
+                  <p class="text-sm text-gray-600 mb-1 truncate">
                     Email: {summary.user.email}
                   </p>
-                  <div class="flex gap-4 text-sm text-gray-600">
+                  <div class="flex flex-wrap gap-2 sm:gap-4 text-sm text-gray-600">
                     <span
                       >Số lượng bill: <strong>{summary.bill_count}</strong
                       ></span
@@ -252,12 +252,12 @@
                   {/if}
                 </div>
               </label>
-              <div class="flex gap-2 ml-2">
+              <div class="flex flex-col sm:flex-row gap-2 sm:flex-shrink-0">
                 <button
                   onclick={() =>
                     completeUserBills(summary.user.id, summary.user.name)}
                   disabled={completingUsers.has(summary.user.id)}
-                  class="btn btn-primary text-sm py-1 px-3 whitespace-nowrap disabled:opacity-50"
+                  class="btn btn-primary text-sm py-2 px-3 disabled:opacity-50 whitespace-nowrap"
                 >
                   {completingUsers.has(summary.user.id)
                     ? "Đang xử lý..."
@@ -266,9 +266,10 @@
                 <button
                   type="button"
                   onclick={() => toggleExpand(summary.user.id)}
-                  class="p-2 hover:bg-gray-100 rounded transition-colors"
+                  class="p-2 hover:bg-gray-100 rounded transition-colors border border-gray-300 flex items-center justify-center gap-2"
                   aria-label="Toggle bill details"
                 >
+                  <span class="text-sm text-gray-700 sm:hidden">Chi tiết</span>
                   <svg
                     class="w-5 h-5 text-gray-600 transition-transform"
                     class:rotate-180={expandedUsers.has(summary.user.id)}
@@ -322,22 +323,22 @@
       <!-- Summary -->
       <div class="mt-6 pt-6 border-t border-gray-200">
         <h3 class="font-bold text-gray-900 mb-3">Tổng cộng:</h3>
-        <div class="grid grid-cols-3 gap-4 text-center">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 text-center">
           <div class="p-3 bg-blue-50 rounded-lg">
-            <p class="text-sm text-gray-600">Số người</p>
-            <p class="text-2xl font-bold text-blue-600">
+            <p class="text-xs sm:text-sm text-gray-600">Số người</p>
+            <p class="text-xl sm:text-2xl font-bold text-blue-600">
               {totalSummary().userCount}
             </p>
           </div>
           <div class="p-3 bg-orange-50 rounded-lg">
-            <p class="text-sm text-gray-600">Số bill</p>
-            <p class="text-2xl font-bold text-orange-600">
+            <p class="text-xs sm:text-sm text-gray-600">Số bill</p>
+            <p class="text-xl sm:text-2xl font-bold text-orange-600">
               {totalSummary().billCount}
             </p>
           </div>
           <div class="p-3 bg-green-50 rounded-lg">
-            <p class="text-sm text-gray-600">Tổng tiền</p>
-            <p class="text-2xl font-bold text-green-600">
+            <p class="text-xs sm:text-sm text-gray-600">Tổng tiền</p>
+            <p class="text-xl sm:text-2xl font-bold text-green-600">
               {formatCurrency(totalSummary().totalAmount)}
             </p>
           </div>

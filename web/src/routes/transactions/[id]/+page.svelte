@@ -72,13 +72,13 @@
 </script>
 
 <div class="space-y-6">
-	<div class="flex items-center gap-4">
-		<a href="/transactions" class="text-gray-600 hover:text-gray-900" aria-label="Back to transactions">
-			<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+	<div class="flex items-center gap-3 sm:gap-4">
+		<a href="/transactions" class="text-gray-600 hover:text-gray-900 flex-shrink-0" aria-label="Back to transactions">
+			<svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
 			</svg>
 		</a>
-		<h1 class="text-3xl font-bold text-gray-900">Transaction Details</h1>
+		<h1 class="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">Transaction Details</h1>
 	</div>
 
 	{#if error}
@@ -95,42 +95,42 @@
 	{:else if transaction}
 		<!-- Transaction Info -->
 		<div class="card">
-			<div class="flex justify-between items-start">
-				<div class="flex-1">
-					<div class="flex items-center gap-3">
-						<h2 class="text-2xl font-bold text-gray-900">{transaction.description}</h2>
+			<div class="flex flex-col sm:flex-row sm:justify-between gap-4">
+				<div class="flex-1 min-w-0">
+					<div class="flex items-center gap-2 flex-wrap">
+						<h2 class="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 break-words">{transaction.description}</h2>
 						{#if transaction.completed}
-							<span class="inline-flex items-center px-3 py-1 bg-green-100 text-green-700 text-sm font-medium rounded-full">
-								<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<span class="inline-flex items-center px-2 sm:px-3 py-0.5 sm:py-1 bg-green-100 text-green-700 text-xs sm:text-sm font-medium rounded-full flex-shrink-0">
+								<svg class="w-3 h-3 sm:w-4 sm:h-4 mr-0.5 sm:mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
 								</svg>
 								Completed
 							</span>
 						{/if}
 					</div>
-					<p class="text-gray-500 mt-2">{formatDate(transaction.timestamp)}</p>
+					<p class="text-sm sm:text-base text-gray-500 mt-2">{formatDate(transaction.timestamp)}</p>
 
 					{#if transaction.tags && transaction.tags.length > 0}
-						<div class="flex gap-2 mt-4">
+						<div class="flex flex-wrap gap-1.5 sm:gap-2 mt-3 sm:mt-4">
 							{#each transaction.tags as tag}
-								<span class="px-3 py-1 bg-primary-100 text-primary-700 text-sm rounded-full">
+								<span class="px-2 sm:px-3 py-0.5 sm:py-1 bg-primary-100 text-primary-700 text-xs sm:text-sm rounded-full">
 									{tag.name}
 								</span>
 							{/each}
 						</div>
 					{/if}
 				</div>
-				<div class="text-right">
-					<p class="text-4xl font-bold {getTransactionTypeColor(transaction.type)}">
+				<div class="sm:text-right flex-shrink-0">
+					<p class="text-2xl sm:text-3xl md:text-4xl font-bold {getTransactionTypeColor(transaction.type)}">
 						{formatAmount(transaction.amount, transaction.type)}
 					</p>
-					<p class="text-gray-500 mt-2">Balance: {formatCurrency(transaction.balance)}</p>
+					<p class="text-sm sm:text-base text-gray-500 mt-1 sm:mt-2">Balance: {formatCurrency(transaction.balance)}</p>
 				</div>
 			</div>
 
-			<div class="flex gap-3 mt-6">
-				<button onclick={() => (showSplitModal = true)} class="btn btn-primary" disabled={transaction.completed}>
-					<svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+			<div class="flex flex-col sm:flex-row gap-2 sm:gap-3 mt-4 sm:mt-6">
+				<button onclick={() => (showSplitModal = true)} class="btn btn-primary text-sm sm:text-base" disabled={transaction.completed}>
+					<svg class="w-4 h-4 sm:w-5 sm:h-5 inline-block mr-1.5 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path
 							stroke-linecap="round"
 							stroke-linejoin="round"
@@ -140,8 +140,8 @@
 					</svg>
 					Split Bill
 				</button>
-				<button onclick={() => (showTagSelector = true)} class="btn btn-secondary">
-					<svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<button onclick={() => (showTagSelector = true)} class="btn btn-secondary text-sm sm:text-base">
+					<svg class="w-4 h-4 sm:w-5 sm:h-5 inline-block mr-1.5 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path
 							stroke-linecap="round"
 							stroke-linejoin="round"
@@ -152,8 +152,8 @@
 					Add Tag
 				</button>
 				{#if !transaction.completed}
-					<button onclick={handleCompleteTransaction} class="btn bg-green-600 hover:bg-green-700 text-white">
-						<svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<button onclick={handleCompleteTransaction} class="btn bg-green-600 hover:bg-green-700 text-white text-sm sm:text-base">
+						<svg class="w-4 h-4 sm:w-5 sm:h-5 inline-block mr-1.5 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
 						</svg>
 						Mark as Completed
@@ -165,63 +165,65 @@
 		<!-- Bill Splits -->
 		{#if transaction.splits && transaction.splits.length > 0}
 			<div class="card">
-				<h3 class="text-xl font-bold text-gray-900 mb-4">Bill Splits</h3>
+				<h3 class="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4">Bill Splits</h3>
 				<div class="space-y-3">
 					{#each transaction.splits as split}
-						<div class="flex justify-between items-center p-4 bg-gray-50 rounded-lg">
-							<div class="flex-1">
-								<p class="font-medium text-gray-900">{split.user?.name || 'Unknown User'}</p>
-								<p class="text-sm text-gray-500">{split.user?.email}</p>
+						<div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 p-3 sm:p-4 bg-gray-50 rounded-lg">
+							<div class="flex-1 min-w-0">
+								<p class="font-medium text-gray-900 text-sm sm:text-base truncate">{split.user?.name || 'Unknown User'}</p>
+								<p class="text-xs sm:text-sm text-gray-500 truncate">{split.user?.email}</p>
 								{#if split.reason}
-									<p class="text-sm text-gray-600 mt-1">{split.reason}</p>
+									<p class="text-xs sm:text-sm text-gray-600 mt-1 break-words">{split.reason}</p>
 								{/if}
 							</div>
-							<div class="text-right">
-								<p class="text-lg font-bold text-gray-900">{formatCurrency(split.amount)}</p>
-								{#if split.completed}
-									<span class="inline-flex items-center px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full mt-1">
-										<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-										</svg>
-										Paid
-									</span>
-								{:else}
+							<div class="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
+								<div class="sm:text-right">
+									<p class="text-base sm:text-lg font-bold text-gray-900">{formatCurrency(split.amount)}</p>
+									{#if split.completed}
+										<span class="inline-flex items-center px-2 py-0.5 sm:py-1 bg-green-100 text-green-700 text-xs rounded-full mt-0.5 sm:mt-1">
+											<svg class="w-3 h-3 sm:w-4 sm:h-4 mr-0.5 sm:mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+											</svg>
+											Paid
+										</span>
+									{:else}
+										<button
+											onclick={() => handleCompleteSplit(split.id)}
+											class="text-xs sm:text-sm text-primary-600 hover:text-primary-700 mt-0.5 sm:mt-1 whitespace-nowrap"
+										>
+											Mark as Paid
+										</button>
+									{/if}
+								</div>
+								{#if !split.completed}
 									<button
-										onclick={() => handleCompleteSplit(split.id)}
-										class="text-sm text-primary-600 hover:text-primary-700 mt-1"
+										onclick={() => handleDeleteSplit(split.id)}
+										class="text-red-600 hover:text-red-700 flex-shrink-0"
+										aria-label="Delete split"
 									>
-										Mark as Paid
+										<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+											/>
+										</svg>
 									</button>
 								{/if}
 							</div>
-							{#if !split.completed}
-								<button
-									onclick={() => handleDeleteSplit(split.id)}
-									class="ml-3 text-red-600 hover:text-red-700"
-									aria-label="Delete split"
-								>
-									<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-										/>
-									</svg>
-								</button>
-							{/if}
 						</div>
 					{/each}
 				</div>
 
-				<div class="mt-4 pt-4 border-t border-gray-200">
-					<div class="flex justify-between text-lg font-bold">
+				<div class="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-200">
+					<div class="flex justify-between text-base sm:text-lg font-bold">
 						<span>Total Split:</span>
 						<span>
 							{formatCurrency(transaction.splits.reduce((sum, split) => sum + split.amount, 0))}
 						</span>
 					</div>
-					<div class="flex justify-between text-sm text-gray-600 mt-2">
+					<div class="flex justify-between text-xs sm:text-sm text-gray-600 mt-1 sm:mt-2">
 						<span>Pending:</span>
 						<span class="text-orange-600">
 							{transaction.splits.filter((s) => !s.completed).length} people

@@ -12,6 +12,16 @@
     { path: "/settings", label: "Settings" },
   ];
 
+  let isMobileMenuOpen = false;
+
+  function toggleMobileMenu() {
+    isMobileMenuOpen = !isMobileMenuOpen;
+  }
+
+  function closeMobileMenu() {
+    isMobileMenuOpen = false;
+  }
+
   function handleLogout() {
     auth.logout();
     window.location.href = "/login";
@@ -72,24 +82,83 @@
       <!-- Mobile menu button -->
       <div class="md:hidden">
         <button
+          on:click={toggleMobileMenu}
           class="text-gray-700 hover:text-gray-900"
           aria-label="Toggle menu"
         >
-          <svg
-            class="w-6 h-6"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M4 6h16M4 12h16M4 18h16"
-            />
-          </svg>
+          {#if isMobileMenuOpen}
+            <svg
+              class="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          {:else}
+            <svg
+              class="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 6h16M4 12h16M4 18h16"
+              />
+            </svg>
+          {/if}
         </button>
       </div>
     </div>
+
+    <!-- Mobile menu -->
+    {#if isMobileMenuOpen}
+      <div class="md:hidden border-t border-gray-200">
+        <div class="px-2 pt-2 pb-3 space-y-1">
+          {#each navItems as item}
+            {@const isActive =
+              item.path === "/"
+                ? $page.url.pathname === "/"
+                : $page.url.pathname.startsWith(item.path)}
+            <a
+              href={item.path}
+              on:click={closeMobileMenu}
+              class="block px-3 py-2 rounded-md text-base font-medium transition-colors"
+              class:bg-blue-600={isActive}
+              class:text-white={isActive}
+              class:text-gray-700={!isActive}
+              class:hover:bg-gray-100={!isActive}
+            >
+              {item.label}
+            </a>
+          {/each}
+
+          {#if $auth.isAuthenticated && $currentUser}
+            <div class="pt-4 border-t border-gray-200 mt-4">
+              <div class="px-3 py-2">
+                <p class="text-sm font-medium text-gray-900">
+                  {$currentUser.name}
+                </p>
+                <p class="text-sm text-gray-500">{$currentUser.email}</p>
+              </div>
+              <button
+                on:click={handleLogout}
+                class="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors"
+              >
+                Logout
+              </button>
+            </div>
+          {/if}
+        </div>
+      </div>
+    {/if}
   </div>
 </nav>

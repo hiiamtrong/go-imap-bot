@@ -116,9 +116,9 @@
 </script>
 
 <div class="space-y-6">
-  <div class="flex justify-between items-center">
-    <h1 class="text-3xl font-bold text-gray-900">Transactions</h1>
-    <a href="/transactions/new" class="btn btn-primary">
+  <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+    <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Transactions</h1>
+    <a href="/transactions/new" class="btn btn-primary text-sm sm:text-base">
       <svg
         class="w-5 h-5 inline-block mr-2"
         fill="none"
@@ -148,7 +148,7 @@
   <div class="card">
     <div class="space-y-4">
       <!-- Basic Filters -->
-      <div class="flex flex-col md:flex-row gap-4">
+      <div class="flex flex-col gap-3">
         <div class="flex-1">
           <input
             type="text"
@@ -157,22 +157,22 @@
             class="input"
           />
         </div>
-        <div class="flex gap-2">
+        <div class="grid grid-cols-3 gap-2">
           <button
             onclick={() => (filterType = "all")}
-            class="btn {filterType === 'all' ? 'btn-primary' : 'btn-secondary'}"
+            class="btn text-sm sm:text-base {filterType === 'all' ? 'btn-primary' : 'btn-secondary'}"
           >
             All
           </button>
           <button
             onclick={() => (filterType = "add")}
-            class="btn {filterType === 'add' ? 'btn-primary' : 'btn-secondary'}"
+            class="btn text-sm sm:text-base {filterType === 'add' ? 'btn-primary' : 'btn-secondary'}"
           >
             Income
           </button>
           <button
             onclick={() => (filterType = "subtract")}
-            class="btn {filterType === 'subtract'
+            class="btn text-sm sm:text-base {filterType === 'subtract'
               ? 'btn-primary'
               : 'btn-secondary'}"
           >
@@ -182,17 +182,17 @@
       </div>
 
       <!-- Advanced Filters Toggle -->
-      <div class="flex justify-between items-center">
+      <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
         <button
           onclick={() => (showAdvancedFilters = !showAdvancedFilters)}
-          class="text-primary-600 hover:text-primary-700 text-sm font-medium"
+          class="text-primary-600 hover:text-primary-700 text-sm font-medium text-left"
         >
           {showAdvancedFilters ? "Hide" : "Show"} Advanced Filters
         </button>
         {#if startDate || endDate || minAmount || maxAmount || selectedTagIds.length > 0}
           <button
             onclick={clearFilters}
-            class="text-red-600 hover:text-red-700 text-sm"
+            class="text-red-600 hover:text-red-700 text-sm text-left sm:text-right"
           >
             Clear All Filters
           </button>

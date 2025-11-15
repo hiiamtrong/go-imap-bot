@@ -22,19 +22,19 @@
 
 <a
   href="/transactions/{transaction.id}"
-  class="block p-4 border border-gray-200 rounded-lg hover:border-primary-300 hover:shadow-md transition-all"
+  class="block p-3 sm:p-4 border border-gray-200 rounded-lg hover:border-primary-300 hover:shadow-md transition-all"
 >
-  <div class="flex justify-between items-start">
-    <div class="flex-1">
-      <div class="flex items-center gap-3">
+  <div class="flex flex-col sm:flex-row sm:justify-between gap-3 sm:gap-4">
+    <div class="flex-1 min-w-0">
+      <div class="flex items-start gap-3">
         {#if showIcon}
           <div
-            class="w-10 h-10 rounded-full flex items-center justify-center
+            class="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0
 						{transaction.type === 'add' ? 'bg-green-100' : 'bg-red-100'}"
           >
             {#if transaction.type === "add"}
               <svg
-                class="w-5 h-5 text-green-600"
+                class="w-4 h-4 sm:w-5 sm:h-5 text-green-600"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -48,7 +48,7 @@
               </svg>
             {:else}
               <svg
-                class="w-5 h-5 text-red-600"
+                class="w-4 h-4 sm:w-5 sm:h-5 text-red-600"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -64,12 +64,12 @@
           </div>
         {/if}
 
-        <div class="flex-1">
-          <div class="flex items-center gap-2">
-            <p class="font-medium text-gray-900">{transaction.description}</p>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 flex-wrap">
+            <p class="font-medium text-gray-900 text-sm sm:text-base truncate">{transaction.description}</p>
             {#if transaction.completed}
               <span
-                class="inline-flex items-center px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full"
+                class="inline-flex items-center px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full flex-shrink-0"
               >
                 <svg
                   class="w-3 h-3 mr-0.5"
@@ -88,18 +88,18 @@
               </span>
             {/if}
           </div>
-          <p class="text-sm text-gray-500 mt-1">
+          <p class="text-xs sm:text-sm text-gray-500 mt-1">
             {formatRelativeTime(transaction.timestamp)}
             {#if showDate}
-              • {formatDate(transaction.timestamp)}
+              <span class="hidden sm:inline">• {formatDate(transaction.timestamp)}</span>
             {/if}
           </p>
 
           {#if transaction.tags && transaction.tags.length > 0}
-            <div class="flex gap-2 mt-2" class:ml-13={showIcon}>
+            <div class="flex flex-wrap gap-1.5 sm:gap-2 mt-2">
               {#each transaction.tags as tag}
                 <span
-                  class="px-2 py-1 bg-primary-100 text-primary-700 text-xs rounded-full"
+                  class="px-2 py-0.5 sm:py-1 bg-primary-100 text-primary-700 text-xs rounded-full"
                 >
                   {tag.name}
                 </span>
@@ -110,33 +110,35 @@
       </div>
     </div>
 
-    <div class="text-right ml-4">
-      <p
-        class="{showDate
-          ? 'text-xl'
-          : 'text-lg'} font-bold {getTransactionTypeColor(transaction.type)}"
-      >
-        {formatAmount(transaction.amount, transaction.type)}
-      </p>
-      <p class="text-sm text-gray-500 mt-1">
-        Balance: {formatCurrency(transaction.balance)}
-      </p>
+    <div class="sm:text-right flex sm:flex-col justify-between sm:justify-start items-end sm:items-end flex-shrink-0">
+      <div>
+        <p
+          class="{showDate
+            ? 'text-lg sm:text-xl'
+            : 'text-base sm:text-lg'} font-bold {getTransactionTypeColor(transaction.type)}"
+        >
+          {formatAmount(transaction.amount, transaction.type)}
+        </p>
+        <p class="text-xs sm:text-sm text-gray-500 mt-0.5 sm:mt-1">
+          Balance: {formatCurrency(transaction.balance)}
+        </p>
+      </div>
       {#if transaction.splits && transaction.splits.length > 0}
-        <div class="mt-2">
+        <div class="sm:mt-2">
           {#if showDate}
             <span
-              class="px-2 py-1 text-xs rounded-full
+              class="px-2 py-1 text-xs rounded-full whitespace-nowrap
 							{transaction.splits.some((s) => !s.completed)
                 ? 'bg-orange-100 text-orange-700'
                 : 'bg-green-100 text-green-700'}"
             >
               {transaction.splits.filter((s) => !s.completed).length === 0
                 ? "All paid"
-                : `${transaction.splits.filter((s) => !s.completed).length} pending splits`}
+                : `${transaction.splits.filter((s) => !s.completed).length} pending`}
             </span>
           {:else}
-            <p class="text-xs text-gray-500">
-              {transaction.splits.filter((s) => !s.completed).length} pending splits
+            <p class="text-xs text-gray-500 whitespace-nowrap">
+              {transaction.splits.filter((s) => !s.completed).length} pending
             </p>
           {/if}
         </div>

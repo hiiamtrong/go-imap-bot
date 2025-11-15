@@ -21,13 +21,58 @@
   let error = $state<string | null>(null);
   let searchQuery = $state("");
   let globalReason = $state("");
+  let showCreateUser = $state(false);
+  let newUserName = $state("");
+  let newUserEmail = $state("");
+  let creatingUser = $state(false);
 
   onMount(async () => {
+    await loadUsers();
+  });
+
+  async function loadUsers() {
     const response = await api.getUsers();
     if (response.data) {
       users = response.data;
     }
-  });
+  }
+
+  async function handleCreateUser() {
+    if (!newUserName.trim() || !newUserEmail.trim()) {
+      error = "Please enter both name and email";
+      return;
+    }
+
+    creatingUser = true;
+    error = null;
+
+    const response = await api.createUser({
+      name: newUserName.trim(),
+      email: newUserEmail.trim(),
+      whitelist: false,
+    });
+
+    if (response.error) {
+      error = response.error;
+    } else if (response.data) {
+      // Reload users list
+      await loadUsers();
+      // Auto-select the newly created user
+      selectedUsers.add(response.data.id);
+      selectedUsers = new Set(selectedUsers);
+      // Clear form and hide
+      newUserName = "";
+      newUserEmail = "";
+      showCreateUser = false;
+    }
+
+    creatingUser = false;
+  }
+
+  // Get selected users with their details
+  let selectedUsersList = $derived(
+    users.filter((user) => selectedUsers.has(user.id))
+  );
 
   // Filter users based on search query
   let filteredUsers = $derived(
@@ -116,11 +161,16 @@
     return total;
   }
 
+  function calculateRemaining(): number {
+    const transactionAmount = Math.abs(transaction.amount);
+    const total = calculateTotal();
+    return transactionAmount - total;
+  }
+
   function isValidSplit(): boolean {
     if (selectedUsers.size === 0) return false;
-    const total = calculateTotal();
-    const transactionAmount = Math.abs(transaction.amount);
-    return Math.abs(total - transactionAmount) < 0.01;
+    const remaining = calculateRemaining();
+    return Math.abs(remaining) < 0.01;
   }
 
   async function handleSubmit() {
@@ -261,11 +311,113 @@
         </p>
       </div>
 
-      <!-- User Selection -->
-      <div class="mb-6">
-        <div class="label mb-2">Select Users</div>
+      <!-- Selected Users Section -->
+      {#if selectedUsersList.length > 0}
+        <div class="mb-6">
+          <div class="label mb-3">Selected Users ({selectedUsersList.length})</div>
+          <div class="space-y-3 max-h-60 overflow-y-auto border border-gray-200 rounded-lg p-3 bg-blue-50">
+            {#each selectedUsersList as user}
+              <div class="bg-white rounded-lg p-3 space-y-2">
+                <div class="flex items-start justify-between">
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2">
+                      <p class="font-medium text-gray-900 truncate">{user.name}</p>
+                      <button
+                        onclick={() => toggleUser(user.id)}
+                        class="text-red-500 hover:text-red-700 flex-shrink-0"
+                        aria-label="Remove user"
+                      >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                    <p class="text-xs text-gray-500 truncate">{user.email}</p>
+                  </div>
+                  <div class="ml-3 flex-shrink-0">
+                    {#if splitMode === "equal"}
+                      <p class="text-sm font-bold text-primary-600">
+                        {formatCurrency(calculateEqualSplit())}
+                      </p>
+                    {:else}
+                      <div class="relative">
+                        <input
+                          type="text"
+                          inputmode="numeric"
+                          placeholder="Amount"
+                          value={displayAmounts[user.id] || ""}
+                          oninput={(e) => handleAmountInput(e, user.id)}
+                          onkeydown={handleKeyDown}
+                          class="input w-28 text-sm pr-6"
+                        />
+                        <span
+                          class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs pointer-events-none"
+                        >
+                          ₫
+                        </span>
+                      </div>
+                    {/if}
+                  </div>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Reason (optional)"
+                  bind:value={reasons[user.id]}
+                  class="input text-sm w-full"
+                />
+              </div>
+            {/each}
+          </div>
+        </div>
+      {/if}
 
-        <!-- Search Input -->
+      <!-- Add Users Section -->
+      <div class="mb-6">
+        <div class="flex justify-between items-center mb-3">
+          <div class="label">Add Users to Split</div>
+          <button
+            onclick={() => (showCreateUser = !showCreateUser)}
+            class="text-sm text-primary-600 hover:text-primary-700 font-medium"
+          >
+            {showCreateUser ? "Cancel" : "+ Create New User"}
+          </button>
+        </div>
+
+        <!-- Create User Form -->
+        {#if showCreateUser}
+          <div class="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <h4 class="font-medium text-gray-900 mb-3">Create New User</h4>
+            <div class="space-y-3">
+              <div>
+                <label class="label text-sm mb-1">Name</label>
+                <input
+                  type="text"
+                  placeholder="Enter name"
+                  bind:value={newUserName}
+                  class="input w-full"
+                />
+              </div>
+              <div>
+                <label class="label text-sm mb-1">Email</label>
+                <input
+                  type="email"
+                  placeholder="Enter email"
+                  bind:value={newUserEmail}
+                  class="input w-full"
+                />
+              </div>
+              <button
+                onclick={handleCreateUser}
+                disabled={creatingUser || !newUserName.trim() || !newUserEmail.trim()}
+                class="btn btn-primary w-full text-sm disabled:opacity-50"
+              >
+                {creatingUser ? "Creating..." : "Create and Add to Split"}
+              </button>
+            </div>
+          </div>
+        {/if}
+
+        <!-- Search and Select Users -->
         <div class="mb-3">
           <input
             type="text"
@@ -275,67 +427,30 @@
           />
         </div>
 
-        <div class="space-y-3 max-h-60 overflow-y-auto">
+        <div class="space-y-2 max-h-60 overflow-y-auto">
           {#if filteredUsers.length === 0}
-            <p class="text-gray-500 text-center py-4">No users found</p>
+            <p class="text-gray-500 text-center py-4 text-sm">No users found</p>
           {:else}
             {#each filteredUsers as user}
-              <div class="space-y-2">
-                <div
-                  class="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                >
-                  <label class="flex items-center flex-1 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={selectedUsers.has(user.id)}
-                      onchange={() => toggleUser(user.id)}
-                      class="mr-3"
-                    />
-                    <div>
-                      <p class="font-medium text-gray-900">{user.name}</p>
-                      <p class="text-sm text-gray-500">{user.email}</p>
-                    </div>
-                  </label>
-
-                  {#if selectedUsers.has(user.id)}
-                    <div class="ml-4">
-                      {#if splitMode === "equal"}
-                        <p class="text-sm font-medium text-primary-600">
-                          {formatCurrency(calculateEqualSplit())}
-                        </p>
-                      {:else}
-                        <div class="relative">
-                          <input
-                            type="text"
-                            inputmode="numeric"
-                            placeholder="Amount"
-                            value={displayAmounts[user.id] || ""}
-                            oninput={(e) => handleAmountInput(e, user.id)}
-                            onkeydown={handleKeyDown}
-                            class="input w-32 text-sm pr-8"
-                          />
-                          <span
-                            class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs pointer-events-none"
-                          >
-                            ₫
-                          </span>
-                        </div>
-                      {/if}
-                    </div>
-                  {/if}
-                </div>
-
-                {#if selectedUsers.has(user.id)}
-                  <div class="ml-4">
-                    <input
-                      type="text"
-                      placeholder="Reason (optional)"
-                      bind:value={reasons[user.id]}
-                      class="input text-sm"
-                    />
+              <label
+                class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
+              >
+                <div class="flex items-center flex-1 min-w-0">
+                  <input
+                    type="checkbox"
+                    checked={selectedUsers.has(user.id)}
+                    onchange={() => toggleUser(user.id)}
+                    class="mr-3 flex-shrink-0"
+                  />
+                  <div class="min-w-0 flex-1">
+                    <p class="font-medium text-gray-900 text-sm truncate">{user.name}</p>
+                    <p class="text-xs text-gray-500 truncate">{user.email}</p>
                   </div>
+                </div>
+                {#if selectedUsers.has(user.id)}
+                  <span class="ml-2 text-xs text-primary-600 font-medium flex-shrink-0">✓ Selected</span>
                 {/if}
-              </div>
+              </label>
             {/each}
           {/if}
         </div>
@@ -352,11 +467,24 @@
             <span>Total Split:</span>
             <span class="font-medium">{formatCurrency(calculateTotal())}</span>
           </div>
-          <div class="flex justify-between">
+          <div class="flex justify-between mb-2">
             <span>Transaction Amount:</span>
             <span class="font-medium"
               >{formatCurrency(Math.abs(transaction.amount))}</span
             >
+          </div>
+          <div class="flex justify-between">
+            <span>Remaining:</span>
+            <span class="font-medium {Math.abs(calculateRemaining()) < 0.01 ? 'text-green-600' : calculateRemaining() > 0 ? 'text-orange-600' : 'text-red-600'}">
+              {formatCurrency(Math.abs(calculateRemaining()))}
+              {#if Math.abs(calculateRemaining()) < 0.01}
+                <span class="text-xs">(Perfect!)</span>
+              {:else if calculateRemaining() > 0}
+                <span class="text-xs">(need more)</span>
+              {:else}
+                <span class="text-xs">(over allocated)</span>
+              {/if}
+            </span>
           </div>
           {#if !isValidSplit() && selectedUsers.size > 0}
             <p class="text-red-600 text-sm mt-2">
