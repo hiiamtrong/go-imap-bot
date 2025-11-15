@@ -1,5 +1,6 @@
 import { writable, derived } from "svelte/store";
 import { browser } from "$app/environment";
+import { api } from "$lib/api/client";
 
 export interface User {
   name: string;
@@ -83,20 +84,17 @@ function createAuthStore() {
         throw new Error("No token available");
       }
 
-      const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
-      const response = await fetch(`${API_URL}/api/auth/refresh`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${state.token}`,
-        },
-      });
+      const response = await api.refreshToken();
 
-      if (!response.ok) {
-        throw new Error("Failed to refresh token");
+      if (response.error) {
+        throw new Error(response.error);
       }
 
-      const data = await response.json();
+      if (!response.data) {
+        throw new Error("No data received from refresh");
+      }
+
+      const data = response.data;
       const newState: AuthState = {
         token: data.token,
         expiresAt: data.expires_at,
@@ -110,6 +108,24 @@ function createAuthStore() {
       }
       set(newState);
       return data.token;
+    },
+    getCurrentUser: async () => {
+      const response = await api.getCurrentUser();
+
+      if (response.error) {
+        throw new Error(response.error);
+      }
+
+      if (!response.data) {
+        throw new Error("No user data received");
+      }
+
+      update((state) => ({
+        ...state,
+        user: response.data!,
+      }));
+
+      return response.data;
     },
   };
 }

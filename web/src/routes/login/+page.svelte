@@ -2,11 +2,10 @@
   import { onMount } from "svelte";
   import { goto } from "$app/navigation";
   import { auth } from "$lib/stores/auth";
+  import { api } from "$lib/api/client";
 
   let isLoading = false;
   let error = "";
-
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
   onMount(() => {
     // If already authenticated, redirect to home
@@ -17,21 +16,12 @@
   });
 
   async function handleLogin() {
+    isLoading = true;
+    error = "";
     try {
-      isLoading = true;
-      error = "";
-
-      // Get OAuth URL from backend
-      const response = await fetch(`${API_URL}/auth/login`);
-      if (!response.ok) {
-        throw new Error("Failed to initiate login");
-      }
-
-      const data = await response.json();
-      // Redirect to Google OAuth
-      window.location.href = data.url;
+      await api.login();
     } catch (e) {
-      error = e instanceof Error ? e.message : "An error occurred";
+      error = e instanceof Error ? e.message : "Login failed";
       isLoading = false;
     }
   }

@@ -3,11 +3,10 @@
   import { goto } from "$app/navigation";
   import { page } from "$app/stores";
   import { auth } from "$lib/stores/auth";
+  import { api } from "$lib/api/client";
 
   let error = "";
   let isProcessing = true;
-
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
   onMount(async () => {
     const code = $page.url.searchParams.get("code");
@@ -28,19 +27,14 @@
 
     try {
       // Exchange code for token with backend
-      const response = await fetch(
-        `${API_URL}/auth/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`
-      );
+      const result = await api.handleAuthCallback(code, state);
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.message || "Authentication failed");
+      if (result.error || !result.data) {
+        throw new Error(result.error || "Authentication failed");
       }
 
-      const data = await response.json();
-
       // Store auth data
-      auth.login(data.token, data.expires_at, data.user);
+      auth.login(result.data.token, result.data.expires_at, result.data.user);
 
       // Redirect to home
       goto("/");

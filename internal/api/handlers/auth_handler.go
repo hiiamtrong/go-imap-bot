@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/hiiamtrong/go-imap-bot/internal/api/dto"
 	"github.com/hiiamtrong/go-imap-bot/internal/config"
 	"github.com/hiiamtrong/go-imap-bot/internal/middleware"
 	"github.com/labstack/echo/v4"
@@ -36,15 +37,15 @@ type GoogleUserInfo struct {
 	Picture       string `json:"picture"`
 }
 
-type AuthUser struct {
+type AuthUserData struct {
 	Email string `json:"email"`
 	Name  string `json:"name"`
 }
 
-type AuthResponse struct {
-	Token     string    `json:"token"`
-	ExpiresAt time.Time `json:"expires_at"`
-	User      *AuthUser `json:"user"`
+type AuthResponseData struct {
+	Token     string        `json:"token"`
+	ExpiresAt time.Time     `json:"expires_at"`
+	User      *AuthUserData `json:"user"`
 }
 
 // Login initiates the OAuth flow
@@ -63,8 +64,10 @@ func (h *AuthHandler) Login(c echo.Context) error {
 	})
 
 	url := h.cfg.OAuth.GetGoogleOAuthConfig().AuthCodeURL(state)
-	return c.JSON(http.StatusOK, map[string]string{
-		"url": url,
+	return c.JSON(http.StatusOK, dto.Response{
+		Data: map[string]string{
+			"url": url,
+		},
 	})
 }
 
@@ -107,12 +110,14 @@ func (h *AuthHandler) Callback(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to generate token: %v", err))
 	}
 
-	return c.JSON(http.StatusOK, &AuthResponse{
-		Token:     jwtToken,
-		ExpiresAt: expiresAt,
-		User: &AuthUser{
-			Email: googleUser.Email,
-			Name:  googleUser.Name,
+	return c.JSON(http.StatusOK, dto.Response{
+		Data: &AuthResponseData{
+			Token:     jwtToken,
+			ExpiresAt: expiresAt,
+			User: &AuthUserData{
+				Email: googleUser.Email,
+				Name:  googleUser.Name,
+			},
 		},
 	})
 }
@@ -129,9 +134,11 @@ func (h *AuthHandler) Me(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusUnauthorized, "invalid user context")
 	}
 
-	return c.JSON(http.StatusOK, &AuthUser{
-		Email: email,
-		Name:  name,
+	return c.JSON(http.StatusOK, dto.Response{
+		Data: &AuthUserData{
+			Email: email,
+			Name:  name,
+		},
 	})
 }
 
@@ -153,12 +160,14 @@ func (h *AuthHandler) Refresh(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to generate token: %v", err))
 	}
 
-	return c.JSON(http.StatusOK, &AuthResponse{
-		Token:     jwtToken,
-		ExpiresAt: expiresAt,
-		User: &AuthUser{
-			Email: email,
-			Name:  name,
+	return c.JSON(http.StatusOK, dto.Response{
+		Data: &AuthResponseData{
+			Token:     jwtToken,
+			ExpiresAt: expiresAt,
+			User: &AuthUserData{
+				Email: email,
+				Name:  name,
+			},
 		},
 	})
 }

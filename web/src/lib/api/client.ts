@@ -266,6 +266,60 @@ class ApiClient {
   async getSpendingByTag(): Promise<ApiResponse<{ tags: TagSpending[] }>> {
     return this.request<{ tags: TagSpending[] }>("/statistics/tags");
   }
+
+  async login() {
+    const data = await this.request<{
+      url: string;
+    }>(`/auth/login`);
+
+    if (!data.data?.url) {
+      throw new Error("Login URL not found");
+    }
+    window.location.href = data.data?.url;
+  }
+
+  async handleAuthCallback(
+    code: string,
+    state: string
+  ): Promise<
+    ApiResponse<{
+      token: string;
+      expires_at: string;
+      user: { email: string; name: string };
+    }>
+  > {
+    return this.request<{
+      token: string;
+      expires_at: string;
+      user: { email: string; name: string };
+    }>(
+      `/auth/callback?code=${encodeURIComponent(
+        code
+      )}&state=${encodeURIComponent(state)}`
+    );
+  }
+
+  async refreshToken(): Promise<
+    ApiResponse<{
+      token: string;
+      expires_at: string;
+      user: { email: string; name: string };
+    }>
+  > {
+    return this.request<{
+      token: string;
+      expires_at: string;
+      user: { email: string; name: string };
+    }>("/auth/refresh", {
+      method: "POST",
+    });
+  }
+
+  async getCurrentUser(): Promise<
+    ApiResponse<{ email: string; name: string }>
+  > {
+    return this.request<{ email: string; name: string }>("/auth/me");
+  }
 }
 
 export const api = new ApiClient();
