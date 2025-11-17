@@ -1,31 +1,31 @@
 <script lang="ts">
-  import { onMount } from "svelte";
-  import { api } from "$lib/api/client";
-  import type { User } from "$lib/types";
+	import { onMount } from "svelte";
+	import { api } from "$lib/api/client";
+	import type { User } from "$lib/types";
 
-  let users = $state<User[]>([]);
-  let loading = $state(true);
-  let error = $state<string | null>(null);
-  let showAddModal = $state(false);
-  let editingUser = $state<User | null>(null);
+	let users = $state<User[]>([]);
+	let loading = $state(true);
+	let error = $state<string | null>(null);
+	let showAddModal = $state(false);
+	let editingUser = $state<User | null>(null);
 
 	// Filter states
-	let searchQuery = $state('');
-	let whitelistFilter = $state<'all' | 'whitelisted' | 'not-whitelisted'>('all');
+	let searchQuery = $state("");
+	let whitelistFilter = $state<"all" | "whitelisted" | "not-whitelisted">("all");
 
 	let formData = $state({
-		name: '',
-		email: '',
-		whitelist: false
+		name: "",
+		email: "",
+		whitelist: false,
 	});
 
-  onMount(async () => {
-    await loadUsers();
-  });
+	onMount(async () => {
+		await loadUsers();
+	});
 
-  async function loadUsers() {
-    loading = true;
-    error = null;
+	async function loadUsers() {
+		loading = true;
+		error = null;
 
 		// Build filters object
 		const filters: any = {};
@@ -34,8 +34,8 @@
 			filters.search = searchQuery;
 		}
 
-		if (whitelistFilter !== 'all') {
-			filters.whitelist = whitelistFilter === 'whitelisted';
+		if (whitelistFilter !== "all") {
+			filters.whitelist = whitelistFilter === "whitelisted";
 		}
 
 		const response = await api.getUsers(filters);
@@ -45,8 +45,8 @@
 			users = response.data;
 		}
 
-    loading = false;
-  }
+		loading = false;
+	}
 
 	// Reload when filters change
 	$effect(() => {
@@ -62,109 +62,99 @@
 
 	function openAddModal() {
 		editingUser = null;
-		formData = { name: '', email: '', whitelist: false };
+		formData = { name: "", email: "", whitelist: false };
 		showAddModal = true;
 	}
 
-  function openEditModal(user: User) {
-    editingUser = user;
-    formData = {
-      name: user.name,
-      email: user.email,
-      whitelist: user.whitelist,
-    };
-    showAddModal = true;
-  }
+	function openEditModal(user: User) {
+		editingUser = user;
+		formData = {
+			name: user.name,
+			email: user.email,
+			whitelist: user.whitelist,
+		};
+		showAddModal = true;
+	}
 
-  async function handleSubmit() {
-    error = null;
+	async function handleSubmit() {
+		error = null;
 
-    if (editingUser) {
-      const response = await api.updateUser(editingUser.id, formData);
-      if (response.error) {
-        error = response.error;
-        return;
-      }
-    } else {
-      const response = await api.createUser(formData);
-      if (response.error) {
-        error = response.error;
-        return;
-      }
-    }
+		if (editingUser) {
+			const response = await api.updateUser(editingUser.id, formData);
+			if (response.error) {
+				error = response.error;
+				return;
+			}
+		} else {
+			const response = await api.createUser(formData);
+			if (response.error) {
+				error = response.error;
+				return;
+			}
+		}
 
-    showAddModal = false;
-    await loadUsers();
-  }
+		showAddModal = false;
+		await loadUsers();
+	}
 
-  async function handleDelete(id: number) {
-    if (!confirm("Are you sure you want to delete this user?")) return;
+	async function handleDelete(id: number) {
+		if (!confirm("Are you sure you want to delete this user?")) return;
 
-    const response = await api.deleteUser(id);
-    if (response.error) {
-      error = response.error;
-    } else {
-      await loadUsers();
-    }
-  }
+		const response = await api.deleteUser(id);
+		if (response.error) {
+			error = response.error;
+		} else {
+			await loadUsers();
+		}
+	}
 </script>
 
 <div class="space-y-6">
-  <div class="flex justify-between items-center">
-    <h1 class="text-3xl font-bold text-gray-900">Users</h1>
-    <button onclick={openAddModal} class="btn btn-primary">
-      <svg
-        class="w-5 h-5 inline-block mr-2"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M12 4v16m8-8H4"
-        />
-      </svg>
-      Add User
-    </button>
-  </div>
+	<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+		<h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Users</h1>
+		<button onclick={openAddModal} class="btn btn-primary w-full sm:w-auto">
+			<svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+			</svg>
+			Add User
+		</button>
+	</div>
 
-  {#if error}
-    <div
-      class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg"
-    >
-      {error}
-    </div>
-  {/if}
+	{#if error}
+		<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+			{error}
+		</div>
+	{/if}
 
 	<!-- Filters -->
 	<div class="card">
-		<div class="flex flex-col md:flex-row gap-4">
-			<div class="flex-1">
+		<div class="flex flex-col gap-4">
+			<div class="w-full">
 				<input
 					type="text"
 					placeholder="Search by name or email..."
 					bind:value={searchQuery}
-					class="input"
+					class="input w-full"
 				/>
 			</div>
-			<div class="flex gap-2">
+			<div class="flex flex-col sm:flex-row gap-2">
 				<button
-					onclick={() => (whitelistFilter = 'all')}
-					class="btn {whitelistFilter === 'all' ? 'btn-primary' : 'btn-secondary'}"
+					onclick={() => (whitelistFilter = "all")}
+					class="btn {whitelistFilter === 'all' ? 'btn-primary' : 'btn-secondary'} flex-1"
 				>
 					All
 				</button>
 				<button
-					onclick={() => (whitelistFilter = 'whitelisted')}
-					class="btn {whitelistFilter === 'whitelisted' ? 'btn-primary' : 'btn-secondary'}"
+					onclick={() => (whitelistFilter = "whitelisted")}
+					class="btn {whitelistFilter === 'whitelisted' ? 'btn-primary' : 'btn-secondary'} flex-1"
 				>
 					Whitelisted
 				</button>
 				<button
-					onclick={() => (whitelistFilter = 'not-whitelisted')}
-					class="btn {whitelistFilter === 'not-whitelisted' ? 'btn-primary' : 'btn-secondary'}"
+					onclick={() => (whitelistFilter = "not-whitelisted")}
+					class="btn {whitelistFilter === 'not-whitelisted'
+						? 'btn-primary'
+						: 'btn-secondary'} flex-1"
 				>
 					Not Whitelisted
 				</button>
@@ -175,7 +165,9 @@
 	<div class="card">
 		{#if loading}
 			<div class="text-center py-8">
-				<div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+				<div
+					class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"
+				></div>
 				<p class="mt-2 text-gray-600">Loading users...</p>
 			</div>
 		{:else if users.length === 0}
@@ -183,27 +175,32 @@
 		{:else}
 			<div class="space-y-3">
 				{#each users as user}
-					<div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-						<div class="flex items-center gap-4 flex-1">
+					<div
+						class="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 bg-gray-50 rounded-lg gap-4"
+					>
+						<div class="flex items-center gap-3 sm:gap-4 flex-1 w-full sm:w-auto">
 							<div
-								class="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold text-lg"
+								class="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold text-base sm:text-lg shrink-0"
 							>
 								{user.name.charAt(0).toUpperCase()}
 							</div>
-							<div>
-								<p class="font-medium text-gray-900">{user.name}</p>
-								<p class="text-sm text-gray-500">{user.email}</p>
+							<div class="min-w-0 flex-1">
+								<p class="font-medium text-gray-900 truncate">{user.name}</p>
+								<p class="text-sm text-gray-500 truncate">{user.email}</p>
 								{#if user.whitelist}
-									<span class="inline-block px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full mt-1">
+									<span
+										class="inline-block px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full mt-1"
+									>
 										Whitelisted
 									</span>
 								{/if}
 							</div>
 						</div>
-						<div class="flex gap-2">
+						<div class="flex gap-2 w-full sm:w-auto justify-end">
 							<button
 								onclick={() => openEditModal(user)}
-								class="px-3 py-1 text-primary-600 hover:text-primary-700"
+								class="px-3 py-2 text-primary-600 hover:text-primary-700 hover:bg-primary-50 rounded transition-colors"
+								aria-label="Edit user"
 							>
 								<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									<path
@@ -216,7 +213,8 @@
 							</button>
 							<button
 								onclick={() => handleDelete(user.id)}
-								class="px-3 py-1 text-red-600 hover:text-red-700"
+								class="px-3 py-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+								aria-label="Delete user"
 							>
 								<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									<path
@@ -237,91 +235,63 @@
 
 <!-- Add/Edit User Modal -->
 {#if showAddModal}
-  <div
-    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
-  >
-    <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
-      <div class="p-6">
-        <div class="flex justify-between items-center mb-6">
-          <h2 class="text-2xl font-bold text-gray-900">
-            {editingUser ? "Edit User" : "Add User"}
-          </h2>
-          <button
-            onclick={() => (showAddModal = false)}
-            class="text-gray-500 hover:text-gray-700"
-            aria-label="Close modal"
-          >
-            <svg
-              class="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
-        </div>
+	<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+		<div class="bg-white rounded-lg shadow-xl max-w-md w-full">
+			<div class="p-6">
+				<div class="flex justify-between items-center mb-6">
+					<h2 class="text-2xl font-bold text-gray-900">
+						{editingUser ? "Edit User" : "Add User"}
+					</h2>
+					<button
+						onclick={() => (showAddModal = false)}
+						class="text-gray-500 hover:text-gray-700"
+						aria-label="Close modal"
+					>
+						<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M6 18L18 6M6 6l12 12"
+							/>
+						</svg>
+					</button>
+				</div>
 
-        <form
-          onsubmit={(e) => {
-            e.preventDefault();
-            handleSubmit();
-          }}
-          class="space-y-4"
-        >
-          <div>
-            <label for="name" class="label">Name</label>
-            <input
-              id="name"
-              type="text"
-              bind:value={formData.name}
-              required
-              class="input"
-            />
-          </div>
+				<form
+					onsubmit={(e) => {
+						e.preventDefault();
+						handleSubmit();
+					}}
+					class="space-y-4"
+				>
+					<div>
+						<label for="name" class="label">Name</label>
+						<input id="name" type="text" bind:value={formData.name} required class="input" />
+					</div>
 
-          <div>
-            <label for="email" class="label">Email</label>
-            <input
-              id="email"
-              type="email"
-              bind:value={formData.email}
-              required
-              class="input"
-            />
-          </div>
+					<div>
+						<label for="email" class="label">Email</label>
+						<input id="email" type="email" bind:value={formData.email} required class="input" />
+					</div>
 
-          <div class="flex items-center">
-            <input
-              id="whitelist"
-              type="checkbox"
-              bind:checked={formData.whitelist}
-              class="mr-2"
-            />
-            <label for="whitelist" class="text-sm text-gray-700">
-              Whitelist (skip reminders)
-            </label>
-          </div>
+					<div class="flex items-center">
+						<input id="whitelist" type="checkbox" bind:checked={formData.whitelist} class="mr-2" />
+						<label for="whitelist" class="text-sm text-gray-700">
+							Whitelist (skip reminders)
+						</label>
+					</div>
 
-          <div class="flex gap-3">
-            <button type="submit" class="btn btn-primary flex-1">
-              {editingUser ? "Update" : "Add"} User
-            </button>
-            <button
-              type="button"
-              onclick={() => (showAddModal = false)}
-              class="btn btn-secondary"
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  </div>
+					<div class="flex gap-3">
+						<button type="submit" class="btn btn-primary flex-1">
+							{editingUser ? "Update" : "Add"} User
+						</button>
+						<button type="button" onclick={() => (showAddModal = false)} class="btn btn-secondary">
+							Cancel
+						</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
 {/if}

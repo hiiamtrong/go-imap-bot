@@ -1,9 +1,9 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { api } from '$lib/api/client';
-	import { formatCurrency } from '$lib/utils/format';
-	import type { Statistics } from '$lib/types';
-	import Chart from 'chart.js/auto';
+	import { onMount } from "svelte";
+	import { api } from "$lib/api/client";
+	import { formatCurrency } from "$lib/utils/format";
+	import type { Statistics } from "$lib/types";
+	import Chart from "chart.js/auto";
 
 	let stats = $state<Statistics | null>(null);
 	let loading = $state(true);
@@ -46,18 +46,18 @@
 			if (monthlyChart) monthlyChart.destroy();
 
 			monthlyChart = new Chart(monthlyChartCanvas, {
-				type: 'bar',
+				type: "bar",
 				data: {
 					labels: stats.spendingByMonth.map((m) => m.month),
 					datasets: [
 						{
-							label: 'Spending',
+							label: "Spending",
 							data: stats.spendingByMonth.map((m) => m.amount),
-							backgroundColor: 'rgba(14, 165, 233, 0.5)',
-							borderColor: 'rgba(14, 165, 233, 1)',
-							borderWidth: 1
-						}
-					]
+							backgroundColor: "rgba(14, 165, 233, 0.5)",
+							borderColor: "rgba(14, 165, 233, 1)",
+							borderWidth: 1,
+						},
+					],
 				},
 				options: {
 					responsive: true,
@@ -68,20 +68,20 @@
 							ticks: {
 								callback: function (value) {
 									return formatCurrency(Number(value));
-								}
-							}
-						}
+								},
+							},
+						},
 					},
 					plugins: {
 						tooltip: {
 							callbacks: {
 								label: function (context) {
 									return formatCurrency(context.parsed.y ?? 0);
-								}
-							}
-						}
-					}
-				}
+								},
+							},
+						},
+					},
+				},
 			});
 		}
 
@@ -90,23 +90,23 @@
 			if (tagChart) tagChart.destroy();
 
 			tagChart = new Chart(tagChartCanvas, {
-				type: 'doughnut',
+				type: "doughnut",
 				data: {
 					labels: stats.spendingByTag.map((t) => t.tag),
 					datasets: [
 						{
 							data: stats.spendingByTag.map((t) => t.amount),
 							backgroundColor: [
-								'rgba(14, 165, 233, 0.8)',
-								'rgba(34, 197, 94, 0.8)',
-								'rgba(251, 146, 60, 0.8)',
-								'rgba(249, 115, 22, 0.8)',
-								'rgba(168, 85, 247, 0.8)',
-								'rgba(236, 72, 153, 0.8)'
+								"rgba(14, 165, 233, 0.8)",
+								"rgba(34, 197, 94, 0.8)",
+								"rgba(251, 146, 60, 0.8)",
+								"rgba(249, 115, 22, 0.8)",
+								"rgba(168, 85, 247, 0.8)",
+								"rgba(236, 72, 153, 0.8)",
 							],
-							borderWidth: 2
-						}
-					]
+							borderWidth: 2,
+						},
+					],
 				},
 				options: {
 					responsive: true,
@@ -116,11 +116,11 @@
 							callbacks: {
 								label: function (context) {
 									return `${context.label}: ${formatCurrency(context.parsed)}`;
-								}
-							}
-						}
-					}
-				}
+								},
+							},
+						},
+					},
+				},
 			});
 		}
 	}
@@ -137,7 +137,9 @@
 
 	{#if loading}
 		<div class="card text-center py-12">
-			<div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+			<div
+				class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"
+			></div>
 			<p class="mt-4 text-gray-600">Loading statistics...</p>
 		</div>
 	{:else if stats}

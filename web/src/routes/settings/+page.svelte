@@ -1,10 +1,10 @@
 <script lang="ts">
-	let apiUrl = $state('http://localhost:8080/api');
+	let apiUrl = $state("http://localhost:8080/api");
 	let saved = $state(false);
 
 	function saveSettings() {
 		// In a real app, this would save to localStorage or backend
-		localStorage.setItem('apiUrl', apiUrl);
+		localStorage.setItem("apiUrl", apiUrl);
 		saved = true;
 		setTimeout(() => {
 			saved = false;
@@ -12,7 +12,7 @@
 	}
 
 	function loadSettings() {
-		const savedUrl = localStorage.getItem('apiUrl');
+		const savedUrl = localStorage.getItem("apiUrl");
 		if (savedUrl) {
 			apiUrl = savedUrl;
 		}
@@ -70,7 +70,12 @@
 					stroke="currentColor"
 					viewBox="0 0 24 24"
 				>
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M5 13l4 4L19 7"
+					/>
 				</svg>
 				Automatic transaction tracking from bank emails
 			</li>
@@ -81,7 +86,12 @@
 					stroke="currentColor"
 					viewBox="0 0 24 24"
 				>
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M5 13l4 4L19 7"
+					/>
 				</svg>
 				Flexible bill splitting (equal or custom amounts)
 			</li>
@@ -92,7 +102,12 @@
 					stroke="currentColor"
 					viewBox="0 0 24 24"
 				>
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M5 13l4 4L19 7"
+					/>
 				</svg>
 				Payment reminders with QR codes
 			</li>
@@ -103,7 +118,12 @@
 					stroke="currentColor"
 					viewBox="0 0 24 24"
 				>
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M5 13l4 4L19 7"
+					/>
 				</svg>
 				Transaction tagging and categorization
 			</li>
@@ -114,7 +134,12 @@
 					stroke="currentColor"
 					viewBox="0 0 24 24"
 				>
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M5 13l4 4L19 7"
+					/>
 				</svg>
 				Statistics and spending analysis
 			</li>
@@ -125,7 +150,12 @@
 					stroke="currentColor"
 					viewBox="0 0 24 24"
 				>
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M5 13l4 4L19 7"
+					/>
 				</svg>
 				User management with whitelist support
 			</li>

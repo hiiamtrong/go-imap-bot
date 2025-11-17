@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { api } from '$lib/api/client';
-	import type { Transaction, Tag } from '$lib/types';
+	import { onMount } from "svelte";
+	import { api } from "$lib/api/client";
+	import type { Transaction, Tag } from "$lib/types";
 
 	interface Props {
 		transaction: Transaction;
@@ -11,7 +11,7 @@
 	let { transaction, onClose }: Props = $props();
 
 	let allTags = $state<Tag[]>([]);
-	let newTagName = $state('');
+	let newTagName = $state("");
 	let loading = $state(false);
 	let error = $state<string | null>(null);
 
@@ -65,7 +65,7 @@
 			error = response.error;
 		} else if (response.data) {
 			await loadTags();
-			newTagName = '';
+			newTagName = "";
 			if (response.data.id) {
 				await handleAddTag(response.data.id);
 			}
@@ -84,7 +84,11 @@
 		<div class="p-6">
 			<div class="flex justify-between items-center mb-6">
 				<h2 class="text-2xl font-bold text-gray-900">Manage Tags</h2>
-				<button onclick={onClose} class="text-gray-500 hover:text-gray-700" aria-label="Close modal">
+				<button
+					onclick={onClose}
+					class="text-gray-500 hover:text-gray-700"
+					aria-label="Close modal"
+				>
 					<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path
 							stroke-linecap="round"
@@ -111,7 +115,7 @@
 						placeholder="Tag name"
 						bind:value={newTagName}
 						class="input flex-1"
-						onkeypress={(e) => e.key === 'Enter' && handleCreateTag()}
+						onkeypress={(e) => e.key === "Enter" && handleCreateTag()}
 					/>
 					<button
 						onclick={handleCreateTag}

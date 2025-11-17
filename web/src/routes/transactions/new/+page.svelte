@@ -1,11 +1,11 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
-	import { api } from '$lib/api/client';
-	import { formatCurrency } from '$lib/utils/format';
+	import { goto } from "$app/navigation";
+	import { api } from "$lib/api/client";
+	import { formatCurrency } from "$lib/utils/format";
 
-	let amount = $state('');
-	let displayAmount = $state('');
-	let description = $state('');
+	let amount = $state("");
+	let displayAmount = $state("");
+	let description = $state("");
 	let loading = $state(false);
 	let error = $state<string | null>(null);
 
@@ -31,11 +31,11 @@
 	function handleAmountInput(e: Event) {
 		const input = e.target as HTMLInputElement;
 		// Only allow digits (no decimal separator)
-		const value = input.value.replace(/[^\d]/g, '');
+		const value = input.value.replace(/[^\d]/g, "");
 
-		if (value === '') {
-			amount = '';
-			displayAmount = '';
+		if (value === "") {
+			amount = "";
+			displayAmount = "";
 			return;
 		}
 
@@ -44,7 +44,7 @@
 
 		// Format for display with thousand separators
 		const numValue = parseInt(value, 10);
-		displayAmount = formatCurrency(numValue).replace('₫', '').trim();
+		displayAmount = formatCurrency(numValue).replace("₫", "").trim();
 
 		// Update cursor position to the end after formatting
 		setTimeout(() => {
@@ -54,13 +54,13 @@
 
 	async function handleSubmit() {
 		if (!amount || !description) {
-			error = 'Please fill in all fields';
+			error = "Please fill in all fields";
 			return;
 		}
 
 		const amountNum = parseInt(amount, 10);
 		if (isNaN(amountNum) || amountNum <= 0) {
-			error = 'Please enter a valid amount';
+			error = "Please enter a valid amount";
 			return;
 		}
 
@@ -80,7 +80,11 @@
 
 <div class="space-y-6 max-w-2xl mx-auto">
 	<div class="flex items-center gap-4">
-		<a href="/transactions" class="text-gray-600 hover:text-gray-900" aria-label="Back to transactions">
+		<a
+			href="/transactions"
+			class="text-gray-600 hover:text-gray-900"
+			aria-label="Back to transactions"
+		>
 			<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
 			</svg>
@@ -99,7 +103,13 @@
 			</div>
 		{/if}
 
-		<form onsubmit={(e) => { e.preventDefault(); handleSubmit(); }} class="space-y-6">
+		<form
+			onsubmit={(e) => {
+				e.preventDefault();
+				handleSubmit();
+			}}
+			class="space-y-6"
+		>
 			<div>
 				<label for="description" class="label">Description *</label>
 				<input
@@ -110,9 +120,7 @@
 					required
 					class="input"
 				/>
-				<p class="text-sm text-gray-500 mt-1">
-					A brief description of what this expense is for
-				</p>
+				<p class="text-sm text-gray-500 mt-1">A brief description of what this expense is for</p>
 			</div>
 
 			<div>
@@ -133,9 +141,7 @@
 						₫
 					</span>
 				</div>
-				<p class="text-sm text-gray-500 mt-1">
-					Enter the total amount in Vietnamese Dong
-				</p>
+				<p class="text-sm text-gray-500 mt-1">Enter the total amount in Vietnamese Dong</p>
 			</div>
 
 			<div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -169,12 +175,8 @@
 			</div>
 
 			<div class="flex gap-3">
-				<button
-					type="submit"
-					disabled={loading}
-					class="btn btn-primary flex-1 disabled:opacity-50"
-				>
-					{loading ? 'Creating...' : 'Create Virtual Bill'}
+				<button type="submit" disabled={loading} class="btn btn-primary flex-1 disabled:opacity-50">
+					{loading ? "Creating..." : "Create Virtual Bill"}
 				</button>
 				<a href="/transactions" class="btn btn-secondary">Cancel</a>
 			</div>
@@ -186,20 +188,50 @@
 		<h2 class="text-lg font-bold text-gray-900 mb-4">Quick Tips</h2>
 		<div class="space-y-3 text-sm text-gray-600">
 			<div class="flex items-start">
-				<svg class="w-5 h-5 text-primary-600 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+				<svg
+					class="w-5 h-5 text-primary-600 mr-2 mt-0.5 flex-shrink-0"
+					fill="none"
+					stroke="currentColor"
+					viewBox="0 0 24 24"
+				>
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+					/>
 				</svg>
 				<p>Virtual bills work the same as automatically tracked transactions</p>
 			</div>
 			<div class="flex items-start">
-				<svg class="w-5 h-5 text-primary-600 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+				<svg
+					class="w-5 h-5 text-primary-600 mr-2 mt-0.5 flex-shrink-0"
+					fill="none"
+					stroke="currentColor"
+					viewBox="0 0 24 24"
+				>
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+					/>
 				</svg>
 				<p>Use descriptive names so you can easily find transactions later</p>
 			</div>
 			<div class="flex items-start">
-				<svg class="w-5 h-5 text-primary-600 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+				<svg
+					class="w-5 h-5 text-primary-600 mr-2 mt-0.5 flex-shrink-0"
+					fill="none"
+					stroke="currentColor"
+					viewBox="0 0 24 24"
+				>
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+					/>
 				</svg>
 				<p>You can add tags immediately after creation to categorize the expense</p>
 			</div>

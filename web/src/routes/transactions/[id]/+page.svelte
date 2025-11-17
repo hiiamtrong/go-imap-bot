@@ -1,11 +1,11 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { page } from '$app/stores';
-	import { api } from '$lib/api/client';
-	import { formatCurrency, formatDate, formatAmount } from '$lib/utils/format';
-	import type { Transaction } from '$lib/types';
-	import BillSplitModal from '$lib/components/BillSplitModal.svelte';
-	import TagSelector from '$lib/components/TagSelector.svelte';
+	import { onMount } from "svelte";
+	import { page } from "$app/stores";
+	import { api } from "$lib/api/client";
+	import { formatCurrency, formatDate, formatAmount } from "$lib/utils/format";
+	import type { Transaction } from "$lib/types";
+	import BillSplitModal from "$lib/components/BillSplitModal.svelte";
+	import TagSelector from "$lib/components/TagSelector.svelte";
 
 	let transaction = $state<Transaction | null>(null);
 	let loading = $state(true);
@@ -13,7 +13,7 @@
 	let showSplitModal = $state(false);
 	let showTagSelector = $state(false);
 
-	const transactionId = $derived(parseInt($page.params.id || '0'));
+	const transactionId = $derived(parseInt($page.params.id || "0"));
 
 	onMount(async () => {
 		await loadTransaction();
@@ -36,18 +36,18 @@
 	async function handleCompleteSplit(splitId: number) {
 		const response = await api.completeSplit(splitId);
 		if (response.error) {
-			alert('Error: ' + response.error);
+			alert("Error: " + response.error);
 		} else {
 			await loadTransaction();
 		}
 	}
 
 	async function handleDeleteSplit(splitId: number) {
-		if (!confirm('Are you sure you want to delete this split?')) return;
+		if (!confirm("Are you sure you want to delete this split?")) return;
 
 		const response = await api.deleteSplit(splitId);
 		if (response.error) {
-			alert('Error: ' + response.error);
+			alert("Error: " + response.error);
 		} else {
 			await loadTransaction();
 		}
@@ -56,24 +56,28 @@
 	async function handleCompleteTransaction() {
 		if (!transaction || transaction.completed) return;
 
-		if (!confirm('Are you sure you want to mark this transaction as completed?')) return;
+		if (!confirm("Are you sure you want to mark this transaction as completed?")) return;
 
 		const response = await api.completeTransaction(transactionId);
 		if (response.error) {
-			alert('Error: ' + response.error);
+			alert("Error: " + response.error);
 		} else {
 			await loadTransaction();
 		}
 	}
 
-	function getTransactionTypeColor(type: 'add' | 'subtract'): string {
-		return type === 'add' ? 'text-green-600' : 'text-red-600';
+	function getTransactionTypeColor(type: "add" | "subtract"): string {
+		return type === "add" ? "text-green-600" : "text-red-600";
 	}
 </script>
 
 <div class="space-y-6">
 	<div class="flex items-center gap-3 sm:gap-4">
-		<a href="/transactions" class="text-gray-600 hover:text-gray-900 flex-shrink-0" aria-label="Back to transactions">
+		<a
+			href="/transactions"
+			class="text-gray-600 hover:text-gray-900 flex-shrink-0"
+			aria-label="Back to transactions"
+		>
 			<svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
 			</svg>
@@ -89,7 +93,9 @@
 
 	{#if loading}
 		<div class="card text-center py-12">
-			<div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+			<div
+				class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"
+			></div>
 			<p class="mt-4 text-gray-600">Loading transaction...</p>
 		</div>
 	{:else if transaction}
@@ -98,11 +104,25 @@
 			<div class="flex flex-col sm:flex-row sm:justify-between gap-4">
 				<div class="flex-1 min-w-0">
 					<div class="flex items-center gap-2 flex-wrap">
-						<h2 class="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 break-words">{transaction.description}</h2>
+						<h2 class="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 break-words">
+							{transaction.description}
+						</h2>
 						{#if transaction.completed}
-							<span class="inline-flex items-center px-2 sm:px-3 py-0.5 sm:py-1 bg-green-100 text-green-700 text-xs sm:text-sm font-medium rounded-full flex-shrink-0">
-								<svg class="w-3 h-3 sm:w-4 sm:h-4 mr-0.5 sm:mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+							<span
+								class="inline-flex items-center px-2 sm:px-3 py-0.5 sm:py-1 bg-green-100 text-green-700 text-xs sm:text-sm font-medium rounded-full flex-shrink-0"
+							>
+								<svg
+									class="w-3 h-3 sm:w-4 sm:h-4 mr-0.5 sm:mr-1"
+									fill="none"
+									stroke="currentColor"
+									viewBox="0 0 24 24"
+								>
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M5 13l4 4L19 7"
+									/>
 								</svg>
 								Completed
 							</span>
@@ -113,7 +133,9 @@
 					{#if transaction.tags && transaction.tags.length > 0}
 						<div class="flex flex-wrap gap-1.5 sm:gap-2 mt-3 sm:mt-4">
 							{#each transaction.tags as tag}
-								<span class="px-2 sm:px-3 py-0.5 sm:py-1 bg-primary-100 text-primary-700 text-xs sm:text-sm rounded-full">
+								<span
+									class="px-2 sm:px-3 py-0.5 sm:py-1 bg-primary-100 text-primary-700 text-xs sm:text-sm rounded-full"
+								>
 									{tag.name}
 								</span>
 							{/each}
@@ -121,16 +143,31 @@
 					{/if}
 				</div>
 				<div class="sm:text-right flex-shrink-0">
-					<p class="text-2xl sm:text-3xl md:text-4xl font-bold {getTransactionTypeColor(transaction.type)}">
+					<p
+						class="text-2xl sm:text-3xl md:text-4xl font-bold {getTransactionTypeColor(
+							transaction.type
+						)}"
+					>
 						{formatAmount(transaction.amount, transaction.type)}
 					</p>
-					<p class="text-sm sm:text-base text-gray-500 mt-1 sm:mt-2">Balance: {formatCurrency(transaction.balance)}</p>
+					<p class="text-sm sm:text-base text-gray-500 mt-1 sm:mt-2">
+						Balance: {formatCurrency(transaction.balance)}
+					</p>
 				</div>
 			</div>
 
 			<div class="flex flex-col sm:flex-row gap-2 sm:gap-3 mt-4 sm:mt-6">
-				<button onclick={() => (showSplitModal = true)} class="btn btn-primary text-sm sm:text-base" disabled={transaction.completed}>
-					<svg class="w-4 h-4 sm:w-5 sm:h-5 inline-block mr-1.5 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<button
+					onclick={() => (showSplitModal = true)}
+					class="btn btn-primary text-sm sm:text-base"
+					disabled={transaction.completed}
+				>
+					<svg
+						class="w-4 h-4 sm:w-5 sm:h-5 inline-block mr-1.5 sm:mr-2"
+						fill="none"
+						stroke="currentColor"
+						viewBox="0 0 24 24"
+					>
 						<path
 							stroke-linecap="round"
 							stroke-linejoin="round"
@@ -140,8 +177,16 @@
 					</svg>
 					Split Bill
 				</button>
-				<button onclick={() => (showTagSelector = true)} class="btn btn-secondary text-sm sm:text-base">
-					<svg class="w-4 h-4 sm:w-5 sm:h-5 inline-block mr-1.5 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<button
+					onclick={() => (showTagSelector = true)}
+					class="btn btn-secondary text-sm sm:text-base"
+				>
+					<svg
+						class="w-4 h-4 sm:w-5 sm:h-5 inline-block mr-1.5 sm:mr-2"
+						fill="none"
+						stroke="currentColor"
+						viewBox="0 0 24 24"
+					>
 						<path
 							stroke-linecap="round"
 							stroke-linejoin="round"
@@ -152,9 +197,22 @@
 					Add Tag
 				</button>
 				{#if !transaction.completed}
-					<button onclick={handleCompleteTransaction} class="btn bg-green-600 hover:bg-green-700 text-white text-sm sm:text-base">
-						<svg class="w-4 h-4 sm:w-5 sm:h-5 inline-block mr-1.5 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+					<button
+						onclick={handleCompleteTransaction}
+						class="btn bg-green-600 hover:bg-green-700 text-white text-sm sm:text-base"
+					>
+						<svg
+							class="w-4 h-4 sm:w-5 sm:h-5 inline-block mr-1.5 sm:mr-2"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M5 13l4 4L19 7"
+							/>
 						</svg>
 						Mark as Completed
 					</button>
@@ -168,9 +226,13 @@
 				<h3 class="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4">Bill Splits</h3>
 				<div class="space-y-3">
 					{#each transaction.splits as split}
-						<div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 p-3 sm:p-4 bg-gray-50 rounded-lg">
+						<div
+							class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 p-3 sm:p-4 bg-gray-50 rounded-lg"
+						>
 							<div class="flex-1 min-w-0">
-								<p class="font-medium text-gray-900 text-sm sm:text-base truncate">{split.user?.name || 'Unknown User'}</p>
+								<p class="font-medium text-gray-900 text-sm sm:text-base truncate">
+									{split.user?.name || "Unknown User"}
+								</p>
 								<p class="text-xs sm:text-sm text-gray-500 truncate">{split.user?.email}</p>
 								{#if split.reason}
 									<p class="text-xs sm:text-sm text-gray-600 mt-1 break-words">{split.reason}</p>
@@ -178,11 +240,25 @@
 							</div>
 							<div class="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
 								<div class="sm:text-right">
-									<p class="text-base sm:text-lg font-bold text-gray-900">{formatCurrency(split.amount)}</p>
+									<p class="text-base sm:text-lg font-bold text-gray-900">
+										{formatCurrency(split.amount)}
+									</p>
 									{#if split.completed}
-										<span class="inline-flex items-center px-2 py-0.5 sm:py-1 bg-green-100 text-green-700 text-xs rounded-full mt-0.5 sm:mt-1">
-											<svg class="w-3 h-3 sm:w-4 sm:h-4 mr-0.5 sm:mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+										<span
+											class="inline-flex items-center px-2 py-0.5 sm:py-1 bg-green-100 text-green-700 text-xs rounded-full mt-0.5 sm:mt-1"
+										>
+											<svg
+												class="w-3 h-3 sm:w-4 sm:h-4 mr-0.5 sm:mr-1"
+												fill="none"
+												stroke="currentColor"
+												viewBox="0 0 24 24"
+											>
+												<path
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													stroke-width="2"
+													d="M5 13l4 4L19 7"
+												/>
 											</svg>
 											Paid
 										</span>

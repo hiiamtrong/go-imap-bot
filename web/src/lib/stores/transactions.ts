@@ -1,5 +1,5 @@
-import { writable, derived } from 'svelte/store';
-import type { Transaction } from '$lib/types';
+import { writable, derived } from "svelte/store";
+import type { Transaction } from "$lib/types";
 
 export const transactions = writable<Transaction[]>([]);
 export const selectedTransaction = writable<Transaction | null>(null);

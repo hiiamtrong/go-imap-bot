@@ -1,12 +1,12 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { api } from '$lib/api/client';
-	import type { Tag } from '$lib/types';
+	import { onMount } from "svelte";
+	import { api } from "$lib/api/client";
+	import type { Tag } from "$lib/types";
 
 	let tags = $state<Tag[]>([]);
 	let loading = $state(true);
 	let error = $state<string | null>(null);
-	let newTagName = $state('');
+	let newTagName = $state("");
 	let creating = $state(false);
 
 	onMount(async () => {
@@ -37,7 +37,7 @@
 		if (response.error) {
 			error = response.error;
 		} else {
-			newTagName = '';
+			newTagName = "";
 			await loadTags();
 		}
 
@@ -59,7 +59,13 @@
 	<!-- Create Tag -->
 	<div class="card">
 		<h2 class="text-xl font-bold text-gray-900 mb-4">Create New Tag</h2>
-		<form onsubmit={(e) => { e.preventDefault(); handleCreateTag(); }} class="flex gap-3">
+		<form
+			onsubmit={(e) => {
+				e.preventDefault();
+				handleCreateTag();
+			}}
+			class="flex gap-3"
+		>
 			<input
 				type="text"
 				placeholder="Tag name (e.g., Food, Transport, Entertainment)"
@@ -71,7 +77,7 @@
 				disabled={!newTagName.trim() || creating}
 				class="btn btn-primary disabled:opacity-50"
 			>
-				{creating ? 'Creating...' : 'Create Tag'}
+				{creating ? "Creating..." : "Create Tag"}
 			</button>
 		</form>
 	</div>
@@ -82,7 +88,9 @@
 
 		{#if loading}
 			<div class="text-center py-8">
-				<div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+				<div
+					class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"
+				></div>
 				<p class="mt-2 text-gray-600">Loading tags...</p>
 			</div>
 		{:else if tags.length === 0}

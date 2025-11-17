@@ -5,6 +5,7 @@ A modern web application built with SvelteKit for tracking expenses, splitting b
 ## Features
 
 ### 🎯 Core Functionality
+
 - **Dashboard** - Overview of transactions, balance, and pending splits
 - **Transaction Management** - View and filter all transactions
 - **Bill Splitting** - Split expenses equally or with custom amounts
@@ -14,6 +15,7 @@ A modern web application built with SvelteKit for tracking expenses, splitting b
 - **Statistics** - View spending analytics with charts and breakdowns
 
 ### 💡 Key Features
+
 - Automatic transaction tracking from bank emails (via backend)
 - Virtual bill creation for manual expenses
 - Flexible split options (equal or custom amounts per user)
@@ -43,6 +45,7 @@ A modern web application built with SvelteKit for tracking expenses, splitting b
 ### Installation
 
 1. Install dependencies:
+
 ```bash
 npm install
 ```
@@ -50,11 +53,13 @@ npm install
 2. Configure the API endpoint:
 
 Create a `.env` file in the project root:
+
 ```env
 VITE_API_URL=http://localhost:8080/api
 ```
 
 3. Start the development server:
+
 ```bash
 npm run dev
 ```
@@ -68,6 +73,7 @@ npm run build
 ```
 
 Preview the production build:
+
 ```bash
 npm run preview
 ```
@@ -100,18 +106,21 @@ web/
 ## Pages Overview
 
 ### Dashboard (`/`)
+
 - Current balance display
 - Quick stats (total transactions, pending/completed splits)
 - Recent transactions list
 - Quick access to create virtual bills
 
 ### Transactions (`/transactions`)
+
 - Full transaction list with filtering
 - Search by description
 - Filter by type (income/expense)
 - View transaction details
 
 ### Transaction Details (`/transactions/:id`)
+
 - Full transaction information
 - Add/remove tags
 - Create bill splits
@@ -119,28 +128,33 @@ web/
 - Mark splits as paid
 
 ### Users (`/users`)
+
 - Add/edit/delete users
 - Manage whitelist status
 - View user information
 
 ### Tags (`/tags`)
+
 - Create new tags
 - View all available tags
 - Categorize transactions
 
 ### Statistics (`/statistics`)
+
 - Overview cards (spent, received, balance)
 - Monthly spending chart
 - Category breakdown (pie chart)
 - Detailed tables
 
 ### Reminders (`/reminders`)
+
 - View all pending payments
 - Select users to remind
 - Send normal or "angry" reminders
 - Bulk reminder sending
 
 ### Settings (`/settings`)
+
 - Configure API endpoint
 - View application info
 
@@ -216,6 +230,7 @@ Users can also configure the API URL directly in the Settings page, which saves 
 5. Send reminders
 
 Reminders include:
+
 - Professional email format
 - VietQR payment codes
 - Payment details and reasons
