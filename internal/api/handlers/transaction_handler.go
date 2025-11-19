@@ -250,9 +250,9 @@ func (h *TransactionHandler) CreateVirtualBill(c echo.Context) error {
 		})
 	}
 
-	if req.Amount <= 0 {
+	if req.Amount == 0 {
 		return c.JSON(http.StatusBadRequest, dto.Response{
-			Error: "Amount must be greater than 0",
+			Error: "Amount cannot be zero",
 		})
 	}
 
@@ -269,11 +269,21 @@ func (h *TransactionHandler) CreateVirtualBill(c echo.Context) error {
 		currentBalance = transactions[0].CurrentBalance
 	}
 
+	// Determine transaction type based on amount sign
+	// Positive amount = expense (subtract from balance)
+	// Negative amount = income (add to balance)
+	transactionType := string(models.TransactionTypeSubtract)
+	amount := req.Amount
+	if req.Amount < 0 {
+		transactionType = string(models.TransactionTypeAdd)
+		amount = -req.Amount // Store as positive
+	}
+
 	transaction := &models.Transaction{
 		MailID:         0, // Virtual bill has no associated mail
-		Amount:         req.Amount,
-		CurrentBalance: currentBalance - req.Amount,
-		Type:           string(models.TransactionTypeSubtract),
+		Amount:         amount,
+		CurrentBalance: currentBalance - req.Amount, // This works correctly for both signs
+		Type:           transactionType,
 		Description:    req.Description,
 		Timestamp:      time.Now(),
 		CreatedAt:      time.Now(),
