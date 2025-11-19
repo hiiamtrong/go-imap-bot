@@ -22,6 +22,10 @@
 		if (e.keyCode >= 35 && e.keyCode <= 40) {
 			return;
 		}
+		// Allow: minus/dash key (189 for dash, 109 for numpad minus)
+		if (e.keyCode === 189 || e.keyCode === 109) {
+			return;
+		}
 		// Ensure that it is a number and stop the keypress if not
 		if ((e.shiftKey || e.keyCode < 48 || e.keyCode > 57) && (e.keyCode < 96 || e.keyCode > 105)) {
 			e.preventDefault();
@@ -30,21 +34,25 @@
 
 	function handleAmountInput(e: Event) {
 		const input = e.target as HTMLInputElement;
-		// Only allow digits (no decimal separator)
-		const value = input.value.replace(/[^\d]/g, "");
+		// Allow digits and minus sign at the beginning
+		let value = input.value;
+		const isNegative = value.startsWith("-");
+		// Remove everything except digits
+		value = value.replace(/[^\d]/g, "");
 
 		if (value === "") {
-			amount = "";
-			displayAmount = "";
+			amount = isNegative ? "-" : "";
+			displayAmount = isNegative ? "-" : "";
 			return;
 		}
 
-		// Store the raw numeric value
-		amount = value;
+		// Store the raw numeric value (with sign)
+		amount = isNegative ? "-" + value : value;
 
 		// Format for display with thousand separators
 		const numValue = parseInt(value, 10);
-		displayAmount = formatCurrency(numValue).replace("₫", "").trim();
+		const formatted = formatCurrency(numValue).replace("₫", "").trim();
+		displayAmount = isNegative ? "-" + formatted : formatted;
 
 		// Update cursor position to the end after formatting
 		setTimeout(() => {
@@ -59,8 +67,8 @@
 		}
 
 		const amountNum = parseInt(amount, 10);
-		if (isNaN(amountNum) || amountNum <= 0) {
-			error = "Please enter a valid amount";
+		if (isNaN(amountNum) || amountNum === 0) {
+			error = "Amount cannot be zero";
 			return;
 		}
 
@@ -129,11 +137,11 @@
 					<input
 						id="amount"
 						type="text"
-						inputmode="numeric"
+						inputmode="text"
 						value={displayAmount}
 						oninput={handleAmountInput}
 						onkeydown={handleKeyDown}
-						placeholder="0"
+						placeholder="e.g., 50,000 or -30,000"
 						required
 						class="input pr-12"
 					/>
@@ -141,7 +149,7 @@
 						₫
 					</span>
 				</div>
-				<p class="text-sm text-gray-500 mt-1">Enter the total amount in Vietnamese Dong</p>
+				<p class="text-sm text-gray-500 mt-1">Positive for expense, negative for income</p>
 			</div>
 
 			<div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
