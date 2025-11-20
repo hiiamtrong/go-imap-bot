@@ -46,7 +46,7 @@
 </script>
 
 <svelte:head>
-	<title>Authenticating... - IMAP Bot</title>
+	<title>{error ? 'Authentication Error' : 'Authenticating...'} - IMAP Bot</title>
 </svelte:head>
 
 <div class="min-h-screen flex items-center justify-center bg-gray-50">
