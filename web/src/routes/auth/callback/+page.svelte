@@ -7,7 +7,6 @@
 
 	let error = "";
 	let isProcessing = true;
-	let isSuccess = false;
 
 	onMount(async () => {
 		const code = $page.url.searchParams.get("code");
@@ -37,10 +36,6 @@
 			// Store auth data
 			auth.login(result.data.token, result.data.expires_at, result.data.user);
 
-			// Show success state
-			isProcessing = false;
-			isSuccess = true;
-
 			// Redirect to home
 			goto("/");
 		} catch (e) {
@@ -51,32 +46,13 @@
 </script>
 
 <svelte:head>
-	<title>{error ? 'Authentication Error' : isSuccess ? 'Login Successful' : 'Authenticating...'} - IMAP Bot</title>
+	<title>Auth Callback - IMAP Bot</title>
 </svelte:head>
 
 <div class="min-h-screen flex items-center justify-center bg-gray-50">
 	<div class="max-w-md w-full space-y-8">
 		<div class="text-center">
-			{#if isSuccess}
-				<div class="inline-block">
-					<svg
-						class="h-12 w-12 text-green-600"
-						xmlns="http://www.w3.org/2000/svg"
-						fill="none"
-						viewBox="0 0 24 24"
-						stroke="currentColor"
-					>
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M5 13l4 4L19 7"
-						/>
-					</svg>
-				</div>
-				<h2 class="mt-6 text-center text-2xl font-bold text-gray-900">Login Successful</h2>
-				<p class="mt-2 text-center text-sm text-gray-600">Redirecting...</p>
-			{:else if isProcessing}
+			{#if isProcessing}
 				<div class="inline-block">
 					<svg
 						class="animate-spin h-12 w-12 text-blue-600"
