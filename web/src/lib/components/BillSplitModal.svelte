@@ -148,7 +148,7 @@
 	function calculateEqualSplit(): number {
 		const count = selectedUsers.size;
 		if (count === 0) return 0;
-		return Math.abs(transaction.amount) / count;
+		return transaction.amount / count;
 	}
 
 	function calculateTotal(): number {
@@ -165,7 +165,7 @@
 	}
 
 	function calculateRemaining(): number {
-		const transactionAmount = Math.abs(transaction.amount);
+		const transactionAmount = transaction.amount;
 		const total = calculateTotal();
 		return transactionAmount - total;
 	}
@@ -254,7 +254,7 @@
 			<div class="mb-6">
 				<p class="text-gray-600">Transaction Amount:</p>
 				<p class="text-2xl font-bold text-gray-900">
-					{formatCurrency(Math.abs(transaction.amount))}
+					{formatCurrency(transaction.amount)}
 				</p>
 			</div>
 
@@ -455,7 +455,7 @@
 					</div>
 					<div class="flex justify-between mb-2">
 						<span>Transaction Amount:</span>
-						<span class="font-medium">{formatCurrency(Math.abs(transaction.amount))}</span>
+						<span class="font-medium">{formatCurrency(transaction.amount)}</span>
 					</div>
 					<div class="flex justify-between">
 						<span>Remaining:</span>
@@ -466,7 +466,7 @@
 									? 'text-orange-600'
 									: 'text-red-600'}"
 						>
-							{formatCurrency(Math.abs(calculateRemaining()))}
+							{formatCurrency(calculateRemaining())}
 							{#if Math.abs(calculateRemaining()) < 0.01}
 								<span class="text-xs">(Perfect!)</span>
 							{:else if calculateRemaining() > 0}
