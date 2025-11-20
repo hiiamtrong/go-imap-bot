@@ -107,10 +107,6 @@
 		if (e.keyCode >= 35 && e.keyCode <= 40) {
 			return;
 		}
-		// Allow: minus/dash key (189 for dash, 109 for numpad minus)
-		if (e.keyCode === 189 || e.keyCode === 109) {
-			return;
-		}
 		// Ensure that it is a number and stop the keypress if not
 		if ((e.shiftKey || e.keyCode < 48 || e.keyCode > 57) && (e.keyCode < 96 || e.keyCode > 105)) {
 			e.preventDefault();
@@ -119,25 +115,21 @@
 
 	function handleAmountInput(e: Event, userId: number) {
 		const input = e.target as HTMLInputElement;
-		// Allow digits and minus sign at the beginning
-		let value = input.value;
-		const isNegative = value.startsWith("-");
-		// Remove everything except digits
-		value = value.replace(/[^\d]/g, "");
+		// Only allow digits (positive amounts only for splits)
+		const value = input.value.replace(/[^\d]/g, "");
 
 		if (value === "") {
-			customAmounts[userId] = isNegative ? "-" : "";
-			displayAmounts[userId] = isNegative ? "-" : "";
+			customAmounts[userId] = "";
+			displayAmounts[userId] = "";
 			return;
 		}
 
-		// Store the raw numeric value (with sign)
-		customAmounts[userId] = isNegative ? "-" + value : value;
+		// Store the raw numeric value
+		customAmounts[userId] = value;
 
 		// Format for display with thousand separators
 		const numValue = parseInt(value, 10);
-		const formatted = formatCurrency(numValue).replace("₫", "").trim();
-		displayAmounts[userId] = isNegative ? "-" + formatted : formatted;
+		displayAmounts[userId] = formatCurrency(numValue).replace("₫", "").trim();
 
 		// Update cursor position to the end after formatting
 		setTimeout(() => {
@@ -327,7 +319,7 @@
 											<div class="relative">
 												<input
 													type="text"
-													inputmode="text"
+													inputmode="numeric"
 													placeholder="Amount"
 													value={displayAmounts[user.id] || ""}
 													oninput={(e) => handleAmountInput(e, user.id)}
