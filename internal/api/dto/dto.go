@@ -83,6 +83,11 @@ type SplitUserRequest struct {
 	Reason string  `json:"reason"`
 }
 
+type UpdateSplitRequest struct {
+	Amount *float64 `json:"amount"`
+	Reason *string  `json:"reason"`
+}
+
 // Reminder DTOs
 type SendReminderRequest struct {
 	SplitIDs []int64 `json:"split_ids" validate:"required,min=1"`

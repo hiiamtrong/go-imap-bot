@@ -193,6 +193,19 @@ class ApiClient {
 		});
 	}
 
+	async completeSingleSplit(splitId: number): Promise<ApiResponse<void>> {
+		return this.request<void>(`/splits/${splitId}/complete-single`, {
+			method: "POST",
+		});
+	}
+
+	async updateSplit(splitId: number, data: { amount?: number; reason?: string }): Promise<ApiResponse<TransactionSplit>> {
+		return this.request<TransactionSplit>(`/splits/${splitId}`, {
+			method: "PUT",
+			body: JSON.stringify(data),
+		});
+	}
+
 	async deleteSplit(splitId: number): Promise<ApiResponse<void>> {
 		return this.request<void>(`/splits/${splitId}`, {
 			method: "DELETE",

@@ -239,6 +239,119 @@ func (h *SplitHandler) DeleteSplit(c echo.Context) error {
 	})
 }
 
+// UpdateSplit godoc
+// @Summary Update a split's amount and/or reason
+// @Tags splits
+// @Accept json
+// @Produce json
+// @Param id path int true "Split ID"
+// @Param request body dto.UpdateSplitRequest true "Update Split Request"
+// @Success 200 {object} dto.Response{data=dto.SplitResponse}
+// @Router /api/splits/{id} [put]
+func (h *SplitHandler) UpdateSplit(c echo.Context) error {
+	idStr := c.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, dto.Response{
+			Error: "Invalid split ID",
+		})
+	}
+
+	var req dto.UpdateSplitRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, dto.Response{
+			Error: "Invalid request body",
+		})
+	}
+
+	// Get existing split
+	split, err := h.splitRepo.GetByID(id)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, dto.Response{
+			Error: "Split not found",
+		})
+	}
+
+	// Update fields if provided
+	amount := split.Amount
+	reason := split.Reason
+
+	if req.Amount != nil {
+		amount = int64(*req.Amount)
+	}
+	if req.Reason != nil {
+		reason = *req.Reason
+	}
+
+	// Update the split
+	if err := h.splitRepo.UpdateByID(id, amount, reason); err != nil {
+		return c.JSON(http.StatusInternalServerError, dto.Response{
+			Error: "Failed to update split: " + err.Error(),
+		})
+	}
+
+	// Get updated split
+	updatedSplit, err := h.splitRepo.GetByID(id)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, dto.Response{
+			Error: "Failed to get updated split: " + err.Error(),
+		})
+	}
+
+	// Get user info
+	user, _ := h.userRepo.GetByID(updatedSplit.UserID)
+	var userDTO *dto.UserResponse
+	if user != nil {
+		userDTO = &dto.UserResponse{
+			ID:        user.ID,
+			Name:      user.Name,
+			Email:     user.Email,
+			Whitelist: user.IsWhitelisted,
+			CreatedAt: user.CreatedAt,
+		}
+	}
+
+	return c.JSON(http.StatusOK, dto.Response{
+		Data: dto.SplitResponse{
+			ID:            updatedSplit.ID,
+			TransactionID: updatedSplit.TransactionID,
+			UserID:        updatedSplit.UserID,
+			Amount:        updatedSplit.Amount,
+			Reason:        updatedSplit.Reason,
+			Completed:     updatedSplit.Completed,
+			User:          userDTO,
+			CreatedAt:     updatedSplit.CreatedAt,
+		},
+	})
+}
+
+// CompleteSingleSplit godoc
+// @Summary Mark a single split as paid
+// @Tags splits
+// @Param id path int true "Split ID"
+// @Success 200 {object} dto.Response
+// @Router /api/splits/{id}/complete-single [post]
+func (h *SplitHandler) CompleteSingleSplit(c echo.Context) error {
+	idStr := c.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, dto.Response{
+			Error: "Invalid split ID",
+		})
+	}
+
+	// Complete single split
+	if err := h.splitRepo.CompleteSplit(id); err != nil {
+		return c.JSON(http.StatusInternalServerError, dto.Response{
+			Error: "Failed to complete split: " + err.Error(),
+		})
+	}
+
+	return c.JSON(http.StatusOK, dto.Response{
+		Message: "Split completed successfully",
+	})
+}
+
 // GetPendingSplitsSummary godoc
 // @Summary Get pending splits grouped by user
 // @Tags splits
