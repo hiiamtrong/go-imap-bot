@@ -262,27 +262,18 @@ func (h *TransactionHandler) CreateVirtualBill(c echo.Context) error {
 		})
 	}
 
-	// Get latest transaction to determine current balance
-	transactions, err := h.transactionRepo.GetRecentTransactions(context.Background(), 1, 0, nil)
-	currentBalance := int64(0)
-	if err == nil && len(transactions) > 0 {
-		currentBalance = transactions[0].CurrentBalance
-	}
-
 	// Determine transaction type based on amount sign
 	// Positive amount = expense (subtract from balance)
 	// Negative amount = income (add to balance)
 	transactionType := string(models.TransactionTypeSubtract)
-	amount := req.Amount
 	if req.Amount < 0 {
 		transactionType = string(models.TransactionTypeAdd)
-		amount = -req.Amount // Store as positive
 	}
 
 	transaction := &models.Transaction{
 		MailID:         0, // Virtual bill has no associated mail
-		Amount:         amount,
-		CurrentBalance: currentBalance - req.Amount, // This works correctly for both signs
+		Amount:         req.Amount,
+		CurrentBalance: 0,
 		Type:           transactionType,
 		Description:    req.Description,
 		Timestamp:      time.Now(),
