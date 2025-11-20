@@ -45,10 +45,6 @@
 	});
 </script>
 
-<svelte:head>
-	<title>Auth Callback - IMAP Bot</title>
-</svelte:head>
-
 <div class="min-h-screen flex items-center justify-center bg-gray-50">
 	<div class="max-w-md w-full space-y-8">
 		<div class="text-center">

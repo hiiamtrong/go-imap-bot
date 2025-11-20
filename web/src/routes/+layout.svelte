@@ -12,6 +12,38 @@
 	// Public routes that don't require authentication
 	const publicRoutes = ["/login", "/auth/callback"];
 
+	// Page title mapping
+	const pageTitles: Record<string, string> = {
+		"/": "Home",
+		"/login": "Login",
+		"/auth/callback": "Auth Callback",
+		"/tags": "Tags",
+		"/users": "Users",
+		"/transactions": "Transactions",
+		"/transactions/new": "New Transaction",
+		"/statistics": "Statistics",
+		"/settings": "Settings",
+		"/reminders": "Reminders"
+	};
+
+	// Get page title based on current path
+	function getPageTitle(pathname: string): string {
+		// Check exact match first
+		if (pageTitles[pathname]) {
+			return pageTitles[pathname];
+		}
+
+		// Check for dynamic routes like /transactions/[id]
+		if (pathname.startsWith("/transactions/") && pathname !== "/transactions/new") {
+			return "Transaction Details";
+		}
+
+		// Default title
+		return "Bill Splitter";
+	}
+
+	$: pageTitle = getPageTitle($page.url.pathname);
+
 	onMount(() => {
 		// Check if current route requires authentication
 		const currentPath = $page.url.pathname;
@@ -31,7 +63,7 @@
 
 <svelte:head>
 	<link rel="icon" href={favicon} />
-	<title>Bill Splitter - Expense Tracking</title>
+	<title>{pageTitle} - IMAP Bot</title>
 </svelte:head>
 
 <div class="min-h-screen bg-gray-50">
