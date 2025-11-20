@@ -42,7 +42,7 @@
 		return "Bill Splitter";
 	}
 
-	$: pageTitle = getPageTitle($page.url.pathname);
+	let pageTitle = $derived(getPageTitle($page.url.pathname));
 
 	onMount(() => {
 		// Check if current route requires authentication
