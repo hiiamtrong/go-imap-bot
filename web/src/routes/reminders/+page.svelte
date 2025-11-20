@@ -157,7 +157,7 @@
 	function openEditModal(split: TransactionSplit) {
 		editingSplit = split;
 		editReason = split.reason || "";
-		editAmount = (split.amount / 1000).toString(); // Convert to VND thousands
+		editAmount = split.amount.toString(); // Keep as VND
 	}
 
 	function closeEditModal() {
@@ -172,7 +172,7 @@
 		saving = true;
 		error = null;
 
-		const amount = parseFloat(editAmount) * 1000; // Convert back to VND
+		const amount = parseFloat(editAmount); // Keep as VND
 		if (isNaN(amount) || amount <= 0) {
 			error = "Số tiền không hợp lệ";
 			saving = false;
@@ -447,7 +447,7 @@
 
 				<div>
 					<label for="edit-amount" class="block text-sm font-medium text-gray-700 mb-1">
-						Số tiền (nghìn VNĐ)
+						Số tiền (VNĐ)
 					</label>
 					<input
 						id="edit-amount"
@@ -455,10 +455,10 @@
 						bind:value={editAmount}
 						class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 						placeholder="Nhập số tiền..."
-						step="0.001"
+						step="1"
 					/>
 					<p class="text-xs text-gray-500 mt-1">
-						Ví dụ: nhập 50 cho 50.000đ
+						Ví dụ: nhập 50000 cho 50.000đ
 					</p>
 				</div>
 			</div>
