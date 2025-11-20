@@ -17,7 +17,8 @@
 	// Edit modal state
 	let editingSplit = $state<TransactionSplit | null>(null);
 	let editReason = $state("");
-	let editAmount = $state("");
+	let editAmount = $state(""); // Raw numeric value
+	let displayEditAmount = $state(""); // Formatted display value
 	let saving = $state(false);
 
 	const totalSummary = $derived(() => {
@@ -157,13 +158,61 @@
 	function openEditModal(split: TransactionSplit) {
 		editingSplit = split;
 		editReason = split.reason || "";
-		editAmount = (split.amount / 1000).toString(); // Convert to VND thousands
+		editAmount = split.amount.toString(); // Raw numeric value
+		// Format for display
+		const formatted = formatCurrency(split.amount).replace("₫", "").trim();
+		displayEditAmount = formatted;
 	}
 
 	function closeEditModal() {
 		editingSplit = null;
 		editReason = "";
 		editAmount = "";
+		displayEditAmount = "";
+	}
+
+	function handleAmountKeyDown(e: KeyboardEvent) {
+		// Allow: backspace, delete, tab, escape, enter
+		if ([8, 9, 27, 13, 46].includes(e.keyCode)) {
+			return;
+		}
+		// Allow: Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X
+		if ((e.ctrlKey || e.metaKey) && [65, 67, 86, 88].includes(e.keyCode)) {
+			return;
+		}
+		// Allow: home, end, left, right, up, down
+		if (e.keyCode >= 35 && e.keyCode <= 40) {
+			return;
+		}
+		// Ensure that it is a number and stop the keypress if not
+		if ((e.shiftKey || e.keyCode < 48 || e.keyCode > 57) && (e.keyCode < 96 || e.keyCode > 105)) {
+			e.preventDefault();
+		}
+	}
+
+	function handleEditAmountInput(e: Event) {
+		const input = e.target as HTMLInputElement;
+		// Remove everything except digits
+		let value = input.value.replace(/[^\d]/g, "");
+
+		if (value === "") {
+			editAmount = "";
+			displayEditAmount = "";
+			return;
+		}
+
+		// Store the raw numeric value
+		editAmount = value;
+
+		// Format for display with thousand separators
+		const numValue = parseInt(value, 10);
+		const formatted = formatCurrency(numValue).replace("₫", "").trim();
+		displayEditAmount = formatted;
+
+		// Update cursor position to the end after formatting
+		setTimeout(() => {
+			input.selectionStart = input.selectionEnd = input.value.length;
+		}, 0);
 	}
 
 	async function saveEdit() {
@@ -172,7 +221,7 @@
 		saving = true;
 		error = null;
 
-		const amount = parseFloat(editAmount) * 1000; // Convert back to VND
+		const amount = parseInt(editAmount, 10); // Raw numeric value
 		if (isNaN(amount) || amount <= 0) {
 			error = "Số tiền không hợp lệ";
 			saving = false;
@@ -447,19 +496,17 @@
 
 				<div>
 					<label for="edit-amount" class="block text-sm font-medium text-gray-700 mb-1">
-						Số tiền (nghìn VNĐ)
+						Số tiền (VNĐ)
 					</label>
 					<input
 						id="edit-amount"
-						type="number"
-						bind:value={editAmount}
+						type="text"
+						value={displayEditAmount}
+						onkeydown={handleAmountKeyDown}
+						oninput={handleEditAmountInput}
 						class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 						placeholder="Nhập số tiền..."
-						step="0.001"
 					/>
-					<p class="text-xs text-gray-500 mt-1">
-						Ví dụ: nhập 50 cho 50.000đ
-					</p>
 				</div>
 			</div>
 
