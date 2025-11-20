@@ -158,10 +158,11 @@
 	function openEditModal(split: TransactionSplit) {
 		editingSplit = split;
 		editReason = split.reason || "";
+		const isNegative = split.amount < 0;
 		editAmount = split.amount.toString(); // Raw numeric value
 		// Format for display
-		const formatted = formatCurrency(split.amount).replace("₫", "").trim();
-		displayEditAmount = formatted;
+		const formatted = formatCurrency(Math.abs(split.amount)).replace("₫", "").trim();
+		displayEditAmount = isNegative ? "-" + formatted : formatted;
 	}
 
 	function closeEditModal() {
@@ -184,6 +185,10 @@
 		if (e.keyCode >= 35 && e.keyCode <= 40) {
 			return;
 		}
+		// Allow: minus/dash key (189 for dash, 109 for numpad minus)
+		if (e.keyCode === 189 || e.keyCode === 109) {
+			return;
+		}
 		// Ensure that it is a number and stop the keypress if not
 		if ((e.shiftKey || e.keyCode < 48 || e.keyCode > 57) && (e.keyCode < 96 || e.keyCode > 105)) {
 			e.preventDefault();
@@ -192,22 +197,25 @@
 
 	function handleEditAmountInput(e: Event) {
 		const input = e.target as HTMLInputElement;
+		// Allow digits and minus sign at the beginning
+		let value = input.value;
+		const isNegative = value.startsWith("-");
 		// Remove everything except digits
-		let value = input.value.replace(/[^\d]/g, "");
+		value = value.replace(/[^\d]/g, "");
 
 		if (value === "") {
-			editAmount = "";
-			displayEditAmount = "";
+			editAmount = isNegative ? "-" : "";
+			displayEditAmount = isNegative ? "-" : "";
 			return;
 		}
 
-		// Store the raw numeric value
-		editAmount = value;
+		// Store the raw numeric value (with sign)
+		editAmount = isNegative ? "-" + value : value;
 
 		// Format for display with thousand separators
 		const numValue = parseInt(value, 10);
 		const formatted = formatCurrency(numValue).replace("₫", "").trim();
-		displayEditAmount = formatted;
+		displayEditAmount = isNegative ? "-" + formatted : formatted;
 
 		// Update cursor position to the end after formatting
 		setTimeout(() => {
@@ -222,7 +230,7 @@
 		error = null;
 
 		const amount = parseInt(editAmount, 10); // Raw numeric value
-		if (isNaN(amount) || amount <= 0) {
+		if (isNaN(amount) || amount === 0) {
 			error = "Số tiền không hợp lệ";
 			saving = false;
 			return;
