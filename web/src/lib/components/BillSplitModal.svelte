@@ -107,6 +107,10 @@
 		if (e.keyCode >= 35 && e.keyCode <= 40) {
 			return;
 		}
+		// Allow: minus/dash key (189 for dash, 109 for numpad minus)
+		if (e.keyCode === 189 || e.keyCode === 109) {
+			return;
+		}
 		// Ensure that it is a number and stop the keypress if not
 		if ((e.shiftKey || e.keyCode < 48 || e.keyCode > 57) && (e.keyCode < 96 || e.keyCode > 105)) {
 			e.preventDefault();
@@ -115,21 +119,25 @@
 
 	function handleAmountInput(e: Event, userId: number) {
 		const input = e.target as HTMLInputElement;
-		// Only allow digits (no decimal separator)
-		const value = input.value.replace(/[^\d]/g, "");
+		// Allow digits and minus sign at the beginning
+		let value = input.value;
+		const isNegative = value.startsWith("-");
+		// Remove everything except digits
+		value = value.replace(/[^\d]/g, "");
 
 		if (value === "") {
-			customAmounts[userId] = "";
-			displayAmounts[userId] = "";
+			customAmounts[userId] = isNegative ? "-" : "";
+			displayAmounts[userId] = isNegative ? "-" : "";
 			return;
 		}
 
-		// Store the raw numeric value
-		customAmounts[userId] = value;
+		// Store the raw numeric value (with sign)
+		customAmounts[userId] = isNegative ? "-" + value : value;
 
 		// Format for display with thousand separators
 		const numValue = parseInt(value, 10);
-		displayAmounts[userId] = formatCurrency(numValue).replace("₫", "").trim();
+		const formatted = formatCurrency(numValue).replace("₫", "").trim();
+		displayAmounts[userId] = isNegative ? "-" + formatted : formatted;
 
 		// Update cursor position to the end after formatting
 		setTimeout(() => {
@@ -140,7 +148,7 @@
 	function calculateEqualSplit(): number {
 		const count = selectedUsers.size;
 		if (count === 0) return 0;
-		return Math.abs(transaction.amount) / count;
+		return transaction.amount / count;
 	}
 
 	function calculateTotal(): number {
@@ -157,7 +165,7 @@
 	}
 
 	function calculateRemaining(): number {
-		const transactionAmount = Math.abs(transaction.amount);
+		const transactionAmount = transaction.amount;
 		const total = calculateTotal();
 		return transactionAmount - total;
 	}
@@ -246,7 +254,7 @@
 			<div class="mb-6">
 				<p class="text-gray-600">Transaction Amount:</p>
 				<p class="text-2xl font-bold text-gray-900">
-					{formatCurrency(Math.abs(transaction.amount))}
+					{formatCurrency(transaction.amount)}
 				</p>
 			</div>
 
@@ -319,7 +327,7 @@
 											<div class="relative">
 												<input
 													type="text"
-													inputmode="numeric"
+													inputmode="text"
 													placeholder="Amount"
 													value={displayAmounts[user.id] || ""}
 													oninput={(e) => handleAmountInput(e, user.id)}
@@ -447,7 +455,7 @@
 					</div>
 					<div class="flex justify-between mb-2">
 						<span>Transaction Amount:</span>
-						<span class="font-medium">{formatCurrency(Math.abs(transaction.amount))}</span>
+						<span class="font-medium">{formatCurrency(transaction.amount)}</span>
 					</div>
 					<div class="flex justify-between">
 						<span>Remaining:</span>
@@ -458,7 +466,7 @@
 									? 'text-orange-600'
 									: 'text-red-600'}"
 						>
-							{formatCurrency(Math.abs(calculateRemaining()))}
+							{formatCurrency(calculateRemaining())}
 							{#if Math.abs(calculateRemaining()) < 0.01}
 								<span class="text-xs">(Perfect!)</span>
 							{:else if calculateRemaining() > 0}
