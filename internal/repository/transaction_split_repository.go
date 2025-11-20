@@ -146,10 +146,23 @@ func (r *TransactionSplitRepository) Reset(ctx context.Context, transactionID in
 
 func (r *TransactionSplitRepository) Update(split *models.TransactionSplit) error {
 	_, err := r.db.Conn.Exec(`
-		UPDATE transaction_splits 
-		SET reason = ? 
+		UPDATE transaction_splits
+		SET reason = ?
 		WHERE transaction_id = ? AND user_id = ?
 	`, split.Reason, split.TransactionID, split.UserID)
+	if err != nil {
+		return fmt.Errorf("failed to update split: %v", err)
+	}
+	return nil
+}
+
+// UpdateByID updates a split by its ID with the given amount and reason
+func (r *TransactionSplitRepository) UpdateByID(id int64, amount int64, reason string) error {
+	_, err := r.db.Conn.Exec(`
+		UPDATE transaction_splits
+		SET amount = ?, reason = ?
+		WHERE id = ?
+	`, amount, reason, id)
 	if err != nil {
 		return fmt.Errorf("failed to update split: %v", err)
 	}

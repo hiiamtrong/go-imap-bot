@@ -117,6 +117,8 @@ func main() {
 	protected.POST("/splits", splitHandler.CreateSplit)
 	protected.GET("/transactions/:id/splits", splitHandler.GetSplitsForTransaction)
 	protected.POST("/splits/:id/complete", splitHandler.CompleteSplit)
+	protected.POST("/splits/:id/complete-single", splitHandler.CompleteSingleSplit)
+	protected.PUT("/splits/:id", splitHandler.UpdateSplit)
 	protected.DELETE("/splits/:id", splitHandler.DeleteSplit)
 
 	// Reminder routes
