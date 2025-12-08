@@ -151,6 +151,10 @@
 		return transaction.amount / count;
 	}
 
+	function isNearZero(value: number): boolean {
+		return value > -0.01 && value < 0.01;
+	}
+
 	function calculateTotal(): number {
 		if (splitMode === "equal") {
 			return calculateEqualSplit() * selectedUsers.size;
@@ -173,7 +177,7 @@
 	function isValidSplit(): boolean {
 		if (selectedUsers.size === 0) return false;
 		const remaining = calculateRemaining();
-		return Math.abs(remaining) < 0.01;
+		return isNearZero(remaining);
 	}
 
 	async function handleSubmit() {
@@ -460,14 +464,14 @@
 					<div class="flex justify-between">
 						<span>Remaining:</span>
 						<span
-							class="font-medium {Math.abs(calculateRemaining()) < 0.01
+							class="font-medium {isNearZero(calculateRemaining())
 								? 'text-green-600'
 								: calculateRemaining() > 0
 									? 'text-orange-600'
 									: 'text-red-600'}"
 						>
 							{formatCurrency(calculateRemaining())}
-							{#if Math.abs(calculateRemaining()) < 0.01}
+							{#if isNearZero(calculateRemaining())}
 								<span class="text-xs">(Perfect!)</span>
 							{:else if calculateRemaining() > 0}
 								<span class="text-xs">(need more)</span>
