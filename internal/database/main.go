@@ -32,7 +32,8 @@ func initDatabase(conn *sql.DB) error {
 func GetDatabase(cfg *config.DatabaseConfig) (*Database, error) {
 	// Enable WAL mode for better concurrent access
 	// _busy_timeout: wait up to 30 seconds if database is locked
-	conn, err := sql.Open("sqlite3", cfg.DatabasePath+"?_journal_mode=WAL&_synchronous=NORMAL&_busy_timeout=30000")
+	// _txlock=immediate: acquire write lock immediately to prevent SQLITE_BUSY errors
+	conn, err := sql.Open("sqlite3", cfg.DatabasePath+"?_journal_mode=WAL&_synchronous=NORMAL&_busy_timeout=30000&_txlock=immediate")
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %v", err)
 	}
