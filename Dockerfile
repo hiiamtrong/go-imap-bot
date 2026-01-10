@@ -36,7 +36,7 @@ WORKDIR /app
 
 # Copy bot binary from builder
 COPY --from=builder /app/bot .
-COPY --from=builder /app/init/init.sql ./init/init.sql
+COPY --from=builder /app/init/*.sql ./init/
 
 # Create volume for SQLite database
 VOLUME ["/app/data"]
@@ -62,7 +62,7 @@ WORKDIR /app
 
 # Copy server binary from builder
 COPY --from=builder /app/server .
-COPY --from=builder /app/init/init.sql ./init/init.sql
+COPY --from=builder /app/init/*.sql ./init/
 COPY --from=builder /app/internal/smtp/templates ./internal/smtp/templates
 
 # Create volume for SQLite database
