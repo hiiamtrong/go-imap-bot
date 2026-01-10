@@ -1,0 +1,115 @@
+Delivered-To: hiiamtrong@gmail.com
+Received: by 2002:a05:7000:8a95:b0:7aa:d47f:da26 with SMTP id hu21csp1399471mab;
+        Fri, 9 Jan 2026 00:42:12 -0800 (PST)
+X-Google-Smtp-Source: AGHT+IFwEEIOUtiAkBSFZNCrqmdm7Ia4tpMhnxF7vuEUQL8KZ0ZoB46XXyGfI/srNalYK9+hlYG4
+X-Received: by 2002:a05:6a00:f09:b0:81e:aff6:5b81 with SMTP id d2e1a72fcca58-81eaff65feamr362243b3a.30.1767948131973;
+        Fri, 09 Jan 2026 00:42:11 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1767948131; cv=none;
+        d=google.com; s=arc-20240605;
+        b=jFZilErwt9mFoHyk8p38my9BJnQFdJHkS7uR+kcDCDQni3PHAjxvw2qjcpz0tia6pW
+         kGgFlpCxia0jGeHL9+JaIIBjk+D7c7oUP5q3rLNDTIsGtuURl2wcF2rD5ahNu5+FQeLh
+         gR9ZesGXliOPY4wz9F4stgveyGFmz/5SN9V63Q5Unuo2DQxQgyhtWB1auU9WxxMhoS4c
+         D5L5Y+VFwUD+oEIQ5CIAUcELAT4C/ECumSBiEBQ1mbFzouJ+cYSk69KAUl/8MoxdlTsG
+         1ENd9iS+VJ6PY+R2JLomwK+Y/4unAkdKHmCVbuTK77lGaKIx8CSUOxaeQUZH7T9QsWfc
+         jyjA==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20240605;
+        h=mime-version:subject:message-id:to:from:dkim-signature:date;
+        bh=MX2VfnfLz5Lby5679uQI3ioBfu3jF35ZH26Z1JdCsnI=;
+        fh=c07BWRDzNpx5ePFt+CI61MgGvE/0qJnlLPHA76HUInw=;
+        b=eEk8MqpoQGwfBx1hXZBabwlDyEEnjyb8UTHL/RUaJaosGykpHhKNykS8Rdsg1UyvbE
+         IOtflFqyxjo9rzeHSDcy29C1vaHbJB4ZUKg5YMjmIeMJKcQUwzee12VN3wwQABnQIaVz
+         oVJQZyzDTUn8/evPP0MottOIKIRUMY3CjuUooptm+pwW9zYAmb3+1wEkTQejmMQu2VIH
+         f2QzCcPDDazbh20Po+Typbm9Kqkh1uK6eFpLxtbo985k8Ie1O8wfgN44LaMa3Q6DuS9y
+         zw82eSi2PD/CZJtdLk5sOdocyeBDAotuMcRPgQGMqqW0frVYJS7P6YvFqFmcW0u2v+T9
+         C0Mw==;
+        dara=google.com
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@timo.vn header.s=mail header.b=q6xI5ikX;
+       spf=pass (google.com: domain of support@timo.vn designates 18.140.167.8 as permitted sender) smtp.mailfrom=support@timo.vn;
+       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=timo.vn
+Return-Path: <support@timo.vn>
+Received: from mail1.timo.vn (mail1.timo.vn. [18.140.167.8])
+        by mx.google.com with ESMTPS id d2e1a72fcca58-819c63db847si16167252b3a.124.2026.01.09.00.42.11
+        for <hiiamtrong@gmail.com>
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Fri, 09 Jan 2026 00:42:11 -0800 (PST)
+Received-SPF: pass (google.com: domain of support@timo.vn designates 18.140.167.8 as permitted sender) client-ip=18.140.167.8;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@timo.vn header.s=mail header.b=q6xI5ikX;
+       spf=pass (google.com: domain of support@timo.vn designates 18.140.167.8 as permitted sender) smtp.mailfrom=support@timo.vn;
+       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=timo.vn
+Date: Fri, 09 Jan 2026 00:42:11 -0800 (PST)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=timo.vn; s=mail;
+	t=1767948130; bh=SIR7TtVEmIsJah3IeyDH1wbVLQWsOU3bQH7Wbqhoxr8=;
+	h=From:To:Message-ID:Subject:MIME-Version:Content-Type:From:Sender:
+	 To:CC:Subject:Message-Id:Date:MIME-Version:Content-Type:Reply-To;
+	b=q6xI5ikXOxb767tx7qB8Uxbemm6s6Ky9JoEH9jr2Mao/f4nzXfBD0MU+kGzt/3y1O
+	 DQDIfPy0S8DVcUAdyTfxHR5vqth75INnSLsJEUPhJhdJ5kpVZyH9Gjypfm8zLrf+IR
+	 SqOjzt2Tg+TIe8xoWZY0GUSSH8KVAHZ9WxHPdXg0=
+Received: from notification-management-ddd96687c-hmgzx (100-126-38-216.notification-management.prod.svc.cluster.local [100.126.38.216])
+	by mail1.timo.vn (Postfix) with ESMTPA id D10B981E68
+	for <hiiamtrong@gmail.com>; Fri,  9 Jan 2026 15:42:10 +0700 (+07)
+From: Timo Support <support@timo.vn>
+To: hiiamtrong@gmail.com
+Message-ID: <2106321379.312481.1767948130851@notification-management-ddd96687c-hmgzx>
+Subject: =?UTF-8?Q?Th=C3=B4ng_b=C3=A1o_thay_=C4=91=E1=BB=95?=
+ =?UTF-8?Q?i_s=E1=BB=91_d=C6=B0_t=C3=A0i_kho=E1=BA=A3n?=
+MIME-Version: 1.0
+Content-Type: multipart/mixed; 
+	boundary="----=_Part_312480_1330131473.1767948130851"
+
+------=_Part_312480_1330131473.1767948130851
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE html>
+<html lang=3D"en">
+<head>
+    <meta charset=3D"UTF-8">
+    <meta http-equiv=3D"X-UA-Compatible" content=3D"IE=3Dedge">
+    <meta name=3D"viewport" content=3D"width=3Ddevice-width, initial-scale=
+=3D1.0">
+    <title>Blue</title>
+</head>
+<body style=3D"font-family: Arial, Helvetica, sans-serif;padding: 0;
+margin: 0;">
+<div class=3D"container" style=3D"position: relative;max-width: 1024px;widt=
+h: 100%; margin: auto;">
+    <div class=3D"template__header"
+         style=3D"border-bottom: 8px solid #563D82; text-align: right">
+        <img src=3D"https://app2.timo.vn/cxpassets/frontend/images/TDB-logo=
+.png" alt=3D"" style=3D" max-width: 250px;
+           margin: 40px 40px 32px 40px; width: 100%;">
+    </div>
+    <div class=3D"template__body" style=3D"font-size: 14px;
+        color: #4d4d4d;
+        height: 100%;
+        min-height: 200px;
+        padding: 40px;">
+        <p>
+            <span class=3D"customer-name" style=3D"color: #000;
+                text-transform: uppercase;font-weight: 600;">VU XUAN TRONG<=
+/span> th=C3=A2n m=E1=BA=BFn,
+        </p>
+        <p><p>T=C3=A0i kho=E1=BA=A3n Spend Account v=E1=BB=ABa t=C4=83ng 25=
+8.180 VND v=C3=A0o 09/01/2026 15:42.
+S=E1=BB=91 d=C6=B0 hi=E1=BB=87n t=E1=BA=A1i: 1.044.282 VND.</p>
+<p>M=C3=B4 t=E1=BA=A3: Bill TRXXWWFBCVTONG.</p></p>
+        <p>C=E1=BA=A3m =C6=A1n Qu=C3=BD kh=C3=A1ch =C4=91=C3=A3 s=E1=BB=AD =
+d=E1=BB=A5ng d=E1=BB=8Bch v=E1=BB=A5 Timo Digital Bank by BVBank!</p>
+=09<br>
+        <p>Tr=C3=A2n tr=E1=BB=8Dng,</p>
+        <p class=3D"team" style=3D"color: #563d82;
+            font-weight: 600;">Timo Digital Bank by BVBank</p>
+    </div>
+    <div class=3D"template__footer" style=3D"height: 100%;
+        max-height: 180px;
+        position: relative;">
+        <img src=3D"https://timo.vn/wp-content/uploads/email_SA_credit_vn.j=
+pg" alt=3D"" style=3D"width: 100%; height: 100%;">
+    </div>
+</div>
+</body>
+</html>
+
+------=_Part_312480_1330131473.1767948130851--

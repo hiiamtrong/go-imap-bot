@@ -24,7 +24,23 @@ import (
 	"github.com/hiiamtrong/go-imap-bot/internal/vietqr"
 	"github.com/hiiamtrong/go-imap-bot/pkg/regexpkg"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/spf13/viper"
 )
+
+// getStartDate returns the configured start date for filtering emails
+// Format: DD/MM/YYYY
+func getStartDate() *time.Time {
+	dateStr := viper.GetString("START_DATE")
+	if dateStr == "" {
+		return nil
+	}
+	t, err := time.Parse("02/01/2006", dateStr)
+	if err != nil {
+		log.Printf("Invalid START_DATE format: %v", err)
+		return nil
+	}
+	return &t
+}
 
 func main() {
 	cfg := config.NewConfig()
@@ -123,48 +139,59 @@ func runBot(
 }
 
 func searchEmails(c *imapclient.Client) []int64 {
-	criteria := imap.SearchCriteria{
-		Header: []imap.SearchCriteriaHeaderField{
-			{
-				Key:   "Subject",
-				Value: "Thông báo thay đổi số dư tài khoản",
+	availableMails := make([]int64, 0)
+
+	// Search criteria for different banks
+	bankCriteria := []imap.SearchCriteria{
+		// Timo bank
+		{
+			Header: []imap.SearchCriteriaHeaderField{
+				{Key: "Subject", Value: "Thông báo thay đổi số dư tài khoản"},
+				{Key: "From", Value: "support@timo.vn"},
 			},
-			{
-				Key:   "From",
-				Value: "support@timo.vn",
+		},
+		// Vietcombank
+		{
+			Header: []imap.SearchCriteriaHeaderField{
+				{Key: "Subject", Value: "Biên lai chuyển tiền"},
+				{Key: "From", Value: "info.vietcombank.com.vn"},
 			},
 		},
 	}
 
-	searchCmd := c.Search(&criteria, nil)
-
-	searchData, err := searchCmd.Wait()
-	if err != nil {
-		log.Fatalf("Failed to search: %v", err)
-	}
-
-	numSets := searchData.All.String()
-	pair := strings.Split(numSets, ",")
-
-	availableMails := make([]int64, 0)
-
-	for _, p := range pair {
-		numSet := strings.Split(p, ":")
-		start, err := strconv.ParseUint(numSet[0], 10, 32)
+	for _, criteria := range bankCriteria {
+		searchCmd := c.Search(&criteria, nil)
+		searchData, err := searchCmd.Wait()
 		if err != nil {
-			log.Fatalf("Failed to parse start: %v", err)
+			log.Printf("Failed to search for criteria: %v", err)
+			continue
 		}
-		if len(numSet) > 1 {
-			end, err := strconv.ParseUint(numSet[1], 10, 32)
-			if err != nil {
-				log.Fatalf("Failed to parse end: %v", err)
-			}
 
-			for i := start; i <= end; i++ {
-				availableMails = append(availableMails, int64(i))
+		numSets := searchData.All.String()
+		if numSets == "" {
+			continue
+		}
+
+		pair := strings.Split(numSets, ",")
+		for _, p := range pair {
+			numSet := strings.Split(p, ":")
+			start, err := strconv.ParseUint(numSet[0], 10, 32)
+			if err != nil {
+				log.Printf("Failed to parse start: %v", err)
+				continue
 			}
-		} else {
-			availableMails = append(availableMails, int64(start))
+			if len(numSet) > 1 {
+				end, err := strconv.ParseUint(numSet[1], 10, 32)
+				if err != nil {
+					log.Printf("Failed to parse end: %v", err)
+					continue
+				}
+				for i := start; i <= end; i++ {
+					availableMails = append(availableMails, int64(i))
+				}
+			} else {
+				availableMails = append(availableMails, int64(start))
+			}
 		}
 	}
 
@@ -232,6 +259,15 @@ func processEmail(msg *imapclient.FetchMessageData, bot *imapbot.Bot) {
 		return
 	}
 
+	// Check if email is before start date
+	skipTransaction := false
+	if startDate := getStartDate(); startDate != nil {
+		if newMail.Date.Before(*startDate) {
+			log.Printf("Email before start date, saving mail record but skipping transaction: date %v < %v", newMail.Date, *startDate)
+			skipTransaction = true
+		}
+	}
+
 	// Get database connection
 
 	// Start transaction
@@ -268,6 +304,17 @@ func processEmail(msg *imapclient.FetchMessageData, bot *imapbot.Bot) {
 
 	fmt.Printf("New Mail: %+v\n", newMail)
 
+	// If email is before start date, just save mail record and skip transaction processing
+	if skipTransaction {
+		if err = tx.Commit(); err != nil {
+			log.Printf("failed to commit mail record: %v", err)
+			return
+		}
+		tx = nil
+		fmt.Printf("Saved mail record (skipped transaction) for UID: %d\n", newMail.UID)
+		return
+	}
+
 	var transaction *models.Transaction
 
 	// Process the message's parts
@@ -285,8 +332,8 @@ func processEmail(msg *imapclient.FetchMessageData, bot *imapbot.Bot) {
 			b, _ := io.ReadAll(p.Body)
 			bodyText := string(b)
 
-			// Parse transaction details
-			details, err := parser.ParseTransactionEmail(bodyText)
+			// Parse transaction details (pass from and subject for bank detection)
+			details, err := parser.ParseTransactionEmail(newMail.From, newMail.Subject, bodyText)
 			if err != nil {
 				log.Printf("Failed to parse transaction details: %v", err)
 				continue
@@ -339,38 +386,41 @@ func processEmail(msg *imapclient.FetchMessageData, bot *imapbot.Bot) {
 		}
 	}
 
-	// Only proceed if we have a transaction
+	// If no transaction found (parsing failed or filtered), still save mail record
 	if transaction == nil {
-		log.Printf("no transaction found in email")
+		log.Printf("no transaction found in email, saving mail record only")
+		if err = tx.Commit(); err != nil {
+			log.Printf("failed to commit mail record: %v", err)
+			return
+		}
+		tx = nil
+		fmt.Printf("Saved mail record (no transaction) for UID: %d\n", newMail.UID)
 		return
 	}
 
 	// Get the first email address from the To field
 	recipientEmail := strings.Split(newMail.To, ",")[0]
 
-	// Check if transaction is a bill split
+	// Check if transaction is a bill split (optional - don't block on errors)
 	if matched, _ := regexp.MatchString(`(trx|TRX)\w+(ong|ONG)`, transaction.Description); matched {
 		hash, err := regexpkg.ExtractHash(transaction.Description)
 		if err != nil {
-			log.Printf("failed to extract hash: %v", err)
-			return
-		}
-		splitIDs, err := bot.BotInjector.SplitHashRepository.GetSplitIDs(hash)
-		if err != nil {
-			log.Printf("failed to get split ids: %v", err)
-			return
-		}
-
-		err = bot.BotInjector.TransactionSplitRepository.UpdateSplitStatus(splitIDs, tx)
-		if err != nil {
-			log.Printf("failed to update split status: %v", err)
-			return
-		}
-
-		err = bot.NotifySplitBillComplete(recipientEmail, splitIDs, transaction.ID, tx)
-		if err != nil {
-			log.Printf("failed to notify split bill: %v", err)
-			return
+			log.Printf("failed to extract hash (skipping split): %v", err)
+		} else {
+			splitIDs, err := bot.BotInjector.SplitHashRepository.GetSplitIDs(hash)
+			if err != nil {
+				log.Printf("split hash not found (skipping split): %v", err)
+			} else {
+				err = bot.BotInjector.TransactionSplitRepository.UpdateSplitStatus(splitIDs, tx)
+				if err != nil {
+					log.Printf("failed to update split status: %v", err)
+				} else {
+					err = bot.NotifySplitBillComplete(recipientEmail, splitIDs, transaction.ID, tx)
+					if err != nil {
+						log.Printf("failed to notify split bill: %v", err)
+					}
+				}
+			}
 		}
 	}
 
