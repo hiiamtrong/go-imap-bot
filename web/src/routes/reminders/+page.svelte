@@ -161,7 +161,7 @@
 		const isNegative = split.amount < 0;
 		editAmount = split.amount.toString(); // Raw numeric value
 		// Format for display
-		const formatted = formatCurrency(Math.abs(split.amount)).replace("₫", "").trim();
+		const formatted = formatCurrency(Math.abs(split.amount), split.currency || "VND").replace("₫", "").trim();
 		displayEditAmount = isNegative ? "-" + formatted : formatted;
 	}
 
@@ -214,7 +214,7 @@
 
 		// Format for display with thousand separators
 		const numValue = parseInt(value, 10);
-		const formatted = formatCurrency(numValue).replace("₫", "").trim();
+		const formatted = formatCurrency(numValue, "VND").replace("₫", "").trim();
 		displayEditAmount = isNegative ? "-" + formatted : formatted;
 
 		// Update cursor position to the end after formatting
@@ -350,7 +350,7 @@
 										<span>Số lượng bill: <strong>{summary.bill_count}</strong></span>
 										<span
 											>Tổng tiền: <strong class="text-orange-600"
-												>{formatCurrency(summary.total_amount)}</strong
+												>{formatCurrency(summary.total_amount, "VND")}</strong
 											></span
 										>
 									</div>
@@ -411,7 +411,7 @@
 													</p>
 												{/if}
 												<p class="text-sm font-bold text-orange-600">
-													{formatCurrency(split.amount)}
+													{formatCurrency(split.amount, split.currency || "VND")}
 												</p>
 												<p class="text-xs text-gray-500 mt-1">
 													{new Date(split.created_at).toLocaleString("vi-VN")}
@@ -473,7 +473,7 @@
 					<div class="p-3 bg-green-50 rounded-lg">
 						<p class="text-xs sm:text-sm text-gray-600">Tổng tiền</p>
 						<p class="text-xl sm:text-2xl font-bold text-green-600">
-							{formatCurrency(totalSummary().totalAmount)}
+							{formatCurrency(totalSummary().totalAmount, "VND")}
 						</p>
 					</div>
 				</div>

@@ -6,8 +6,35 @@ import (
 	"strings"
 )
 
-func FormatCurrency(amount float64) string {
-	return fmt.Sprintf("%s₫", formatNumber(amount))
+// Currency symbols mapping
+var currencySymbols = map[string]string{
+	"VND": "₫",
+	"USD": "$",
+	"EUR": "€",
+	"GBP": "£",
+	"JPY": "¥",
+	"CNY": "¥",
+	"KRW": "₩",
+	"THB": "฿",
+	"SGD": "S$",
+	"AUD": "A$",
+}
+
+// FormatCurrency formats amount with currency symbol
+func FormatCurrency(amount float64, currency string) string {
+	symbol, ok := currencySymbols[currency]
+	if !ok {
+		// If currency not in map, use the currency code itself
+		return fmt.Sprintf("%s %s", formatNumber(amount), currency)
+	}
+
+	// For VND, put symbol after the number (Vietnamese style)
+	if currency == "VND" {
+		return fmt.Sprintf("%s%s", formatNumber(amount), symbol)
+	}
+
+	// For other currencies, put symbol before the number
+	return fmt.Sprintf("%s%s", symbol, formatNumber(amount))
 }
 
 func formatNumber(n float64) string {

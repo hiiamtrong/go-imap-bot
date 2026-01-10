@@ -1,0 +1,781 @@
+Delivered-To: hiiamtrong@gmail.com
+Received: by 2002:a05:7000:8a95:b0:7aa:d47f:da26 with SMTP id hu21csp1435324mab;
+        Fri, 9 Jan 2026 02:10:43 -0800 (PST)
+X-Google-Smtp-Source: AGHT+IGq1wUA5IKTB0jy1Sc43RkcXsO7TomaKbzGAgiIMDRqUcWs8pG9yYqTcm+0lw/n/AJR2I2V
+X-Received: by 2002:a05:6a00:b486:b0:81e:e09d:2687 with SMTP id d2e1a72fcca58-81ee09d2737mr155885b3a.1.1767953443657;
+        Fri, 09 Jan 2026 02:10:43 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1767953443; cv=none;
+        d=google.com; s=arc-20240605;
+        b=Eyes1GrH3Xr6wrqPUZu2/H72UEeU6BdpitgxLiHWfOpIpa2nPSH86CyC05wzFAQbWZ
+         TpBLffBmFSg7tvajOsX/xq/fRdoNF8F9RStlOjC+fM1XoaNPB0cEDRsGPALQcmWXIG49
+         z9/JWEg1ENT07qB3Q2Em4vmB/a/tFro3Nda+eqdmVDgrUD5xo8CfQzxbv4MR2h5Ycda7
+         jt5QGxmntz8hocHyrqRYSPZET/mVc/zoKILeou3KSoDN2BGnyAZ6yqkOGibNElafkL5n
+         v48jPYB5hEMHrFWMnaSLD5iWAFmiMw+SyCmCNGgE9wp85KKI/XtJv+hDMIdnDxaWIdjX
+         mv4w==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20240605;
+        h=content-transfer-encoding:mime-version:to:message-id:subject:date
+         :from:dkim-signature:dkim-filter;
+        bh=twDaELgzH1wloidgEshU84omXkQigCsal/3GwBjb7rg=;
+        fh=VgLok6QWQ1xyZGujUBAJZU+F5JtVkk8E78YMok2FTnM=;
+        b=QjSSvxEuBx/0wIQ/BvDm2HQE0fSgl69Rdw7W3WSLPw0hIFFPPuDQfPepWqVWRyNF/a
+         yPEjn+zG34lfWHJv+hhLEM/HDLEj2lrpvnD3eabdQ/5TE/oPUHgBSX0HXDBOVbjgqNLb
+         Ad7Ok95GuESZE4ziVy+hHiY/+fbHxBX3/0FqezK0J9noWdKRqeM30YNrAQEOFF3TZQcN
+         P7Pa1jdrBAptf7FSF+DuDbbMMilBjoKAkTqKQQju2FRBi9VSXTiGN7wFnTuZt6eW/u0J
+         X+e0YCaJDbXWZ7HKqA8HQ3JNekMtFO+3+IRH/AVEDa8950NIK2UYKzYRb5gdXEqx5BXb
+         vqug==;
+        dara=google.com
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@care.vpb.com.vn header.s=YsYqFKmk6n header.b="Zvd22K/B";
+       spf=pass (google.com: domain of customercare@care.vpb.com.vn designates 103.161.210.67 as permitted sender) smtp.mailfrom=customercare@care.vpb.com.vn;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=care.vpb.com.vn
+Return-Path: <customercare@care.vpb.com.vn>
+Received: from mailgw03.care.vpb.com.vn (mailgw03.care.vpb.com.vn. [103.161.210.67])
+        by mx.google.com with ESMTPS id d2e1a72fcca58-819c78af1a9si16056822b3a.311.2026.01.09.02.10.43
+        for <hiiamtrong@gmail.com>
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Fri, 09 Jan 2026 02:10:43 -0800 (PST)
+Received-SPF: pass (google.com: domain of customercare@care.vpb.com.vn designates 103.161.210.67 as permitted sender) client-ip=103.161.210.67;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@care.vpb.com.vn header.s=YsYqFKmk6n header.b="Zvd22K/B";
+       spf=pass (google.com: domain of customercare@care.vpb.com.vn designates 103.161.210.67 as permitted sender) smtp.mailfrom=customercare@care.vpb.com.vn;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=care.vpb.com.vn
+Received: from ps1mailgw01.localdomain (unknown [10.16.164.121])
+	by ps1mailgwx08 (Postfix) with ESMTPS id 222124084DFA
+	for <hiiamtrong@gmail.com>; Fri,  9 Jan 2026 17:10:42 +0700 (+07)
+Received: from ps1mailaut01.localdomain (ps1mailaut01.vpbank.com.vn [10.16.164.119])
+	by ps1mailgw01.localdomain (Postfix) with ESMTPS id 39A34601819D
+	for <hiiamtrong@gmail.com>; Fri,  9 Jan 2026 17:10:41 +0700 (+07)
+DKIM-Filter: OpenDKIM Filter v2.11.0 ps1mailgw01.localdomain 39A34601819D
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=care.vpb.com.vn;
+	s=YsYqFKmk6n; t=1767953441;
+	bh=JKpsQ7OpTO0skPFdenJJBnSXnKSx2F8XIqQNE0WIzy0=;
+	h=From:Date:Subject:To:From;
+	b=Zvd22K/B4e+RBoo2eRu0IBcMywwoj40vC7C+0T5I2SExPH5cxNquelOMdh/J5AQxR
+	 /rE+Q1wop/rHb9YJk64chQDcG1jovIeO91SqSUDMw9X4hAZB8SiDvomRHPtFS+GmCq
+	 Y0frAsFB11awDsb2Jq5hJn1i/oitzigkr8m0NVgg=
+Received: from txn-notisend-depl-b75d6f75f-zvjz2 (ps1way4ctn07.vpbank.com.vn [10.16.4.56])
+	by ps1mailaut01.localdomain (Postfix) with ESMTPSA id F23EC40708E5
+	for <hiiamtrong@gmail.com>; Fri,  9 Jan 2026 17:10:40 +0700 (+07)
+From: VPBank Internet Banking <customercare@care.vpb.com.vn>
+Date: Fri, 09 Jan 2026 17:10:40 +0700
+Subject: VPBank xin thong bao bien dong so du The tin dung cua Quy khach
+ =?utf-8?b?4oCT?= VPBank would like to inform your credit
+ =?utf-8?b?Y2FyZOKAmXM=?= balance change
+Message-Id: <JAE4J1H67SU4.9W7PM1SJHQ2J3@txn-notisend-depl-b75d6f75f-zvjz2>
+To: hiiamtrong <hiiamtrong@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.=
+w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html dir=3D"ltr" xmlns=3D"http://www.w3.org/1999/xhtml" xmlns:o=3D"urn:sch=
+emas-microsoft-com:office:office" lang=3D"vi">
+<head>
+    <meta charset=3D"UTF-8" />
+    <meta content=3D"width=3Ddevice-width, initial-scale=3D1" name=3D"viewp=
+ort" />
+    <meta name=3D"x-apple-disable-message-reformatting" />
+    <meta http-equiv=3D"X-UA-Compatible" content=3D"IE=3Dedge" />
+    <meta content=3D"telephone=3Dno" name=3D"format-detection" />
+    <title>TB_ Bi=E1=BA=BFn =C4=91=E1=BB=99ng s=E1=BB=91 d=C6=B0  Balance C=
+hanged VPBank</title>
+    <!--[if (mso 16)]>
+    <style type=3D"text/css">
+    a {text-decoration: none;}
+    </style>
+    <![endif]-->
+    <!--[if gte mso 9]><style>sup { font-size: 100% !important; }</style><!=
+[endif]-->
+    <!--[if gte mso 9]>
+    <noscript>
+             <xml>
+               <o:OfficeDocumentSettings>
+               <o:AllowPNG></o:AllowPNG>
+               <o:PixelsPerInch>96</o:PixelsPerInch>
+               </o:OfficeDocumentSettings>
+             </xml>
+          </noscript>
+    <![endif]-->
+    <!--[if !mso]><!-- -->
+    <link href=3D"https://fonts.googleapis.com/css?family=3DRoboto:400,400i=
+,700,700i" rel=3D"stylesheet" /><!--<![endif]-->
+    <!--[if mso]><xml>
+    <w:WordDocument xmlns:w=3D"urn:schemas-microsoft-com:office:word">
+      <w:DontUseAdvancedTypographyReadingMail/>
+    </w:WordDocument>
+    </xml><![endif]-->
+    <style type=3D"text/css">
+        .rollover:hover .rollover-first {
+            max-height: 0px !important;
+            display: none !important;
+        }
+
+        .rollover:hover .rollover-second {
+            max-height: none !important;
+            display: block !important;
+        }
+
+        .rollover span {
+            font-size: 0px;
+        }
+
+        u + .body img ~ div div {
+            display: none;
+        }
+
+        #outlook a {
+            padding: 0;
+        }
+
+        span.MsoHyperlink,
+        span.MsoHyperlinkFollowed {
+            color: inherit;
+            mso-style-priority: 99;
+        }
+
+        a.es-button {
+            mso-style-priority: 100 !important;
+            text-decoration: none !important;
+        }
+
+        a[x-apple-data-detectors],
+        #MessageViewBody a {
+            color: inherit !important;
+            text-decoration: none !important;
+            font-size: inherit !important;
+            font-family: inherit !important;
+            font-weight: inherit !important;
+            line-height: inherit !important;
+        }
+
+        .es-desk-hidden {
+            display: none;
+            float: left;
+            overflow: hidden;
+            width: 0;
+            max-height: 0;
+            line-height: 0;
+            mso-hide: all;
+        }
+
+        @media only screen and (max-width:600px) {
+            .es-m-p20b {
+                padding-bottom: 20px !important
+            }
+
+            .es-p-default {
+            }
+
+            *[class=3D"gmail-fix"] {
+                display: none !important
+            }
+
+            p, a {
+                line-height: 150% !important
+            }
+
+            h1, h1 a {
+                line-height: 120% !important
+            }
+
+            h2, h2 a {
+                line-height: 120% !important
+            }
+
+            h3, h3 a {
+                line-height: 120% !important
+            }
+
+            h4, h4 a {
+                line-height: 120% !important
+            }
+
+            h5, h5 a {
+                line-height: 120% !important
+            }
+
+            h6, h6 a {
+                line-height: 120% !important
+            }
+
+            .es-header-body p {
+            }
+
+            .es-content-body p {
+            }
+
+            .es-footer-body p {
+            }
+
+            .es-infoblock p {
+            }
+
+            h1 {
+                font-size: 18px !important;
+                text-align: center
+            }
+
+            h2 {
+                font-size: 16px !important;
+                text-align: left
+            }
+
+            h3 {
+                font-size: 18px !important;
+                text-align: center
+            }
+
+            h4 {
+                font-size: 24px !important;
+                text-align: left
+            }
+
+            h5 {
+                font-size: 20px !important;
+                text-align: left
+            }
+
+            h6 {
+                font-size: 16px !important;
+                text-align: left
+            }
+
+            .es-header-body h1 a, .es-content-body h1 a, .es-footer-body h1=
+ a {
+                font-size: 18px !important
+            }
+
+            .es-header-body h2 a, .es-content-body h2 a, .es-footer-body h2=
+ a {
+                font-size: 16px !important
+            }
+
+            .es-header-body h3 a, .es-content-body h3 a, .es-footer-body h3=
+ a {
+                font-size: 18px !important
+            }
+
+            .es-header-body h4 a, .es-content-body h4 a, .es-footer-body h4=
+ a {
+                font-size: 24px !important
+            }
+
+            .es-header-body h5 a, .es-content-body h5 a, .es-footer-body h5=
+ a {
+                font-size: 20px !important
+            }
+
+            .es-header-body h6 a, .es-content-body h6 a, .es-footer-body h6=
+ a {
+                font-size: 16px !important
+            }
+
+            .es-menu td a {
+                font-size: 13px !important
+            }
+
+            .es-header-body p, .es-header-body a {
+                font-size: 16px !important
+            }
+
+            .es-content-body p, .es-content-body a {
+                font-size: 14px !important
+            }
+
+            .es-footer-body p, .es-footer-body a {
+                font-size: 14px !important
+            }
+
+            .es-infoblock p, .es-infoblock a {
+                font-size: 12px !important
+            }
+
+            .es-m-txt-c, .es-m-txt-c h1, .es-m-txt-c h2, .es-m-txt-c h3, .e=
+s-m-txt-c h4, .es-m-txt-c h5, .es-m-txt-c h6 {
+                text-align: center !important
+            }
+
+            .es-m-txt-r, .es-m-txt-r h1, .es-m-txt-r h2, .es-m-txt-r h3, .e=
+s-m-txt-r h4, .es-m-txt-r h5, .es-m-txt-r h6 {
+                text-align: right !important
+            }
+
+            .es-m-txt-j, .es-m-txt-j h1, .es-m-txt-j h2, .es-m-txt-j h3, .e=
+s-m-txt-j h4, .es-m-txt-j h5, .es-m-txt-j h6 {
+                text-align: justify !important
+            }
+
+            .es-m-txt-l, .es-m-txt-l h1, .es-m-txt-l h2, .es-m-txt-l h3, .e=
+s-m-txt-l h4, .es-m-txt-l h5, .es-m-txt-l h6 {
+                text-align: left !important
+            }
+
+                .es-m-txt-r img, .es-m-txt-c img, .es-m-txt-l img {
+                    display: inline !important
+                }
+
+                .es-m-txt-r .rollover:hover .rollover-second, .es-m-txt-c .=
+rollover:hover .rollover-second, .es-m-txt-l .rollover:hover .rollover-seco=
+nd {
+                    display: inline !important
+                }
+
+                .es-m-txt-r .rollover span, .es-m-txt-c .rollover span, .es=
+-m-txt-l .rollover span {
+                    line-height: 0 !important;
+                    font-size: 0 !important;
+                    display: block
+                }
+
+            .es-spacer {
+                display: inline-table
+            }
+
+            a.es-button, button.es-button {
+                font-size: 16px !important;
+                padding: 10px 20px 10px 20px !important;
+                line-height: 120% !important
+            }
+
+            a.es-button, button.es-button, .es-button-border {
+                display: block !important
+            }
+
+            .es-m-fw, .es-m-fw.es-fw, .es-m-fw .es-button {
+                display: block !important
+            }
+
+            .es-m-il, .es-m-il .es-button, .es-social, .es-social td, .es-m=
+enu {
+                display: inline-block !important
+            }
+
+            .es-adaptive table, .es-left, .es-right {
+                width: 100% !important
+            }
+
+            .es-content table, .es-header table, .es-footer table, .es-cont=
+ent, .es-footer, .es-header {
+                width: 100% !important;
+                max-width: 600px !important
+            }
+
+            .adapt-img {
+                width: 100% !important;
+                height: auto !important
+            }
+
+            .es-mobile-hidden, .es-hidden {
+                display: none !important
+            }
+
+            .es-desk-hidden {
+                width: auto !important;
+                overflow: visible !important;
+                float: none !important;
+                max-height: inherit !important;
+                line-height: inherit !important
+            }
+
+            tr.es-desk-hidden {
+                display: table-row !important
+            }
+
+            table.es-desk-hidden {
+                display: table !important
+            }
+
+            td.es-desk-menu-hidden {
+                display: table-cell !important
+            }
+
+            .es-menu td {
+                width: 1% !important
+            }
+
+            table.es-table-not-adapt, .esd-block-html table {
+                width: auto !important
+            }
+
+            .h-auto {
+                height: auto !important
+            }
+
+            h2 a {
+                text-align: left
+            }
+        }
+
+        @media screen and (max-width:384px) {
+            .mail-message-content {
+                width: 414px !important
+            }
+        }
+    </style>
+</head>
+<body class=3D"body" style=3D"width:100%;height:100%;-webkit-text-size-adju=
+st:100%;-ms-text-size-adjust:100%;padding:0;Margin:0">
+    <div dir=3D"ltr" class=3D"es-wrapper-color" lang=3D"vi" style=3D"backgr=
+ound-color:#F6F6F6">
+        <!--[if gte mso 9]>
+            <v:background xmlns:v=3D"urn:schemas-microsoft-com:vml" fill=3D=
+"t">
+                <v:fill type=3D"tile" color=3D"#f6f6f6"></v:fill>
+            </v:background>
+        <![endif]-->
+        <table width=3D"100%" cellspacing=3D"0" cellpadding=3D"0" class=3D"=
+es-wrapper" role=3D"none" style=3D"mso-table-lspace:0pt;mso-table-rspace:0p=
+t;border-collapse:collapse;border-spacing:0px;padding:0;Margin:0;width:100%=
+;height:100%;background-repeat:repeat;background-position:center top;backgr=
+ound-color:#F6F6F6">
+            <tr style=3D"border-collapse:collapse">
+                <td valign=3D"top" class=3D"es-m-margin" style=3D"padding:0=
+;Margin:0">
+                    <table cellpadding=3D"0" cellspacing=3D"0" align=3D"cen=
+ter" class=3D"es-content" role=3D"none" style=3D"mso-table-lspace:0pt;mso-t=
+able-rspace:0pt;border-collapse:collapse;border-spacing:0px;width:100%;tabl=
+e-layout:fixed !important">
+                        <tr style=3D"border-collapse:collapse">
+                            <td align=3D"center" style=3D"padding:0;Margin:=
+0">
+                                <table bgcolor=3D"#ffffff" align=3D"center"=
+ cellpadding=3D"0" cellspacing=3D"0" class=3D"es-content-body" role=3D"none=
+" style=3D"mso-table-lspace:0pt;mso-table-rspace:0pt;border-collapse:collap=
+se;border-spacing:0px;background-color:#FFFFFF;width:600px">
+                                    <tr style=3D"border-collapse:collapse">
+                                        <td align=3D"left" style=3D"padding=
+:0;Margin:0">
+                                            <table cellpadding=3D"0" cellsp=
+acing=3D"0" width=3D"100%" role=3D"none" style=3D"mso-table-lspace:0pt;mso-=
+table-rspace:0pt;border-collapse:collapse;border-spacing:0px">
+                                                <tr style=3D"border-collaps=
+e:collapse">
+                                                    <td align=3D"center" va=
+lign=3D"top" style=3D"padding:0;Margin:0;width:600px">
+                                                        <table cellpadding=3D=
+"0" cellspacing=3D"0" width=3D"100%" role=3D"presentation" style=3D"mso-tab=
+le-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacing:=
+0px">
+                                                            <tr style=3D"bo=
+rder-collapse:collapse">
+                                                                <td align=3D=
+"center" style=3D"padding:0;Margin:0;font-size:0px"><img src=3D"https://fzb=
+czo.stripocdn.email/content/guids/CABINET_6d55f3184b88af109287e29f43b780c6e=
+bb055d47e23d581c2ef6a61251eec7b/images/headmail202101.jpg" alt=3D"" width=3D=
+"600" class=3D"adapt-img" style=3D"display:block;font-size:14px;border:0;ou=
+tline:none;text-decoration:none" /></td>
+                                                            </tr>
+                                                            <tr style=3D"bo=
+rder-collapse:collapse">
+                                                                <td align=3D=
+"left" style=3D"padding:0;Margin:0;padding-top:10px;padding-right:25px;padd=
+ing-left:20px"><h1 style=3D"Margin:0;font-family:roboto, 'helvetica neue', =
+helvetica, arial, sans-serif;mso-line-height-rule:exactly;letter-spacing:0;=
+font-size:22px;font-style:normal;font-weight:bold;line-height:26.4px;color:=
+#008000;text-align:center"><b><span style=3D"font-size:20px">BI=E1=BA=BEN =C4=
+=90=E1=BB=98NG S=E1=BB=90 D=C6=AF</span><br /><span style=3D"font-size:16px=
+"><em>Balance Changed</em></span></b></h1><p style=3D"Margin:0;mso-line-hei=
+ght-rule:exactly;font-family:roboto, 'helvetica neue', helvetica, arial, sa=
+ns-serif;line-height:21px;letter-spacing:0;color:#333333;font-size:14px"><b=
+r /></p></td>
+                                                            </tr>
+                                                            <tr style=3D"bo=
+rder-collapse:collapse">
+                                                                <td align=3D=
+"left" style=3D"Margin:0;padding-right:25px;padding-left:20px;padding-top:5=
+px;padding-bottom:10px"><h5 style=3D"Margin:0;font-family:roboto, 'helvetic=
+a neue', helvetica, arial, sans-serif;mso-line-height-rule:exactly;letter-s=
+pacing:0;font-size:14px;font-style:normal;font-weight:normal;line-height:16=
+.8px;color:#333333"><b>K=C3=ADnh ch=C3=A0o Qu=C3=BD Kh=C3=A1ch / <em>Dear M=
+r/Ms.</em>VU XUAN TRONG</b></h5></td>
+                                                            </tr>
+                                                            <tr style=3D"bo=
+rder-collapse:collapse">
+                                                                <td style=3D=
+"padding:0;Margin:0;padding-bottom:10px;padding-right:15px;padding-left:15p=
+x"><p style=3D"Margin:0;mso-line-height-rule:exactly;font-family:roboto, 'h=
+elvetica neue', helvetica, arial, sans-serif;line-height:21px;letter-spacin=
+g:0;color:#333333;font-size:14px;text-align:justify">Ng=C3=A2n h=C3=A0ng TM=
+CP Vi=E1=BB=87t Nam Th=E1=BB=8Bnh V=C6=B0=E1=BB=A3ng (VPBank) xin ch=C3=A2n=
+ th=C3=A0nh c=E1=BA=A3m =C6=A1n Qu=C3=BD kh=C3=A1ch h=C3=A0ng =C4=91=C3=A3 =
+tin t=C6=B0=E1=BB=9Fng v=C3=A0 l=E1=BB=B1a ch=E1=BB=8Dn s=E1=BB=AD d=E1=BB=A5=
+ng s=E1=BA=A3n ph=E1=BA=A9m Th=E1=BA=BB t=C3=ADn d=E1=BB=A5ng VPBank trong =
+th=E1=BB=9Di gian qua. <em>Respectful greetings and thank you for using VPB=
+ank credit card.</em></p><p style=3D"Margin:0;mso-line-height-rule:exactly;=
+font-family:roboto, 'helvetica neue', helvetica, arial, sans-serif;line-hei=
+ght:21px;letter-spacing:0;color:#333333;font-size:14px;text-align:justify">=
+<br /></p><p style=3D"Margin:0;mso-line-height-rule:exactly;font-family:rob=
+oto, 'helvetica neue', helvetica, arial, sans-serif;line-height:21px;letter=
+-spacing:0;color:#333333;font-size:14px;text-align:justify">Ch=C3=BAng t=C3=
+=B4i xin tr=C3=A2n tr=E1=BB=8Dng th=C3=B4ng b=C3=A1o, s=E1=BB=91 d=C6=B0 th=
+=E1=BA=BB T=C3=ADn d=E1=BB=A5ng c=E1=BB=A7a Qu=C3=BD kh=C3=A1ch =C4=91=C3=A3=
+ thay =C4=91=E1=BB=95i nh=C6=B0 sau: <em>Your credit card balance has chang=
+ed as below:</em></p></td>
+                                                            </tr>
+                                                        </table>
+                                                    </td>
+                                                </tr>
+                                            </table>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                    </table>
+                    <table cellpadding=3D"0" cellspacing=3D"0" align=3D"cen=
+ter" class=3D"es-content" role=3D"none" style=3D"mso-table-lspace:0pt;mso-t=
+able-rspace:0pt;border-collapse:collapse;border-spacing:0px;width:100%;tabl=
+e-layout:fixed !important">
+                        <tr style=3D"border-collapse:collapse">
+                            <td align=3D"center" style=3D"padding:0;Margin:=
+0">
+                                <table bgcolor=3D"#ffffff" align=3D"center"=
+ cellpadding=3D"0" cellspacing=3D"0" class=3D"es-content-body" role=3D"none=
+" style=3D"mso-table-lspace:0pt;mso-table-rspace:0pt;border-collapse:collap=
+se;border-spacing:0px;background-color:#FFFFFF;width:600px">
+                                    <tr style=3D"border-collapse:collapse">
+                                        <td align=3D"left" bgcolor=3D"#efef=
+ef" style=3D"padding:0;Margin:0;padding-top:10px;padding-left:20px;padding-=
+bottom:10px;background-color:#efefef">
+                                            <!--[if mso]><table style=3D"wi=
+dth:580px" cellpadding=3D"0" cellspacing=3D"0"><tr><td style=3D"width:280px=
+" valign=3D"top"><![endif]-->
+                                            <table cellpadding=3D"0" cellsp=
+acing=3D"0" align=3D"left" class=3D"es-left" role=3D"none" style=3D"mso-tab=
+le-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacing:=
+0px;float:left">
+                                                <tr style=3D"border-collaps=
+e:collapse">
+                                                    <td align=3D"left" clas=
+s=3D"es-m-p20b" style=3D"padding:0;Margin:0;width:280px">
+                                                        <table cellpadding=3D=
+"0" cellspacing=3D"0" width=3D"100%" role=3D"presentation" style=3D"mso-tab=
+le-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacing:=
+0px">
+                                                            <tr style=3D"bo=
+rder-collapse:collapse">
+                                                                <td align=3D=
+"left" style=3D"padding:5px;Margin:0"><h5 style=3D"Margin:0;font-family:rob=
+oto, 'helvetica neue', helvetica, arial, sans-serif;mso-line-height-rule:ex=
+actly;letter-spacing:0;font-size:14px;font-style:normal;font-weight:normal;=
+line-height:16.8px;color:#ff0000"><b>+ 3,536,014 VND</b></h5><p style=3D"Ma=
+rgin:0;mso-line-height-rule:exactly;font-family:roboto, 'helvetica neue', h=
+elvetica, arial, sans-serif;line-height:19.5px;letter-spacing:0;color:#3333=
+33;font-size:13px">S=E1=BB=91 ti=E1=BB=81n thay =C4=91=E1=BB=95i / <span st=
+yle=3D"font-size:12px"><em>Changed Amount</em></span></p></td>
+                                                            </tr>
+                                                            <tr style=3D"bo=
+rder-collapse:collapse">
+                                                                <td align=3D=
+"left" style=3D"padding:5px;Margin:0"><h5 style=3D"Margin:0;font-family:rob=
+oto, 'helvetica neue', helvetica, arial, sans-serif;mso-line-height-rule:ex=
+actly;letter-spacing:0;font-size:14px;font-style:normal;font-weight:normal;=
+line-height:16.8px;color:#333333"><b>VPB2601091878690593</b></h5><p style=3D=
+"Margin:0;mso-line-height-rule:exactly;font-family:roboto, 'helvetica neue'=
+, helvetica, arial, sans-serif;line-height:19.5px;letter-spacing:0;color:#3=
+33333;font-size:13px">N=E1=BB=99i dung / <span style=3D"font-size:12px"><em=
+>Transaction Content</em></span></p></td>
+                                                            </tr>
+                                                            <tr style=3D"bo=
+rder-collapse:collapse">
+                                                                <td align=3D=
+"left" style=3D"padding:5px;Margin:0"><h5 style=3D"Margin:0;font-family:rob=
+oto, 'helvetica neue', helvetica, arial, sans-serif;mso-line-height-rule:ex=
+actly;letter-spacing:0;font-size:14px;font-style:normal;font-weight:normal;=
+line-height:16.8px;color:#333333"><b>09/01/2026 17:10:35</b></h5><p style=3D=
+"Margin:0;mso-line-height-rule:exactly;font-family:roboto, 'helvetica neue'=
+, helvetica, arial, sans-serif;line-height:19.5px;letter-spacing:0;color:#3=
+33333;font-size:13px">Th=E1=BB=9Di gian&nbsp;/<span style=3D"font-size:12px=
+"><em>Time</em></span></p></td>
+                                                            </tr>
+                                                        </table>
+                                                    </td>
+                                                </tr>
+                                            </table><!--[if mso]></td><td s=
+tyle=3D"width:25px"></td><td style=3D"width:275px" valign=3D"top"><![endif]=
+-->
+                                            <table cellpadding=3D"0" cellsp=
+acing=3D"0" align=3D"right" class=3D"es-right" role=3D"none" style=3D"mso-t=
+able-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacin=
+g:0px;float:right">
+                                                <tr style=3D"border-collaps=
+e:collapse">
+                                                    <td align=3D"left" styl=
+e=3D"padding:0;Margin:0;width:275px">
+                                                        <table cellpadding=3D=
+"0" cellspacing=3D"0" width=3D"100%" role=3D"presentation" style=3D"mso-tab=
+le-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacing:=
+0px">
+                                                            <tr style=3D"bo=
+rder-collapse:collapse">
+                                                                <td align=3D=
+"left" style=3D"padding:5px;Margin:0"><h5 style=3D"Margin:0;font-family:rob=
+oto, 'helvetica neue', helvetica, arial, sans-serif;mso-line-height-rule:ex=
+actly;letter-spacing:0;font-size:14px;font-style:normal;font-weight:normal;=
+line-height:16.8px;color:#008000"><b>42,000,000 VND</b></h5><p style=3D"Mar=
+gin:0;mso-line-height-rule:exactly;font-family:roboto, 'helvetica neue', he=
+lvetica, arial, sans-serif;line-height:19.5px;letter-spacing:0;color:#33333=
+3;font-size:13px">H=E1=BA=A1n m=E1=BB=A9c c=C3=B2n l=E1=BA=A1i / <span styl=
+e=3D"font-size:12px"><em>Available Limit</em></span></p></td>
+                                                            </tr>
+                                                            <tr style=3D"bo=
+rder-collapse:collapse">
+                                                                <td align=3D=
+"left" style=3D"padding:5px;Margin:0"><h5 style=3D"Margin:0;font-family:rob=
+oto, 'helvetica neue', helvetica, arial, sans-serif;mso-line-height-rule:ex=
+actly;letter-spacing:0;font-size:14px;font-style:normal;font-weight:normal;=
+line-height:16.8px;color:#333333"><b> *4118</b></h5><p style=3D"Margin:0;ms=
+o-line-height-rule:exactly;font-family:roboto, 'helvetica neue', helvetica,=
+ arial, sans-serif;line-height:19.5px;letter-spacing:0;color:#333333;font-s=
+ize:13px">Th=E1=BA=BB /<span style=3D"font-size:12px"><em> Card</em></span>=
+</p></td>
+                                                            </tr>
+                                                            <tr style=3D"bo=
+rder-collapse:collapse">
+                                                                <td align=3D=
+"left" style=3D"padding:5px;Margin:0"><h5 style=3D"Margin:0;font-family:rob=
+oto, 'helvetica neue', helvetica, arial, sans-serif;mso-line-height-rule:ex=
+actly;letter-spacing:0;font-size:14px;font-style:normal;font-weight:normal;=
+line-height:16.8px;color:#333333"><b>091878690593</b></h5><p style=3D"Margi=
+n:0;mso-line-height-rule:exactly;font-family:roboto, 'helvetica neue', helv=
+etica, arial, sans-serif;line-height:19.5px;letter-spacing:0;color:#333333;=
+font-size:13px">M=C3=A3 giao d=E1=BB=8Bch / <span style=3D"font-size:12px">=
+<em>Transaction Code</em></span></p></td>
+                                                            </tr>
+                                                        </table>
+                                                    </td>
+                                                </tr>
+                                            </table><!--[if mso]></td></tr>=
+</table><![endif]-->
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                    </table>
+                    <table cellspacing=3D"0" cellpadding=3D"0" align=3D"cen=
+ter" class=3D"es-content" role=3D"none" style=3D"mso-table-lspace:0pt;mso-t=
+able-rspace:0pt;border-collapse:collapse;border-spacing:0px;width:100%;tabl=
+e-layout:fixed !important">
+                        <tr style=3D"border-collapse:collapse">
+                            <td align=3D"center" style=3D"padding:0;Margin:=
+0">
+                                <table cellspacing=3D"0" cellpadding=3D"0" =
+bgcolor=3D"#ffffff" align=3D"center" class=3D"es-content-body" role=3D"none=
+" style=3D"mso-table-lspace:0pt;mso-table-rspace:0pt;border-collapse:collap=
+se;border-spacing:0px;background-color:#FFFFFF;width:600px">
+                                    <tr style=3D"border-collapse:collapse">
+                                        <td align=3D"left" style=3D"Margin:=
+0;padding-left:20px;padding-top:5px;padding-right:20px;padding-bottom:25px"=
+>
+                                            <table cellpadding=3D"0" cellsp=
+acing=3D"0" width=3D"100%" role=3D"none" style=3D"mso-table-lspace:0pt;mso-=
+table-rspace:0pt;border-collapse:collapse;border-spacing:0px">
+                                                <tr style=3D"border-collaps=
+e:collapse">
+                                                    <td align=3D"center" va=
+lign=3D"top" style=3D"padding:0;Margin:0;width:560px">
+                                                        <table cellpadding=3D=
+"0" cellspacing=3D"0" width=3D"100%" role=3D"presentation" style=3D"mso-tab=
+le-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacing:=
+0px">
+                                                            <tr style=3D"bo=
+rder-collapse:collapse">
+                                                                <td align=3D=
+"left" style=3D"padding:0;Margin:0">
+                                                                    <p styl=
+e=3D"Margin:0;mso-line-height-rule:exactly;font-family:roboto, 'helvetica n=
+eue', helvetica, arial, sans-serif;line-height:21px;letter-spacing:0;color:=
+#333333;font-size:14px"><strong>Ghi ch=C3=BA:</strong></p>
+                                                                    <ul sty=
+le=3D"font-family:roboto, 'helvetica neue', helvetica, arial, sans-serif;pa=
+dding:0px 0px 0px 40px;margin-top:15px;margin-bottom:15px">
+                                                                        <li=
+ style=3D"color:#333333;margin:0px 0px 15px;font-size:14px"><p style=3D"Mar=
+gin:0;mso-line-height-rule:exactly;mso-margin-bottom-alt:15px;font-family:r=
+oboto, 'helvetica neue', helvetica, arial, sans-serif;line-height:21px;lett=
+er-spacing:0;color:#333333;font-size:14px;mso-margin-top-alt:15px">Bi=E1=BA=
+=BFn =C4=91=E1=BB=99ng s=E1=BB=91 d=C6=B0 tr=C3=AAn th=E1=BA=BB ph=E1=BB=A5=
+ =C4=91=C6=B0=E1=BB=A3c g=E1=BB=ADi =C4=91=E1=BA=BFn c=E1=BA=A3 ch=E1=BB=A7=
+ th=E1=BA=BB ch=C3=ADnh v=C3=A0 ch=E1=BB=A7 th=E1=BA=BB ph=E1=BB=A5; bi=E1=BA=
+=BFn =C4=91=E1=BB=99ng s=E1=BB=91 d=C6=B0 tr=C3=AAn th=E1=BA=BB ch=C3=ADnh =
+ch=E1=BB=89 =C4=91=C6=B0=E1=BB=A3c g=E1=BB=ADi =C4=91=E1=BA=BFn ch=E1=BB=A7=
+ th=E1=BA=BB ch=C3=ADnh / <i>Balance change of supplementary card is sent t=
+o both primary and supplementary card holders; balance change of primary ca=
+rd is only sent to primary card holder.</i> <br /><br /></p></li>
+                                                                        <li=
+ style=3D"color:#333333;margin:0px 0px 15px;font-size:14px"><p style=3D"Mar=
+gin:0;mso-line-height-rule:exactly;mso-margin-bottom-alt:15px;font-family:r=
+oboto, 'helvetica neue', helvetica, arial, sans-serif;line-height:21px;lett=
+er-spacing:0;color:#333333;font-size:14px">H=E1=BA=A1n m=E1=BB=A9c c=C3=B2n=
+ l=E1=BA=A1i c=E1=BB=A7a th=E1=BA=BB ch=C3=ADnh l=C3=A0 h=E1=BA=A1n m=E1=BB=
+=A9c c=C3=B2n l=E1=BA=A1i c=E1=BB=A7a h=E1=BB=A3p =C4=91=E1=BB=93ng; h=E1=BA=
+=A1n m=E1=BB=A9c c=C3=B2n l=E1=BA=A1i c=E1=BB=A7a th=E1=BA=BB ph=E1=BB=A5 l=
+=C3=A0 h=E1=BA=A1n m=E1=BB=A9c th=E1=BA=A5p h=C6=A1n trong hai h=E1=BA=A1n =
+m=E1=BB=A9c sau: h=E1=BA=A1n m=E1=BB=A9c c=C3=B2n l=E1=BA=A1i c=E1=BB=A7a h=
+=E1=BB=A3p =C4=91=E1=BB=93ng v=C3=A0 h=E1=BA=A1n m=E1=BB=A9c c=C3=B2n l=E1=BA=
+=A1i c=E1=BB=A7a th=E1=BA=BB ph=E1=BB=A5 / <i>Available limit of primary ca=
+rd is available limit of contract; available limit of supplementary card is=
+ min of available limit of contract and available limit of supplementary ca=
+rd.</i><br /><br /></p></li>
+                                                                    </ul><p=
+ style=3D"Margin:0;mso-line-height-rule:exactly;font-family:roboto, 'helvet=
+ica neue', helvetica, arial, sans-serif;line-height:21px;letter-spacing:0;c=
+olor:#333333;font-size:14px;text-align:center"><b>Xin ch=C3=A2n th=C3=A0nh =
+c=E1=BA=A3m =C6=A1n Qu=C3=BD kh=C3=A1ch =C4=91=C3=A3 s=E1=BB=AD d=E1=BB=A5n=
+g d=E1=BB=8Bch v=E1=BB=A5 c=E1=BB=A7a VPBank!</b></p><p style=3D"Margin:0;m=
+so-line-height-rule:exactly;font-family:roboto, 'helvetica neue', helvetica=
+, arial, sans-serif;line-height:21px;letter-spacing:0;color:#333333;font-si=
+ze:14px;text-align:center"><i>Thanks for banking with us!</i></p>
+                                                                </td>
+                                                            </tr>
+                                                        </table>
+                                                    </td>
+                                                </tr>
+                                            </table>
+                                        </td>
+                                    </tr>
+                                    <tr style=3D"border-collapse:collapse">
+                                        <td align=3D"left" style=3D"padding=
+:0;Margin:0">
+                                            <table width=3D"100%" cellpaddi=
+ng=3D"0" cellspacing=3D"0" role=3D"none" style=3D"mso-table-lspace:0pt;mso-=
+table-rspace:0pt;border-collapse:collapse;border-spacing:0px">
+                                                <tr style=3D"border-collaps=
+e:collapse">
+                                                    <td align=3D"left" styl=
+e=3D"padding:0;Margin:0;width:600px">
+                                                        <table cellpadding=3D=
+"0" cellspacing=3D"0" width=3D"100%" role=3D"presentation" style=3D"mso-tab=
+le-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacing:=
+0px">
+                                                            <tr style=3D"bo=
+rder-collapse:collapse">
+                                                                <td align=3D=
+"center" style=3D"padding:0;Margin:0;font-size:0"><img src=3D"https://fzbcz=
+o.stripocdn.email/content/guids/CABINET_39f0ce77321b2d17f307c84b05ac9f17f8e=
+9542148547332cc0f30322f6f99a1/images/footer_2025.jpg" alt=3D"" width=3D"600=
+" class=3D"adapt-img" style=3D"display:block;font-size:14px;border:0;outlin=
+e:none;text-decoration:none" /></td>
+                                                            </tr>
+                                                        </table>
+                                                    </td>
+                                                </tr>
+                                            </table>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </div>
+    <div style=3D"position:absolute;left:-9999px;top:-9999px;margin:0px"></=
+div>
+    <div style=3D"position:absolute;left:-9999px;top:-9999px;margin:0px;pad=
+ding:0px;border:0px none;width:1px"></div>
+</body>
+</html>=

@@ -67,7 +67,7 @@
 							beginAtZero: true,
 							ticks: {
 								callback: function (value) {
-									return formatCurrency(Number(value));
+									return formatCurrency(Number(value), "VND");
 								},
 							},
 						},
@@ -76,7 +76,7 @@
 						tooltip: {
 							callbacks: {
 								label: function (context) {
-									return formatCurrency(context.parsed.y ?? 0);
+									return formatCurrency(context.parsed.y ?? 0, "VND");
 								},
 							},
 						},
@@ -115,7 +115,7 @@
 						tooltip: {
 							callbacks: {
 								label: function (context) {
-									return `${context.label}: ${formatCurrency(context.parsed)}`;
+									return `${context.label}: ${formatCurrency(context.parsed, "VND")}`;
 								},
 							},
 						},
@@ -147,17 +147,17 @@
 		<div class="grid grid-cols-1 md:grid-cols-4 gap-6">
 			<div class="card">
 				<p class="text-sm text-gray-600">Total Spent</p>
-				<p class="text-2xl font-bold text-red-600">{formatCurrency(stats.totalSpent)}</p>
+				<p class="text-2xl font-bold text-red-600">{formatCurrency(stats.totalSpent, "VND")}</p>
 			</div>
 
 			<div class="card">
 				<p class="text-sm text-gray-600">Total Received</p>
-				<p class="text-2xl font-bold text-green-600">{formatCurrency(stats.totalReceived)}</p>
+				<p class="text-2xl font-bold text-green-600">{formatCurrency(stats.totalReceived, "VND")}</p>
 			</div>
 
 			<div class="card">
 				<p class="text-sm text-gray-600">Current Balance</p>
-				<p class="text-2xl font-bold text-primary-600">{formatCurrency(stats.balance)}</p>
+				<p class="text-2xl font-bold text-primary-600">{formatCurrency(stats.balance, "VND")}</p>
 			</div>
 
 			<div class="card">
@@ -243,7 +243,7 @@
 							<div class="flex justify-between items-center p-2 bg-gray-50 rounded">
 								<span class="text-gray-700">{month.month}</span>
 								<div class="text-right">
-									<p class="font-medium">{formatCurrency(month.amount)}</p>
+									<p class="font-medium">{formatCurrency(month.amount, "VND")}</p>
 									<p class="text-xs text-gray-500">{month.count} transactions</p>
 								</div>
 							</div>
@@ -260,7 +260,7 @@
 							<div class="flex justify-between items-center p-2 bg-gray-50 rounded">
 								<span class="text-gray-700">{tag.tag}</span>
 								<div class="text-right">
-									<p class="font-medium">{formatCurrency(tag.amount)}</p>
+									<p class="font-medium">{formatCurrency(tag.amount, "VND")}</p>
 									<p class="text-xs text-gray-500">{tag.count} transactions</p>
 								</div>
 							</div>

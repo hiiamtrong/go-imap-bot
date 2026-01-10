@@ -50,17 +50,18 @@ func (r *TransactionRepository) Transaction(fn func(tx *sql.Tx) error) error {
 func (r *TransactionRepository) Create(transaction *models.Transaction) error {
 	query := `
 		INSERT INTO transactions (
-			mail_id, amount, current_balance, type,
-			from_account, to_account, description, 
+			mail_id, amount, current_balance, currency, type,
+			from_account, to_account, description,
 			timestamp, created_at
 		)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	result, err := r.db.Conn.Exec(
 		query,
 		transaction.MailID,
 		transaction.Amount,
 		transaction.CurrentBalance,
+		transaction.Currency,
 		transaction.Type,
 		transaction.From,
 		transaction.To,
@@ -84,17 +85,18 @@ func (r *TransactionRepository) Create(transaction *models.Transaction) error {
 func (r *TransactionRepository) CreateTx(tx *sql.Tx, transaction *models.Transaction) error {
 	query := `
 		INSERT INTO transactions (
-			mail_id, amount, current_balance, type,
-			from_account, to_account, description, 
+			mail_id, amount, current_balance, currency, type,
+			from_account, to_account, description,
 			timestamp, created_at
 		)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	result, err := tx.Exec(
 		query,
 		transaction.MailID,
 		transaction.Amount,
 		transaction.CurrentBalance,
+		transaction.Currency,
 		transaction.Type,
 		transaction.From,
 		transaction.To,
@@ -118,7 +120,7 @@ func (r *TransactionRepository) CreateTx(tx *sql.Tx, transaction *models.Transac
 func (r *TransactionRepository) GetByMailID(mailID int64) ([]*models.Transaction, error) {
 	query := `
 		SELECT
-			id, mail_id, amount, current_balance, type,
+			id, mail_id, amount, current_balance, currency, type,
 			from_account, to_account, description,
 			completed, timestamp, created_at
 		FROM transactions
@@ -133,11 +135,13 @@ func (r *TransactionRepository) GetByMailID(mailID int64) ([]*models.Transaction
 	var transactions []*models.Transaction
 	for rows.Next() {
 		t := &models.Transaction{}
+		var currency sql.NullString
 		err := rows.Scan(
 			&t.ID,
 			&t.MailID,
 			&t.Amount,
 			&t.CurrentBalance,
+			&currency,
 			&t.Type,
 			&t.From,
 			&t.To,
@@ -149,6 +153,11 @@ func (r *TransactionRepository) GetByMailID(mailID int64) ([]*models.Transaction
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan transaction: %v", err)
 		}
+		if currency.Valid {
+			t.Currency = currency.String
+		} else {
+			t.Currency = "VND"
+		}
 		transactions = append(transactions, t)
 	}
 
@@ -158,7 +167,7 @@ func (r *TransactionRepository) GetByMailID(mailID int64) ([]*models.Transaction
 func (r *TransactionRepository) GetByID(id int64) (*models.Transaction, error) {
 	query := `
 		SELECT
-			id, mail_id, amount, current_balance, type,
+			id, mail_id, amount, current_balance, currency, type,
 			from_account, to_account, description,
 			completed, timestamp, created_at
 		FROM transactions
@@ -169,12 +178,14 @@ func (r *TransactionRepository) GetByID(id int64) (*models.Transaction, error) {
 	t := &models.Transaction{}
 	var timestampStr string
 	var createdAtStr string
+	var currency sql.NullString
 
 	err := row.Scan(
 		&t.ID,
 		&t.MailID,
 		&t.Amount,
 		&t.CurrentBalance,
+		&currency,
 		&t.Type,
 		&t.From,
 		&t.To,
@@ -185,6 +196,12 @@ func (r *TransactionRepository) GetByID(id int64) (*models.Transaction, error) {
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to scan transaction: %v", err)
+	}
+
+	if currency.Valid {
+		t.Currency = currency.String
+	} else {
+		t.Currency = "VND"
 	}
 
 	// Parse the timestamp string
@@ -343,7 +360,7 @@ func (r *TransactionRepository) IsCompleted(ctx context.Context, transactionID i
 }
 
 func (r *TransactionRepository) GetRecentTransactions(ctx context.Context, limit int64, offset int64, isCompleted *bool) ([]*models.Transaction, error) {
-	query := `SELECT id, mail_id, amount, current_balance, type, from_account, to_account, description, completed, timestamp, created_at FROM transactions
+	query := `SELECT id, mail_id, amount, current_balance, currency, type, from_account, to_account, description, completed, timestamp, created_at FROM transactions
 	WHERE 1=1`
 	args := []interface{}{}
 	if isCompleted != nil {
@@ -363,11 +380,13 @@ func (r *TransactionRepository) GetRecentTransactions(ctx context.Context, limit
 	for rows.Next() {
 		t := &models.Transaction{}
 		var timestampStr string
+		var currency sql.NullString
 		err := rows.Scan(
 			&t.ID,
 			&t.MailID,
 			&t.Amount,
 			&t.CurrentBalance,
+			&currency,
 			&t.Type,
 			&t.From,
 			&t.To,
@@ -378,6 +397,12 @@ func (r *TransactionRepository) GetRecentTransactions(ctx context.Context, limit
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan transaction: %v", err)
+		}
+
+		if currency.Valid {
+			t.Currency = currency.String
+		} else {
+			t.Currency = "VND"
 		}
 
 		// Parse the timestamp string
@@ -420,7 +445,7 @@ type TransactionFilters struct {
 
 // GetRecentTransactionsWithFilters returns transactions matching the given filters
 func (r *TransactionRepository) GetRecentTransactionsWithFilters(ctx context.Context, limit int64, offset int64, filters TransactionFilters) ([]*models.Transaction, error) {
-	query := `SELECT DISTINCT t.id, t.mail_id, t.amount, t.current_balance, t.type,
+	query := `SELECT DISTINCT t.id, t.mail_id, t.amount, t.current_balance, t.currency, t.type,
 		t.from_account, t.to_account, t.description, t.timestamp, t.created_at, t.completed
 		FROM transactions t`
 
@@ -491,11 +516,13 @@ func (r *TransactionRepository) GetRecentTransactionsWithFilters(ctx context.Con
 	for rows.Next() {
 		t := &models.Transaction{}
 		var timestampStr string
+		var currency sql.NullString
 		err := rows.Scan(
 			&t.ID,
 			&t.MailID,
 			&t.Amount,
 			&t.CurrentBalance,
+			&currency,
 			&t.Type,
 			&t.From,
 			&t.To,
@@ -506,6 +533,12 @@ func (r *TransactionRepository) GetRecentTransactionsWithFilters(ctx context.Con
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan transaction: %v", err)
+		}
+
+		if currency.Valid {
+			t.Currency = currency.String
+		} else {
+			t.Currency = "VND"
 		}
 
 		// Parse the timestamp string

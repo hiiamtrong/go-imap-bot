@@ -78,5 +78,6 @@ func (p *TimoParser) Parse(body string) (*TransactionDetails, error) {
 		CurrentBalance: balance,
 		Description:    description,
 		Type:           transactionType,
+		Currency:       "VND",
 	}, nil
 }

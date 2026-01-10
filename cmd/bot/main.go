@@ -150,11 +150,41 @@ func searchEmails(c *imapclient.Client) []int64 {
 				{Key: "From", Value: "support@timo.vn"},
 			},
 		},
-		// Vietcombank
+		// Vietcombank - Transfer receipts
 		{
 			Header: []imap.SearchCriteriaHeaderField{
 				{Key: "Subject", Value: "Biên lai chuyển tiền"},
 				{Key: "From", Value: "info.vietcombank.com.vn"},
+			},
+		},
+		// Vietcombank - Payment receipts
+		{
+			Header: []imap.SearchCriteriaHeaderField{
+				{Key: "Subject", Value: "Biên lai thanh toán"},
+				{Key: "From", Value: "info.vietcombank.com.vn"},
+			},
+		},
+		// HSBC Credit Card - Purchase transactions
+		{
+			Header: []imap.SearchCriteriaHeaderField{
+				{Key: "Subject", Value: "[TB/Alert]"},
+				{Key: "Subject", Value: "Purchase transaction"},
+				{Key: "From", Value: "notification.hsbc.com.hk"},
+			},
+		},
+		// HSBC Credit Card - Vietnamese version
+		{
+			Header: []imap.SearchCriteriaHeaderField{
+				{Key: "Subject", Value: "[TB/Alert]"},
+				{Key: "Subject", Value: "Giao dịch được thực hiện"},
+				{Key: "From", Value: "notification.hsbc.com.hk"},
+			},
+		},
+		// VPBank Credit Card - Balance change notifications
+		{
+			Header: []imap.SearchCriteriaHeaderField{
+				{Key: "Subject", Value: "bien dong so du The tin dung"},
+				{Key: "From", Value: "care.vpb.com.vn"},
 			},
 		},
 	}
@@ -261,6 +291,13 @@ func processEmail(msg *imapclient.FetchMessageData, bot *imapbot.Bot) {
 
 	// Check if email is before start date
 	skipTransaction := false
+	// Check if parser can handle this email (from + subject validation)
+	// If no parser can handle it, skip this email entirely
+	if !parser.CanParseEmail(newMail.From, newMail.Subject) {
+		log.Printf("No parser can handle email from %s with subject: %s - skipping", newMail.From, newMail.Subject)
+		skipTransaction = true
+	}
+
 	if startDate := getStartDate(); startDate != nil {
 		if newMail.Date.Before(*startDate) {
 			log.Printf("Email before start date, saving mail record but skipping transaction: date %v < %v", newMail.Date, *startDate)
@@ -343,6 +380,7 @@ func processEmail(msg *imapclient.FetchMessageData, bot *imapbot.Bot) {
 				MailID:         newMail.ID,
 				Amount:         details.Amount,
 				CurrentBalance: details.CurrentBalance,
+				Currency:       details.Currency,
 				Description:    details.Description,
 				Type:           string(details.Type),
 				Timestamp:      newMail.Date,
@@ -354,17 +392,18 @@ func processEmail(msg *imapclient.FetchMessageData, bot *imapbot.Bot) {
 			// Create transaction within transaction
 			query := `
 				INSERT INTO transactions (
-					mail_id, amount, current_balance, type,
-					from_account, to_account, description, 
+					mail_id, amount, current_balance, currency, type,
+					from_account, to_account, description,
 					timestamp, created_at
 				)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 			`
 			result, err := tx.Exec(
 				query,
 				transaction.MailID,
 				transaction.Amount,
 				transaction.CurrentBalance,
+				transaction.Currency,
 				transaction.Type,
 				transaction.From,
 				transaction.To,

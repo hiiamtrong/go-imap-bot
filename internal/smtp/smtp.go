@@ -85,11 +85,17 @@ func (s *SMTPService) SendBulkSplitReminders(user *models.User, splits []*models
 			createAt = split.BillCreatedAt
 		}
 
+		// Use currency from split, default to VND
+		currency := split.Currency
+		if currency == "" {
+			currency = "VND"
+		}
+
 		splitData[i] = SplitData{
-			Amount:          currencypkg.FormatCurrency(float64(split.Amount)),
+			Amount:          currencypkg.FormatCurrency(float64(split.Amount), currency),
 			Reason:          split.Reason,
 			CreatedAt:       createAt.Format("02/01/2006 15:04:05"),
-			TotalBillAmount: currencypkg.FormatCurrency(float64(split.TotalBillAmount)),
+			TotalBillAmount: currencypkg.FormatCurrency(float64(split.TotalBillAmount), "VND"),
 		}
 		totalAmount += split.Amount
 	}
@@ -101,7 +107,7 @@ func (s *SMTPService) SendBulkSplitReminders(user *models.User, splits []*models
 
 	data := BulkEmailData{
 		FromUser:    fromUser,
-		TotalAmount: currencypkg.FormatCurrency(float64(totalAmount)),
+		TotalAmount: currencypkg.FormatCurrency(float64(totalAmount), "VND"),
 		Splits:      splitData,
 		CreatedAt:   time.Now().Format("02/01/2006 15:04:05"),
 		QRCode:      qrCode,

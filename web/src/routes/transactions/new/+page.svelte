@@ -51,7 +51,7 @@
 
 		// Format for display with thousand separators
 		const numValue = parseInt(value, 10);
-		const formatted = formatCurrency(numValue).replace("₫", "").trim();
+		const formatted = formatCurrency(numValue, "VND").replace("₫", "").trim();
 		displayAmount = isNegative ? "-" + formatted : formatted;
 
 		// Update cursor position to the end after formatting

@@ -14,6 +14,7 @@ type Transaction struct {
 	MailID         int64
 	Amount         int64
 	CurrentBalance int64
+	Currency       string
 	From           string
 	To             string
 	Description    string

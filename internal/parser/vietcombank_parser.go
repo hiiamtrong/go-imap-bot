@@ -25,7 +25,10 @@ func (p *VietcombankParser) Name() string {
 
 // CanParse checks if this parser can handle the email
 func (p *VietcombankParser) CanParse(from, subject string) bool {
-	return containsIgnoreCase(from, "vietcombank.com.vn")
+	// Support both transfer receipts and payment receipts
+	return containsIgnoreCase(from, "vietcombank.com.vn") &&
+		(containsIgnoreCase(subject, "Biên lai chuyển tiền") ||
+			containsIgnoreCase(subject, "Biên lai thanh toán"))
 }
 
 // Parse extracts transaction details from Vietcombank email body
@@ -77,5 +80,6 @@ func (p *VietcombankParser) Parse(body string) (*TransactionDetails, error) {
 		CurrentBalance: 0, // Not available in Vietcombank payment receipts
 		Description:    description,
 		Type:           models.TransactionTypeSubtract,
+		Currency:       "VND",
 	}, nil
 }

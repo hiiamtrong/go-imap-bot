@@ -148,10 +148,10 @@
 							transaction.type
 						)}"
 					>
-						{formatAmount(transaction.amount, transaction.type)}
+						{formatAmount(transaction.amount, transaction.type, transaction.currency || "VND")}
 					</p>
 					<p class="text-sm sm:text-base text-gray-500 mt-1 sm:mt-2">
-						Balance: {formatCurrency(transaction.balance)}
+						Balance: {formatCurrency(transaction.balance, "VND")}
 					</p>
 				</div>
 			</div>
@@ -241,7 +241,7 @@
 							<div class="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
 								<div class="sm:text-right">
 									<p class="text-base sm:text-lg font-bold text-gray-900">
-										{formatCurrency(split.amount)}
+										{formatCurrency(split.amount, split.currency || "VND")}
 									</p>
 									{#if split.completed}
 										<span
@@ -296,7 +296,7 @@
 					<div class="flex justify-between text-base sm:text-lg font-bold">
 						<span>Total Split:</span>
 						<span>
-							{formatCurrency(transaction.splits.reduce((sum, split) => sum + split.amount, 0))}
+							{formatCurrency(transaction.splits.reduce((sum, split) => sum + split.amount, 0), "VND")}
 						</span>
 					</div>
 					<div class="flex justify-between text-xs sm:text-sm text-gray-600 mt-1 sm:mt-2">

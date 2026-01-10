@@ -7,6 +7,7 @@ type TransactionSplit struct {
 	TransactionID        int64
 	UserID               int64
 	Amount               int64
+	Currency             string
 	Reason               string
 	Completed            bool
 	CreatedAt            time.Time

@@ -7,6 +7,7 @@ export interface Transaction {
 	description: string;
 	completed: boolean;
 	timestamp: string;
+	currency: string;
 	tags?: Tag[];
 	splits?: TransactionSplit[];
 }
@@ -43,6 +44,7 @@ export interface TransactionSplit {
 	reason?: string;
 	user?: User;
 	split_hash?: string;
+	currency: string;
 	created_at: Date;
 }
 

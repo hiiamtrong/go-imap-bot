@@ -136,7 +136,7 @@
 
 		// Format for display with thousand separators
 		const numValue = parseInt(value, 10);
-		const formatted = formatCurrency(numValue).replace("₫", "").trim();
+		const formatted = formatCurrency(numValue, transaction.currency || "VND").replace("₫", "").trim();
 		displayAmounts[userId] = isNegative ? "-" + formatted : formatted;
 
 		// Update cursor position to the end after formatting
@@ -225,9 +225,9 @@
 							<p class="text-sm text-gray-600 mt-1">
 								{selectedUsers.size} user{selectedUsers.size !== 1 ? "s" : ""} selected
 								{#if splitMode === "equal"}
-									• {formatCurrency(calculateEqualSplit())} each
+									• {formatCurrency(calculateEqualSplit(), transaction.currency || "VND")} each
 								{:else}
-									• {formatCurrency(calculateTotal())} total
+									• {formatCurrency(calculateTotal(), transaction.currency || "VND")} total
 								{/if}
 							</p>
 						{/if}
@@ -258,7 +258,7 @@
 			<div class="mb-6">
 				<p class="text-gray-600">Transaction Amount:</p>
 				<p class="text-2xl font-bold text-gray-900">
-					{formatCurrency(transaction.amount)}
+					{formatCurrency(transaction.amount, transaction.currency || "VND")}
 				</p>
 			</div>
 
@@ -325,7 +325,7 @@
 									<div class="ml-3 flex-shrink-0">
 										{#if splitMode === "equal"}
 											<p class="text-sm font-bold text-primary-600">
-												{formatCurrency(calculateEqualSplit())}
+												{formatCurrency(calculateEqualSplit(), transaction.currency || "VND")}
 											</p>
 										{:else}
 											<div class="relative">
@@ -455,11 +455,11 @@
 					</div>
 					<div class="flex justify-between mb-2">
 						<span>Total Split:</span>
-						<span class="font-medium">{formatCurrency(calculateTotal())}</span>
+						<span class="font-medium">{formatCurrency(calculateTotal(), transaction.currency || "VND")}</span>
 					</div>
 					<div class="flex justify-between mb-2">
 						<span>Transaction Amount:</span>
-						<span class="font-medium">{formatCurrency(transaction.amount)}</span>
+						<span class="font-medium">{formatCurrency(transaction.amount, transaction.currency || "VND")}</span>
 					</div>
 					<div class="flex justify-between">
 						<span>Remaining:</span>
@@ -470,7 +470,7 @@
 									? 'text-orange-600'
 									: 'text-red-600'}"
 						>
-							{formatCurrency(calculateRemaining())}
+							{formatCurrency(calculateRemaining(), transaction.currency || "VND")}
 							{#if isNearZero(calculateRemaining())}
 								<span class="text-xs">(Perfect!)</span>
 							{:else if calculateRemaining() > 0}

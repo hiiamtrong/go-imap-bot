@@ -70,7 +70,7 @@
 				<div>
 					<p class="text-sm text-gray-600">Current Balance</p>
 					<p class="text-2xl font-bold text-gray-900">
-						{formatCurrency($totalBalance)}
+						{formatCurrency($totalBalance, "VND")}
 					</p>
 				</div>
 				<div class="bg-primary-100 p-3 rounded-full">

@@ -111,10 +111,10 @@
 						? 'text-lg sm:text-xl'
 						: 'text-base sm:text-lg'} font-bold {getTransactionTypeColor(transaction.type)}"
 				>
-					{formatAmount(transaction.amount, transaction.type)}
+					{formatAmount(transaction.amount, transaction.type, transaction.currency || "VND")}
 				</p>
 				<p class="text-xs sm:text-sm text-gray-500 mt-0.5 sm:mt-1">
-					Balance: {formatCurrency(transaction.balance)}
+					Balance: {formatCurrency(transaction.balance, "VND")}
 				</p>
 			</div>
 			{#if transaction.splits && transaction.splits.length > 0}
