@@ -17,6 +17,8 @@ services:
       - MAIL_FROM=${MAIL_FROM}
       - MAIL_HOST=${MAIL_HOST:-smtp.gmail.com}
       - MAIL_PORT=${MAIL_PORT:-587}
+      - START_DATE=${START_DATE}
+      - VIETCOMBANK_ACCOUNT=${VIETCOMBANK_ACCOUNT}
       - VIETQR_CLIENT_ID=${VIETQR_CLIENT_ID}
       - VIETQR_API_KEY=${VIETQR_API_KEY}
       - VIETQR_BANK_ID=${VIETQR_BANK_ID:-963388}
@@ -57,6 +59,8 @@ services:
       - MAIL_FROM=${MAIL_FROM}
       - MAIL_HOST=${MAIL_HOST:-smtp.gmail.com}
       - MAIL_PORT=${MAIL_PORT:-587}
+      - START_DATE=${START_DATE}
+      - VIETCOMBANK_ACCOUNT=${VIETCOMBANK_ACCOUNT}
       - DB_PATH=/app/data/mail.db
       - DB_DRIVER=sqlite3
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
