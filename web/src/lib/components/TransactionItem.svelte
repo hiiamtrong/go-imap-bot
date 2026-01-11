@@ -114,7 +114,7 @@
 					{formatAmount(transaction.amount, transaction.type, transaction.currency || "VND")}
 				</p>
 				<p class="text-xs sm:text-sm text-gray-500 mt-0.5 sm:mt-1">
-					Balance: {formatCurrency(transaction.balance, "VND")}
+					Balance: {formatCurrency(transaction.balance, transaction.currency || "VND")}
 				</p>
 			</div>
 			{#if transaction.splits && transaction.splits.length > 0}

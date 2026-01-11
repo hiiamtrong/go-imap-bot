@@ -441,6 +441,7 @@ func (h *TransactionHandler) toTransactionDTO(t *models.Transaction) dto.Transac
 		MailID:      t.MailID,
 		Amount:      t.Amount,
 		Balance:     t.CurrentBalance,
+		Currency:    t.Currency,
 		Type:        t.Type,
 		Description: t.Description,
 		Completed:   t.Completed,

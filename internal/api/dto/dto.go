@@ -15,6 +15,7 @@ type TransactionResponse struct {
 	MailID      int64           `json:"mail_id"`
 	Amount      int64           `json:"amount"`
 	Balance     int64           `json:"balance"`
+	Currency    string          `json:"currency"`
 	Type        string          `json:"type"`
 	Description string          `json:"description"`
 	Completed   bool            `json:"completed"`
