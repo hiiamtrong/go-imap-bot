@@ -73,6 +73,13 @@ func (h *SplitHandler) CreateSplit(c echo.Context) error {
 		})
 	}
 
+	// Delete existing splits for this transaction
+	if err := h.splitRepo.Reset(context.Background(), req.TransactionID); err != nil {
+		return c.JSON(http.StatusInternalServerError, dto.Response{
+			Error: "Failed to reset existing splits: " + err.Error(),
+		})
+	}
+
 	// Create splits
 	var splits []dto.SplitResponse
 	for _, userReq := range req.Users {

@@ -218,6 +218,16 @@ class ApiClient {
 		});
 	}
 
+	async updateTransactionDescription(
+		transactionId: number,
+		description: string
+	): Promise<ApiResponse<Transaction>> {
+		return this.request<Transaction>(`/transactions/${transactionId}/description`, {
+			method: "PUT",
+			body: JSON.stringify({ description }),
+		});
+	}
+
 	// Reminders & Splits
 	async getPendingSplits(): Promise<ApiResponse<UserSplitSummary[]>> {
 		return this.request<UserSplitSummary[]>("/splits/pending");

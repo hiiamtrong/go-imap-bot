@@ -97,6 +97,7 @@ func main() {
 	protected.GET("/transactions/:id", transactionHandler.GetTransaction)
 	protected.POST("/transactions/virtual", transactionHandler.CreateVirtualBill)
 	protected.POST("/transactions/:id/complete", transactionHandler.CompleteTransaction)
+	protected.PUT("/transactions/:id/description", transactionHandler.UpdateDescription)
 	protected.DELETE("/transactions/:id", transactionHandler.DeleteTransaction)
 	protected.POST("/transactions/:id/tags/:tagId", transactionHandler.AddTagToTransaction)
 	protected.DELETE("/transactions/:id/tags/:tagId", transactionHandler.RemoveTagFromTransaction)

@@ -345,6 +345,25 @@ func (r *TransactionRepository) Complete(ctx context.Context, transactionID int6
 	return nil
 }
 
+func (r *TransactionRepository) UpdateDescription(ctx context.Context, transactionID int64, description string) error {
+	query := `UPDATE transactions SET description = ? WHERE id = ?`
+	result, err := r.db.Conn.ExecContext(ctx, query, description, transactionID)
+	if err != nil {
+		return fmt.Errorf("failed to update transaction description: %v", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %v", err)
+	}
+
+	if rowsAffected == 0 {
+		return sql.ErrNoRows
+	}
+
+	return nil
+}
+
 func (r *TransactionRepository) IsCompleted(ctx context.Context, transactionID int64) (bool, error) {
 	query := `SELECT completed FROM transactions WHERE id = ?`
 	var completed bool

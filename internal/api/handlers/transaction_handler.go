@@ -434,6 +434,90 @@ func (h *TransactionHandler) CompleteTransaction(c echo.Context) error {
 	})
 }
 
+func (h *TransactionHandler) UpdateDescription(c echo.Context) error {
+	idStr := c.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, dto.Response{
+			Error: "Invalid transaction ID",
+		})
+	}
+
+	var req dto.UpdateDescriptionRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, dto.Response{
+			Error: "Invalid request body",
+		})
+	}
+
+	if req.Description == "" {
+		return c.JSON(http.StatusBadRequest, dto.Response{
+			Error: "Description cannot be empty",
+		})
+	}
+
+	// Check if transaction exists
+	transaction, err := h.transactionRepo.GetByID(id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return c.JSON(http.StatusNotFound, dto.Response{
+				Error: "Transaction not found",
+			})
+		}
+		return c.JSON(http.StatusInternalServerError, dto.Response{
+			Error: "Failed to get transaction: " + err.Error(),
+		})
+	}
+
+	// Update the description
+	if err := h.transactionRepo.UpdateDescription(context.Background(), id, req.Description); err != nil {
+		return c.JSON(http.StatusInternalServerError, dto.Response{
+			Error: "Failed to update description: " + err.Error(),
+		})
+	}
+
+	// Update local transaction object for response
+	transaction.Description = req.Description
+	transactionDTO := h.toTransactionDTO(transaction)
+
+	// Get tags
+	tags, _ := h.transactionRepo.GetTagsForTransaction(transaction.ID)
+	for _, tag := range tags {
+		transactionDTO.Tags = append(transactionDTO.Tags, dto.TagResponse{
+			ID:   tag.ID,
+			Name: tag.Name,
+		})
+	}
+
+	// Get splits
+	splits, _ := h.transactionSplitRepo.GetByTransactionID(transaction.ID)
+	for _, split := range splits {
+		splitDTO := dto.SplitResponse{
+			ID:            split.ID,
+			TransactionID: split.TransactionID,
+			UserID:        split.UserID,
+			Amount:        split.Amount,
+			Reason:        split.Reason,
+			Completed:     split.Completed,
+		}
+
+		// Get user info
+		if user, err := h.userRepo.GetByID(split.UserID); err == nil {
+			splitDTO.User = &dto.UserResponse{
+				ID:        user.ID,
+				Name:      user.Name,
+				Email:     user.Email,
+				Whitelist: user.IsWhitelisted,
+				CreatedAt: user.CreatedAt,
+			}
+		}
+
+		transactionDTO.Splits = append(transactionDTO.Splits, splitDTO)
+	}
+
+	return c.JSON(http.StatusOK, dto.Response{Data: transactionDTO})
+}
+
 // Helper function to convert model to DTO
 func (h *TransactionHandler) toTransactionDTO(t *models.Transaction) dto.TransactionResponse {
 	return dto.TransactionResponse{

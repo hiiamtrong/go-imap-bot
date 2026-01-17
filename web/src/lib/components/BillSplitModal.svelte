@@ -28,6 +28,29 @@
 
 	onMount(async () => {
 		await loadUsers();
+
+		// Pre-populate from existing splits
+		if (transaction.splits && transaction.splits.length > 0) {
+			const newSelectedUsers = new Set<number>();
+			const newCustomAmounts: Record<number, string> = {};
+			const newDisplayAmounts: Record<number, string> = {};
+			const newReasons: Record<number, string> = {};
+
+			for (const split of transaction.splits) {
+				newSelectedUsers.add(split.user_id);
+				newCustomAmounts[split.user_id] = split.amount.toString();
+				newDisplayAmounts[split.user_id] = formatCurrency(split.amount, transaction.currency || "VND");
+				if (split.reason) {
+					newReasons[split.user_id] = split.reason;
+				}
+			}
+
+			selectedUsers = newSelectedUsers;
+			customAmounts = newCustomAmounts;
+			displayAmounts = newDisplayAmounts;
+			reasons = newReasons;
+			splitMode = "custom";
+		}
 	});
 
 	async function loadUsers() {
@@ -415,31 +438,24 @@
 					/>
 				</div>
 
-				<div class="space-y-2 max-h-60 overflow-y-auto">
+				<div class="grid grid-cols-2 lg:grid-cols-3 gap-2 max-h-60 overflow-y-auto p-1">
 					{#if filteredUsers.length === 0}
-						<p class="text-gray-500 text-center py-4 text-sm">No users found</p>
+						<p class="text-gray-500 text-center py-4 text-sm col-span-full">No users found</p>
 					{:else}
 						{#each filteredUsers as user}
 							<label
-								class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
+								class="flex items-center p-2 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors {selectedUsers.has(user.id) ? 'ring-2 ring-inset ring-primary-500 bg-primary-50' : ''}"
 							>
-								<div class="flex items-center flex-1 min-w-0">
-									<input
-										type="checkbox"
-										checked={selectedUsers.has(user.id)}
-										onchange={() => toggleUser(user.id)}
-										class="mr-3 flex-shrink-0"
-									/>
-									<div class="min-w-0 flex-1">
-										<p class="font-medium text-gray-900 text-sm truncate">{user.name}</p>
-										<p class="text-xs text-gray-500 truncate">{user.email}</p>
-									</div>
+								<input
+									type="checkbox"
+									checked={selectedUsers.has(user.id)}
+									onchange={() => toggleUser(user.id)}
+									class="mr-2 flex-shrink-0"
+								/>
+								<div class="min-w-0 flex-1">
+									<p class="font-medium text-gray-900 text-sm truncate">{user.name}</p>
+									<p class="text-xs text-gray-500 truncate">{user.email}</p>
 								</div>
-								{#if selectedUsers.has(user.id)}
-									<span class="ml-2 text-xs text-primary-600 font-medium flex-shrink-0"
-										>✓ Selected</span
-									>
-								{/if}
 							</label>
 						{/each}
 					{/if}

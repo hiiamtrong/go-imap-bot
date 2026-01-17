@@ -180,22 +180,26 @@ type UserFilters struct {
 	Whitelist *bool  // Filter by whitelist status (nil = all, true = whitelisted, false = not whitelisted)
 }
 
-// GetAllWithFilters returns users matching the given filters
+// GetAllWithFilters returns users matching the given filters, sorted by split count descending
 func (r *UserRepository) GetAllWithFilters(filters UserFilters) ([]*models.User, error) {
-	query := `SELECT id, name, email, is_whitelisted FROM users`
+	query := `
+		SELECT u.id, u.name, u.email, u.is_whitelisted
+		FROM users u
+		LEFT JOIN transaction_splits ts ON u.id = ts.user_id
+	`
 	args := []interface{}{}
 	conditions := []string{}
 
 	// Search in name or email
 	if filters.Search != "" {
-		conditions = append(conditions, "(name LIKE ? OR email LIKE ?)")
+		conditions = append(conditions, "(u.name LIKE ? OR u.email LIKE ?)")
 		searchPattern := "%" + filters.Search + "%"
 		args = append(args, searchPattern, searchPattern)
 	}
 
 	// Filter by whitelist status
 	if filters.Whitelist != nil {
-		conditions = append(conditions, "is_whitelisted = ?")
+		conditions = append(conditions, "u.is_whitelisted = ?")
 		args = append(args, *filters.Whitelist)
 	}
 
@@ -204,7 +208,7 @@ func (r *UserRepository) GetAllWithFilters(filters UserFilters) ([]*models.User,
 		query += " WHERE " + strings.Join(conditions, " AND ")
 	}
 
-	query += " ORDER BY name"
+	query += " GROUP BY u.id, u.name, u.email, u.is_whitelisted ORDER BY COUNT(ts.id) DESC, u.name ASC"
 
 	rows, err := r.db.Conn.Query(query, args...)
 	if err != nil {

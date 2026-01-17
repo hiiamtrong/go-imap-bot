@@ -12,6 +12,9 @@
 	let error = $state<string | null>(null);
 	let showSplitModal = $state(false);
 	let showTagSelector = $state(false);
+	let isEditingDescription = $state(false);
+	let editedDescription = $state("");
+	let savingDescription = $state(false);
 
 	const transactionId = $derived(parseInt($page.params.id || "0"));
 
@@ -66,6 +69,43 @@
 		}
 	}
 
+	function startEditingDescription() {
+		if (transaction) {
+			editedDescription = transaction.description;
+			isEditingDescription = true;
+		}
+	}
+
+	function cancelEditingDescription() {
+		isEditingDescription = false;
+		editedDescription = "";
+	}
+
+	async function saveDescription() {
+		if (!transaction || !editedDescription.trim()) return;
+
+		savingDescription = true;
+		const response = await api.updateTransactionDescription(transactionId, editedDescription.trim());
+
+		if (response.error) {
+			alert("Error: " + response.error);
+		} else if (response.data) {
+			transaction = response.data;
+			isEditingDescription = false;
+		}
+
+		savingDescription = false;
+	}
+
+	function handleDescriptionKeydown(event: KeyboardEvent) {
+		if (event.key === "Enter" && !event.shiftKey) {
+			event.preventDefault();
+			saveDescription();
+		} else if (event.key === "Escape") {
+			cancelEditingDescription();
+		}
+	}
+
 	function getTransactionTypeColor(type: "add" | "subtract"): string {
 		return type === "add" ? "text-green-600" : "text-red-600";
 	}
@@ -104,9 +144,25 @@
 			<div class="flex flex-col sm:flex-row sm:justify-between gap-4">
 				<div class="flex-1 min-w-0">
 					<div class="flex items-center gap-2 flex-wrap">
-						<h2 class="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 break-words">
-							{transaction.description}
-						</h2>
+						{#if isEditingDescription}
+							<input
+								type="text"
+								bind:value={editedDescription}
+								onkeydown={handleDescriptionKeydown}
+								onblur={saveDescription}
+								disabled={savingDescription}
+								class="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 bg-white border border-primary-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary-500 w-full"
+								autofocus
+							/>
+						{:else}
+							<h2
+								class="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 break-words cursor-pointer hover:bg-gray-100 rounded px-1 -mx-1 transition-colors"
+								ondblclick={startEditingDescription}
+								title="Double-click to edit"
+							>
+								{transaction.description}
+							</h2>
+						{/if}
 						{#if transaction.completed}
 							<span
 								class="inline-flex items-center px-2 sm:px-3 py-0.5 sm:py-1 bg-green-100 text-green-700 text-xs sm:text-sm font-medium rounded-full flex-shrink-0"
@@ -160,7 +216,6 @@
 				<button
 					onclick={() => (showSplitModal = true)}
 					class="btn btn-primary text-sm sm:text-base"
-					disabled={transaction.completed}
 				>
 					<svg
 						class="w-4 h-4 sm:w-5 sm:h-5 inline-block mr-1.5 sm:mr-2"
