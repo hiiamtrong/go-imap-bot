@@ -12,8 +12,11 @@ import (
 )
 
 var users = []*models.User{
-	{ID: 1, Name: "Tùng"},
-	{ID: 4, Name: "Trọng"},
+	{ID: 1, Name: "Tùng", Email: "tung.nguyen5@sotatek.com"},
+	{ID: 4, Name: "Trọng", Email: "trong.vu@sotatek.com"},
+	{ID: 9, Name: "Đức", Email: "duc.phung@sotatek.com"},
+	{ID: 10, Name: "Hạnh Lê", Email: "lethithuhanh.txpt@gmail.com"},
+	{ID: 11, Name: "hieu.tran7", Email: "hieu.nguyen@sotatek.com"},
 	{ID: 5, Name: "A Phong"},
 	{ID: 6, Name: "D Linh"},
 	{ID: 15, Name: "linh.pham3"},
@@ -55,6 +58,13 @@ func TestResolveNames(t *testing.T) {
 		{"email local part", "an.vu", 70, ""},
 		{"honorific dropped", "anh Phong", 5, ""},
 		{"self word", "tôi", 4, ""},
+		{"email local part matches when no name does", "trong.vu", 4, ""},
+		{"full email", "trong.vu@sotatek.com", 4, ""},
+		{"email with digits", "tung.nguyen5", 1, ""},
+		{"email of an accented name", "duc.phung", 9, ""},
+		{"a name match is never overridden by emails", "Hà", 65, ""},
+		{"the email domain is never matched", "sotatek", 0, "không tìm thấy"},
+		{"shared email token is ambiguous", "nguyen", 0, "nhiều người khớp"},
 		{"ambiguous", "Linh", 0, "nhiều người khớp"},
 		{"unknown", "Zed", 0, "không tìm thấy"},
 	}
@@ -237,4 +247,15 @@ func TestForBill(t *testing.T) {
 			t.Fatalf("desc = %q, problems = %v", desc, problems)
 		}
 	})
+}
+
+func TestResolveSheetWithEmailStyleNames(t *testing.T) {
+	plan, problems := Resolve(people("trong.vu", 4500, "hanh.le", 4500), 9000, users, 4)
+	if len(problems) != 0 {
+		t.Fatalf("problems = %v", problems)
+	}
+	got := amounts(plan)
+	if len(got) != 2 || got[4] != 4500 || got[10] != 4500 || plan.Total != 9000 {
+		t.Errorf("plan = %+v", plan)
+	}
 }

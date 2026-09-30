@@ -126,15 +126,9 @@ func findUser(name string, users []*models.User, selfID int64) (*models.User, st
 		return nil, fmt.Sprintf("%q: chưa biết bạn là ai, hãy ghi tên thay vì %q", name, name)
 	}
 
-	best, bestScore := []*models.User(nil), 0
-	for _, u := range users {
-		s := score(q, tokens(u.Name))
-		switch {
-		case s > bestScore:
-			best, bestScore = []*models.User{u}, s
-		case s == bestScore && s > 0:
-			best = append(best, u)
-		}
+	best := bestMatches(q, users, func(u *models.User) string { return u.Name })
+	if len(best) == 0 {
+		best = bestMatches(q, users, func(u *models.User) string { return u.Email })
 	}
 
 	switch len(best) {
@@ -149,6 +143,21 @@ func findUser(name string, users []*models.User, selfID int64) (*models.User, st
 		names = append(names, u.Name)
 	}
 	return nil, fmt.Sprintf("%q: nhiều người khớp (%s), hãy ghi rõ hơn", name, strings.Join(names, ", "))
+}
+
+func bestMatches(q []string, users []*models.User, field func(*models.User) string) []*models.User {
+	var best []*models.User
+	bestScore := 0
+	for _, u := range users {
+		s := score(q, tokens(field(u)))
+		switch {
+		case s > bestScore:
+			best, bestScore = []*models.User{u}, s
+		case s == bestScore && s > 0:
+			best = append(best, u)
+		}
+	}
+	return best
 }
 
 func score(q, u []string) int {

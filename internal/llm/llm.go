@@ -25,7 +25,7 @@ Chỉ trả về một JSON object, không giải thích:
 {"description": string, "total": number, "people": [{"name": string, "amount": number}]}
 Quy tắc:
 - Tiền là VND, số nguyên: "50k"=50000, "1tr2"=1200000, "1.5tr"=1500000.
-- description: tên món hoặc quán, ngắn gọn. total: tổng bill, 0 nếu không nêu.
+- description: tên món hoặc quán nếu người dùng nêu rõ; chuỗi rỗng nếu không nêu, không tự đặt. total: tổng bill, 0 nếu không nêu.
 - people: mỗi người tham gia là một phần tử. name giữ nguyên cách viết, kể cả "tôi", "mình". amount là số tiền riêng của người đó, 0 nếu chia đều phần còn lại.
 - Với bảng: mỗi dòng là một người và số tiền của họ; total là dòng tổng nếu có.
 - Không thêm người không được nhắc tới, không tự tính lại tổng.`
