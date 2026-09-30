@@ -2,7 +2,7 @@
 	import { onMount } from "svelte";
 	import { api } from "$lib/api/client";
 	import { formatCurrency } from "$lib/utils/format";
-	import type { Transaction, User } from "$lib/types";
+	import type { ParsedBill, Transaction, User } from "$lib/types";
 
 	interface Props {
 		transaction: Transaction;
@@ -29,6 +29,7 @@
 	let aiImages = $state<string[]>([]);
 	let aiError = $state<string | null>(null);
 	let analyzing = $state(false);
+	let aiProposal = $state<ParsedBill | null>(null);
 
 	onMount(async () => {
 		await loadUsers();
@@ -81,6 +82,7 @@
 	async function handleAnalyze() {
 		analyzing = true;
 		aiError = null;
+		aiProposal = null;
 
 		const response = await api.parseBill({
 			text: aiText,
@@ -99,11 +101,17 @@
 				shares.map((s) => [s.user_id, formatCurrency(s.amount, currency).replace("₫", "").trim()])
 			);
 			reasons = {};
+			aiProposal = response.data;
 			globalReason = description;
 			splitMode = "custom";
 		}
 
 		analyzing = false;
+	}
+
+	function isEqualProposal(p: ParsedBill): boolean {
+		const amounts = p.shares.map((s) => s.amount);
+		return Math.max(...amounts) - Math.min(...amounts) <= 1;
 	}
 
 	async function loadUsers() {
@@ -372,6 +380,30 @@
 				{/if}
 				{#if aiError}
 					<p class="text-sm text-red-600 mt-2">{aiError}</p>
+				{/if}
+				{#if aiProposal}
+					{@const currency = transaction.currency || "VND"}
+					<div class="mt-3 p-3 bg-white border border-primary-200 rounded-lg text-sm">
+						<p class="font-medium text-gray-900">
+							{formatCurrency(aiProposal.total, currency)}
+							{isEqualProposal(aiProposal) ? "split equally" : "split by custom amounts"}
+							between {aiProposal.shares.length} people
+							{#if aiProposal.description}
+								<span class="text-gray-600">· {aiProposal.description}</span>
+							{/if}
+						</p>
+						<ul class="mt-1 text-gray-700">
+							{#each aiProposal.shares as share}
+								<li class="flex justify-between">
+									<span>{share.name}</span>
+									<span>{formatCurrency(share.amount, currency)}</span>
+								</li>
+							{/each}
+						</ul>
+						<p class="text-xs text-gray-500 mt-2">
+							Review the amounts below, then press Create Split. Nothing is saved yet.
+						</p>
+					</div>
 				{/if}
 			</div>
 
