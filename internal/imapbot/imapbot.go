@@ -12,6 +12,8 @@ import (
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/hiiamtrong/go-imap-bot/internal/config"
+	"github.com/hiiamtrong/go-imap-bot/internal/groupspend"
+	"github.com/hiiamtrong/go-imap-bot/internal/llm"
 	"github.com/hiiamtrong/go-imap-bot/internal/models"
 	"github.com/hiiamtrong/go-imap-bot/pkg/currencypkg"
 )
@@ -23,6 +25,9 @@ type Bot struct {
 	updates        tgbotapi.UpdatesChannel
 	pendingActions map[int]PendingAction
 	lastMessageID  int
+	llm            *llm.Client
+	selfUserID     int64
+	drafts         draftStore
 	selectedUsers  map[int64]map[int64]bool // map[transactionID]map[userID]selected
 }
 
@@ -47,6 +52,8 @@ func InitBot(cfg *config.Config, ctx context.Context, injector *BotInjector) *Bo
 	}
 
 	bot.TelegramBot = telegramBot
+	bot.llm = llm.New(cfg.LLM.BaseURL, cfg.LLM.APIKey, cfg.LLM.Model)
+	bot.selfUserID = cfg.LLM.SelfUserID
 
 	// Set up bot commands
 	commands := []tgbotapi.BotCommand{
@@ -99,6 +106,7 @@ func InitBot(cfg *config.Config, ctx context.Context, injector *BotInjector) *Bo
 
 	// Start handling updates in a goroutine
 	go bot.handleUpdates(ctx)
+	go bot.runGroupSpendDigest(ctx)
 
 	return bot
 }
@@ -130,6 +138,7 @@ func (b *Bot) handleUpdates(ctx context.Context) {
 				replyToID := update.Message.ReplyToMessage.MessageID
 				action, exists := b.pendingActions[replyToID]
 				if !exists {
+					go b.handleNaturalLanguage(update.Message)
 					continue
 				}
 
@@ -312,6 +321,8 @@ func (b *Bot) handleUpdates(ctx context.Context) {
 					b.handleAddBillAmount(update.Message.Chat.ID, strings.TrimSpace(splits[0]), strings.TrimSpace(splits[1]))
 					delete(b.pendingActions, replyToID)
 				}
+			} else {
+				go b.handleNaturalLanguage(update.Message)
 			}
 		}
 	}
@@ -358,6 +369,19 @@ func (b *Bot) handleCallbackQuery(callback *tgbotapi.CallbackQuery) {
 		return
 	case "cancel_done_users":
 		b.handleCancelDoneUsers(callback.Message.Chat.ID)
+		return
+	case "nlsplit_ok", "nlsplit_cancel":
+		b.TelegramBot.Request(tgbotapi.NewCallback(callback.ID, ""))
+		if len(parts) < 2 {
+			return
+		}
+		draftID, _ := strconv.ParseInt(parts[1], 10, 64)
+		if action == "nlsplit_cancel" {
+			b.drafts.take(draftID, callback.Message.Chat.ID)
+			b.SendMessage(callback.Message.Chat.ID, "Đã hủy đề xuất chia bill.")
+			return
+		}
+		b.confirmSplitDraft(callback.Message.Chat.ID, draftID)
 		return
 	}
 
@@ -911,9 +935,14 @@ func (b *Bot) NotifyNewTransaction(transaction *models.Transaction, email string
 		return nil
 	}
 
+	message := formatNewTransactionMessage(transaction)
+	if groupspend.Suspect(transaction) {
+		message += fmt.Sprintf("\n\n👥 *Nghi là chi tiêu nhóm* (ngày thường, giờ ăn trưa, số tiền 80k–700k). Bấm \"Chia bill\" hoặc nhắn: chia #%d cho A, B, C", transaction.ID)
+	}
+
 	// Send notification to each authorized user
 	for _, chatID := range chatIDs {
-		err := b.SendMessageWithButtons(chatID, formatNewTransactionMessage(transaction), transaction.ID, tx)
+		err := b.SendMessageWithButtons(chatID, message, transaction.ID, tx)
 		if err != nil {
 			log.Printf("Error sending notification to chat ID %d: %v", chatID, err)
 			return err
@@ -1643,38 +1672,9 @@ func (b *Bot) handleAddBillAmount(chatID int64, amountStr string, descriptionStr
 		return
 	}
 
-	mail := &models.Mail{
-		Subject: "Virtual Bill",
-		From:    "Virtual Bill",
-		To:      "Virtual Bill",
-		Date:    time.Now(),
-		UID:     0,
-	}
-
-	err = b.BotInjector.MailRepository.Create(mail)
+	transaction, err := b.createVirtualBill(int64(amount), descriptionStr)
 	if err != nil {
-		log.Printf("Error creating virtual mail: %v", err)
-		b.SendMessage(chatID, "Không thể tạo bill mới. Vui lòng thử lại.")
-		return
-	}
-
-	// Create virtual transaction
-	transaction := &models.Transaction{
-		MailID:         mail.ID,
-		Amount:         int64(amount),
-		CurrentBalance: 0, // Virtual transaction doesn't have balance
-		Description:    descriptionStr,
-		Type:           string(models.TransactionTypeSubtract),
-		Timestamp:      time.Now(),
-		CreatedAt:      time.Now(),
-		From:           "Virtual Bill",
-		To:             "Virtual Bill",
-	}
-
-	// Create transaction in database
-	err = b.BotInjector.TransactionRepository.Create(transaction)
-	if err != nil {
-		log.Printf("Error creating virtual transaction: %v", err)
+		log.Printf("Error creating virtual bill: %v", err)
 		b.SendMessage(chatID, "Không thể tạo bill mới. Vui lòng thử lại.")
 		return
 	}
@@ -1690,6 +1690,44 @@ func (b *Bot) handleAddBillAmount(chatID int64, amountStr string, descriptionStr
 
 	// Show transaction view with options
 	b.handleBackToTransaction(chatID, transaction.ID)
+}
+
+func (b *Bot) createVirtualBill(amount int64, description string) (*models.Transaction, error) {
+	var transaction *models.Transaction
+	err := b.BotInjector.TransactionRepository.Transaction(func(tx *sql.Tx) error {
+		var err error
+		transaction, err = b.createVirtualBillTx(tx, amount, description)
+		return err
+	})
+	return transaction, err
+}
+
+func (b *Bot) createVirtualBillTx(tx *sql.Tx, amount int64, description string) (*models.Transaction, error) {
+	mail := &models.Mail{
+		Subject: "Virtual Bill",
+		From:    "Virtual Bill",
+		To:      "Virtual Bill",
+		Date:    time.Now(),
+		UID:     0,
+	}
+	if err := b.BotInjector.MailRepository.CreateTx(tx, mail); err != nil {
+		return nil, fmt.Errorf("create virtual mail: %w", err)
+	}
+
+	transaction := &models.Transaction{
+		MailID:      mail.ID,
+		Amount:      amount,
+		Description: description,
+		Type:        string(models.TransactionTypeSubtract),
+		Timestamp:   time.Now(),
+		CreatedAt:   time.Now(),
+		From:        "Virtual Bill",
+		To:          "Virtual Bill",
+	}
+	if err := b.BotInjector.TransactionRepository.CreateTx(tx, transaction); err != nil {
+		return nil, fmt.Errorf("create virtual transaction: %w", err)
+	}
+	return transaction, nil
 }
 
 func (b *Bot) handleDoneBillManual(chatID int64) {

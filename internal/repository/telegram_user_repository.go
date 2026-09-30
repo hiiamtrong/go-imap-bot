@@ -81,16 +81,7 @@ func (r *TelegramUserRepository) GetChatIDsByEmail(email string, tx *sql.Tx) ([]
 	}
 	defer rows.Close()
 
-	var chatIDs []int64
-	for rows.Next() {
-		var chatID int64
-		if err := rows.Scan(&chatID); err != nil {
-			return nil, fmt.Errorf("error scanning chat ID: %v", err)
-		}
-		chatIDs = append(chatIDs, chatID)
-	}
-
-	return chatIDs, nil
+	return scanChatIDs(rows)
 }
 
 func (r *TelegramUserRepository) GetByChatID(chatID int64) (*models.TelegramUser, error) {
@@ -100,4 +91,26 @@ func (r *TelegramUserRepository) GetByChatID(chatID int64) (*models.TelegramUser
 		return nil, fmt.Errorf("failed to get user: %v", err)
 	}
 	return &user, nil
+}
+
+func (r *TelegramUserRepository) GetAllChatIDs() ([]int64, error) {
+	rows, err := r.db.Conn.Query("SELECT chat_id FROM authorized_telegram_users")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get chat IDs: %v", err)
+	}
+	defer rows.Close()
+
+	return scanChatIDs(rows)
+}
+
+func scanChatIDs(rows *sql.Rows) ([]int64, error) {
+	var chatIDs []int64
+	for rows.Next() {
+		var chatID int64
+		if err := rows.Scan(&chatID); err != nil {
+			return nil, fmt.Errorf("error scanning chat ID: %v", err)
+		}
+		chatIDs = append(chatIDs, chatID)
+	}
+	return chatIDs, rows.Err()
 }
