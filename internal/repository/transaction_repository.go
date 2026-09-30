@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -204,14 +205,9 @@ func (r *TransactionRepository) GetByID(id int64) (*models.Transaction, error) {
 		t.Currency = "VND"
 	}
 
-	// Parse the timestamp string
-	timestamp, err := time.Parse("2006-01-02 15:04:05-07:00", timestampStr)
+	timestamp, err := parseTimestamp(timestampStr)
 	if err != nil {
-		// Try alternative format if the first one fails
-		timestamp, err = time.Parse(time.RFC3339, timestampStr)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse timestamp: %v", err)
-		}
+		return nil, fmt.Errorf("failed to parse timestamp: %v", err)
 	}
 	t.Timestamp = timestamp
 
@@ -424,14 +420,9 @@ func (r *TransactionRepository) GetRecentTransactions(ctx context.Context, limit
 			t.Currency = "VND"
 		}
 
-		// Parse the timestamp string
-		timestamp, err := time.Parse("2006-01-02 15:04:05-07:00", timestampStr)
+		timestamp, err := parseTimestamp(timestampStr)
 		if err != nil {
-			// Try alternative format if the first one fails
-			timestamp, err = time.Parse(time.RFC3339, timestampStr)
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse timestamp: %v", err)
-			}
+			return nil, fmt.Errorf("failed to parse timestamp: %v", err)
 		}
 		t.Timestamp = timestamp
 
@@ -560,14 +551,9 @@ func (r *TransactionRepository) GetRecentTransactionsWithFilters(ctx context.Con
 			t.Currency = "VND"
 		}
 
-		// Parse the timestamp string
-		timestamp, err := time.Parse("2006-01-02 15:04:05-07:00", timestampStr)
+		timestamp, err := parseTimestamp(timestampStr)
 		if err != nil {
-			// Try alternative format if the first one fails
-			timestamp, err = time.Parse(time.RFC3339, timestampStr)
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse timestamp: %v", err)
-			}
+			return nil, fmt.Errorf("failed to parse timestamp: %v", err)
 		}
 		t.Timestamp = timestamp
 
@@ -575,4 +561,14 @@ func (r *TransactionRepository) GetRecentTransactionsWithFilters(ctx context.Con
 	}
 
 	return transactions, nil
+}
+
+func parseTimestamp(s string) (time.Time, error) {
+	if unix, err := strconv.ParseInt(s, 10, 64); err == nil {
+		return time.Unix(unix, 0), nil
+	}
+	if t, err := time.Parse("2006-01-02 15:04:05-07:00", s); err == nil {
+		return t, nil
+	}
+	return time.Parse(time.RFC3339, s)
 }
