@@ -22,6 +22,8 @@ type TransactionResponse struct {
 	Timestamp   time.Time       `json:"timestamp"`
 	Tags        []TagResponse   `json:"tags,omitempty"`
 	Splits      []SplitResponse `json:"splits,omitempty"`
+
+	SuspectedGroupSpend bool `json:"suspected_group_spend"`
 }
 
 type CreateVirtualBillRequest struct {
@@ -129,4 +131,22 @@ type UserSplitSummary struct {
 	Splits      []SplitResponse `json:"splits"`
 	TotalAmount int64           `json:"total_amount"`
 	BillCount   int             `json:"bill_count"`
+}
+
+type ParseBillRequest struct {
+	Text          string   `json:"text"`
+	Images        []string `json:"images"`
+	TransactionID int64    `json:"transaction_id"`
+}
+
+type ParsedShare struct {
+	UserID int64  `json:"user_id"`
+	Name   string `json:"name"`
+	Amount int64  `json:"amount"`
+}
+
+type ParseBillResponse struct {
+	Description string        `json:"description"`
+	Total       int64         `json:"total"`
+	Shares      []ParsedShare `json:"shares"`
 }

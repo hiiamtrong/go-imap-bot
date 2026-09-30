@@ -7,6 +7,7 @@ import (
 	"github.com/hiiamtrong/go-imap-bot/internal/api/handlers"
 	"github.com/hiiamtrong/go-imap-bot/internal/config"
 	"github.com/hiiamtrong/go-imap-bot/internal/database"
+	"github.com/hiiamtrong/go-imap-bot/internal/llm"
 	authmiddleware "github.com/hiiamtrong/go-imap-bot/internal/middleware"
 	"github.com/hiiamtrong/go-imap-bot/internal/repository"
 	"github.com/hiiamtrong/go-imap-bot/internal/s3"
@@ -55,6 +56,7 @@ func main() {
 	tagHandler := handlers.NewTagHandler(tagRepo)
 	splitHandler := handlers.NewSplitHandler(transactionSplitRepo, transactionRepo, userRepo, smtpService, splitHashRepo)
 	statsHandler := handlers.NewStatisticsHandler(db)
+	parseHandler := handlers.NewParseHandler(llm.New(cfg.LLM.BaseURL, cfg.LLM.APIKey, cfg.LLM.Model), userRepo, transactionRepo, cfg.LLM.SelfUserID)
 
 	// Setup Echo
 	e := echo.New()
@@ -116,6 +118,7 @@ func main() {
 	// Split routes
 	protected.GET("/splits/pending", splitHandler.GetPendingSplitsSummary)
 	protected.POST("/splits", splitHandler.CreateSplit)
+	protected.POST("/splits/parse", parseHandler.ParseBill, middleware.BodyLimit("40M"))
 	protected.GET("/transactions/:id/splits", splitHandler.GetSplitsForTransaction)
 	protected.POST("/splits/:id/complete", splitHandler.CompleteSplit)
 	protected.POST("/splits/:id/complete-single", splitHandler.CompleteSingleSplit)

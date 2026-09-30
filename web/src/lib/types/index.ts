@@ -6,6 +6,7 @@ export interface Transaction {
 	type: "add" | "subtract";
 	description: string;
 	completed: boolean;
+	suspected_group_spend?: boolean;
 	timestamp: string;
 	currency: string;
 	tags?: Tag[];
@@ -81,6 +82,18 @@ export interface TagSpending {
 export interface ReminderRequest {
 	split_ids: number[];
 	angry?: boolean;
+}
+
+export interface ParseBillRequest {
+	text: string;
+	images: string[];
+	transaction_id?: number;
+}
+
+export interface ParsedBill {
+	description: string;
+	total: number;
+	shares: { user_id: number; name: string; amount: number }[];
 }
 
 export interface BillSplitRequest {

@@ -25,6 +25,10 @@
 	let newUserName = $state("");
 	let newUserEmail = $state("");
 	let creatingUser = $state(false);
+	let aiText = $state("");
+	let aiImages = $state<string[]>([]);
+	let aiError = $state<string | null>(null);
+	let analyzing = $state(false);
 
 	onMount(async () => {
 		await loadUsers();
@@ -52,6 +56,55 @@
 			splitMode = "custom";
 		}
 	});
+
+	async function toJpegDataUrl(file: File, maxSide = 1600): Promise<string> {
+		const bitmap = await createImageBitmap(file);
+		const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+		const canvas = document.createElement("canvas");
+		canvas.width = Math.round(bitmap.width * scale);
+		canvas.height = Math.round(bitmap.height * scale);
+		canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+		return canvas.toDataURL("image/jpeg", 0.85);
+	}
+
+	async function handleFiles(e: Event) {
+		aiError = null;
+		const files = Array.from((e.target as HTMLInputElement).files ?? []).slice(0, 3);
+		try {
+			aiImages = await Promise.all(files.map((file) => toJpegDataUrl(file)));
+		} catch {
+			aiImages = [];
+			aiError = "Could not read that image. Try a JPEG or PNG.";
+		}
+	}
+
+	async function handleAnalyze() {
+		analyzing = true;
+		aiError = null;
+
+		const response = await api.parseBill({
+			text: aiText,
+			images: aiImages,
+			transaction_id: transaction.id,
+		});
+
+		if (response.error || !response.data) {
+			aiError = response.error ?? "Could not analyze the content";
+		} else {
+			const { shares, description } = response.data;
+			const currency = transaction.currency || "VND";
+			selectedUsers = new Set(shares.map((s) => s.user_id));
+			customAmounts = Object.fromEntries(shares.map((s) => [s.user_id, String(s.amount)]));
+			displayAmounts = Object.fromEntries(
+				shares.map((s) => [s.user_id, formatCurrency(s.amount, currency).replace("₫", "").trim()])
+			);
+			reasons = {};
+			globalReason = description;
+			splitMode = "custom";
+		}
+
+		analyzing = false;
+	}
 
 	async function loadUsers() {
 		const response = await api.getUsers();
@@ -283,6 +336,43 @@
 				<p class="text-2xl font-bold text-gray-900">
 					{formatCurrency(transaction.amount, transaction.currency || "VND")}
 				</p>
+			</div>
+
+			<!-- Split with AI -->
+			<div class="mb-6 p-4 border border-primary-200 bg-primary-50 rounded-lg">
+				<label for="aiText" class="label mb-2">Split with AI</label>
+				<textarea
+					id="aiText"
+					bind:value={aiText}
+					rows="3"
+					class="input w-full"
+					placeholder="e.g. split equally with Ha, Son and me · Ha 60k, Son 50k · or paste a Google Sheet link"
+				></textarea>
+				<div class="flex flex-wrap items-center gap-3 mt-2">
+					<input
+						type="file"
+						accept="image/*"
+						multiple
+						onchange={handleFiles}
+						class="text-sm text-gray-600"
+						aria-label="Attach bill photos"
+					/>
+					<button
+						onclick={handleAnalyze}
+						disabled={analyzing || (!aiText.trim() && aiImages.length === 0)}
+						class="btn btn-primary ml-auto"
+					>
+						{analyzing ? "Analyzing..." : "Analyze"}
+					</button>
+				</div>
+				{#if aiImages.length > 0}
+					<p class="text-xs text-gray-500 mt-1">
+						{aiImages.length} image{aiImages.length !== 1 ? "s" : ""} attached
+					</p>
+				{/if}
+				{#if aiError}
+					<p class="text-sm text-red-600 mt-2">{aiError}</p>
+				{/if}
 			</div>
 
 			<!-- Split Mode -->

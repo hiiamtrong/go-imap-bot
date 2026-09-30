@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/hiiamtrong/go-imap-bot/internal/api/dto"
+	"github.com/hiiamtrong/go-imap-bot/internal/groupspend"
 	"github.com/hiiamtrong/go-imap-bot/internal/models"
 	"github.com/hiiamtrong/go-imap-bot/internal/repository"
 	"github.com/labstack/echo/v4"
@@ -532,5 +533,7 @@ func (h *TransactionHandler) toTransactionDTO(t *models.Transaction) dto.Transac
 		Timestamp:   t.Timestamp,
 		Tags:        []dto.TagResponse{},
 		Splits:      []dto.SplitResponse{},
+
+		SuspectedGroupSpend: !t.Completed && groupspend.Suspect(t),
 	}
 }

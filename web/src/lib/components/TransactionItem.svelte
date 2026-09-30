@@ -79,6 +79,13 @@
 								Completed
 							</span>
 						{/if}
+						{#if transaction.suspected_group_spend && !transaction.splits?.length}
+							<span
+								class="inline-flex items-center px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-medium rounded-full flex-shrink-0"
+							>
+								Possible group spend
+							</span>
+						{/if}
 					</div>
 					<p class="text-xs sm:text-sm text-gray-500 mt-1">
 						{formatRelativeTime(transaction.timestamp)}

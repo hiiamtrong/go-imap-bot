@@ -8,6 +8,8 @@ import type {
 	TagSpending,
 	ReminderRequest,
 	BillSplitRequest,
+	ParseBillRequest,
+	ParsedBill,
 	UserSplitSummary,
 	ApiResponse,
 } from "$lib/types";
@@ -178,6 +180,13 @@ class ApiClient {
 	// Bill Splitting
 	async createBillSplit(request: BillSplitRequest): Promise<ApiResponse<TransactionSplit[]>> {
 		return this.request<TransactionSplit[]>("/splits", {
+			method: "POST",
+			body: JSON.stringify(request),
+		});
+	}
+
+	async parseBill(request: ParseBillRequest): Promise<ApiResponse<ParsedBill>> {
+		return this.request<ParsedBill>("/splits/parse", {
 			method: "POST",
 			body: JSON.stringify(request),
 		});
