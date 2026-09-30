@@ -14,11 +14,15 @@ type Config struct {
 	VietQR         *VietQRConfig
 	AWS            *AWSConfig
 	OAuth          *OAuthConfig
+	LLM            *LLMConfig
 }
 
 func NewConfig() *Config {
 	viper.SetConfigFile(".env")
 	viper.AutomaticEnv()
+
+	viper.SetDefault("LLM_BASE_URL", "http://claude-bridge.claude-bridge:8080/v1")
+	viper.SetDefault("LLM_MODEL", "claude")
 
 	// Try to read config file, but don't panic if it doesn't exist
 	// Environment variables will be used instead
@@ -95,6 +99,12 @@ func NewConfig() *Config {
 			GoogleClientSecret: viper.GetString("GOOGLE_CLIENT_SECRET"),
 			GoogleRedirectURL:  viper.GetString("GOOGLE_REDIRECT_URL"),
 			JWTSecret:          viper.GetString("JWT_SECRET"),
+		},
+		LLM: &LLMConfig{
+			APIKey:     viper.GetString("LLM_API_KEY"),
+			BaseURL:    viper.GetString("LLM_BASE_URL"),
+			Model:      viper.GetString("LLM_MODEL"),
+			SelfUserID: viper.GetInt64("SELF_USER_ID"),
 		},
 	}
 }
