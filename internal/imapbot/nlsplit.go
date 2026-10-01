@@ -174,6 +174,9 @@ func (b *Bot) previewSplit(ctx context.Context, chatID int64, text string, bill 
 		}
 		sb.WriteString(fmt.Sprintf("• %s: %s\n", escapeMarkdown(label), escapeMarkdown(formatVND(s.Amount))))
 	}
+	if plan.Prorated {
+		sb.WriteString("\n_Các phần đã được chia lại theo tổng bill (sau giảm giá, phí)._\n")
+	}
 
 	msg := tgbotapi.NewMessage(chatID, sb.String())
 	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(

@@ -19,16 +19,17 @@ const maxMoney = 1e12
 
 var imageTypes = []string{"image/jpeg", "image/png", "image/gif", "image/webp"}
 
-const billSchema = `{"type":"object","properties":{"description":{"type":"string"},"total":{"type":"number"},"people":{"type":"array","items":{"type":"object","properties":{"name":{"type":"string"},"amount":{"type":"number"},"user_id":{"type":"integer"}},"required":["name","amount","user_id"],"additionalProperties":false}}},"required":["description","total","people"],"additionalProperties":false}`
+const billSchema = `{"type":"object","properties":{"description":{"type":"string"},"total":{"type":"number"},"prorate":{"type":"boolean"},"people":{"type":"array","items":{"type":"object","properties":{"name":{"type":"string"},"amount":{"type":"number"},"user_id":{"type":"integer"}},"required":["name","amount","user_id"],"additionalProperties":false}}},"required":["description","total","prorate","people"],"additionalProperties":false}`
 
 const systemPrompt = `Bạn trích xuất thông tin chia bill từ tin nhắn tiếng Việt, ảnh (hóa đơn, ảnh chụp bảng hoặc đoạn chat) hoặc bảng CSV.
 Chỉ trả về một JSON object, không giải thích:
-{"description": string, "total": number, "people": [{"name": string, "amount": number}]}
+{"description": string, "total": number, "prorate": boolean, "people": [{"name": string, "amount": number}]}
 Quy tắc:
 - Tiền là VND, số nguyên: "50k"=50000, "1tr2"=1200000, "1.5tr"=1500000.
 - description: tên món hoặc quán nếu người dùng nêu rõ; chuỗi rỗng nếu không nêu, không tự đặt. total: tổng bill, 0 nếu không nêu.
 - people: mỗi người tham gia là một phần tử. name là tên của người đó đúng như in trên bill, ảnh, bảng hoặc đoạn chat, nếu không có bill thì đúng như người dùng viết, kể cả "tôi", "mình". amount là số tiền riêng của người đó, 0 nếu chia đều phần còn lại.
-- user_id: id của người dùng đã biết khớp với người đó (danh sách người dùng và tên đã nhớ nằm cuối tin nhắn). Khớp theo tên trên bill, ảnh, bảng, chat và theo tên hoặc tài khoản trong tin nhắn, chấp nhận khác dấu, sai chính tả, viết tắt (ví dụ ảnh ghi "Hồngg Ngọc" mà tin nhắn ghi "Hồng Ngọc: ngoc.vu" thì là ngoc.vu). Tên đã nhớ là mặc định, trừ khi tin nhắn nói rõ khác. Trả 0 nếu không chắc chắn hoặc có nhiều người có thể khớp; không đoán.
+- user_id: id của người dùng đã biết khớp với người đó (danh sách người dùng và tên đã nhớ nằm cuối tin nhắn). Khớp theo tên trên bill, ảnh, bảng, chat và theo tên hoặc tài khoản trong tin nhắn, chấp nhận khác dấu, sai chính tả, viết tắt (ví dụ ảnh ghi "Hồngg Ngọc" mà tin nhắn ghi "Hồng Ngọc: ngoc.vu" thì là ngoc.vu). Tên đã nhớ là mặc định, trừ khi tin nhắn nói rõ khác. Tài khoản trong tin nhắn có thể chỉ là phần đầu của tài khoản đã biết (ví dụ "lethithuhanh" khớp "lethithuhanh.txpt"): nếu đúng một người dùng khớp thì chọn người đó. Trả 0 nếu không chắc chắn hoặc có nhiều người có thể khớp; không đoán.
+- prorate: true chỉ khi người dùng yêu cầu chia theo số tiền sau giảm giá, ưu đãi hoặc phí (chia theo tỉ lệ). Khi đó amount của mỗi người là giá gốc của họ trên bill, KHÔNG tự trừ giảm giá hay cộng phí; total là số tiền thật phải trả. Ngược lại prorate là false.
 - Với bảng: mỗi dòng là một người và số tiền của họ; total là dòng tổng nếu có.
 - Không thêm người không được nhắc tới, không tự tính lại tổng.`
 
@@ -98,12 +99,16 @@ type Person struct {
 type Bill struct {
 	Description string
 	Total       int64
-	People      []Person
+	// Prorate means the amounts are list prices to be scaled to Total, because
+	// the user asked to split by what each person pays after discounts and fees.
+	Prorate bool
+	People  []Person
 }
 
 type rawBill struct {
 	Description string  `json:"description"`
 	Total       float64 `json:"total"`
+	Prorate     bool    `json:"prorate"`
 	People      []struct {
 		Name   string  `json:"name"`
 		Amount float64 `json:"amount"`
@@ -187,7 +192,7 @@ func parseBill(content string) (*Bill, error) {
 	if raw.Total < 0 || raw.Total > maxMoney {
 		return nil, fmt.Errorf("total %v out of range", raw.Total)
 	}
-	bill := &Bill{Description: strings.TrimSpace(raw.Description), Total: int64(math.Round(raw.Total))}
+	bill := &Bill{Description: strings.TrimSpace(raw.Description), Total: int64(math.Round(raw.Total)), Prorate: raw.Prorate}
 	for _, p := range raw.People {
 		if p.Amount < 0 || p.Amount > maxMoney {
 			return nil, fmt.Errorf("amount %v out of range", p.Amount)

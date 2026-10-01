@@ -157,4 +157,5 @@ type ParseBillResponse struct {
 	Description string        `json:"description"`
 	Total       int64         `json:"total"`
 	Shares      []ParsedShare `json:"shares"`
+	Prorated    bool          `json:"prorated,omitempty"`
 }

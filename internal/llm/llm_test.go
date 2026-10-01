@@ -58,6 +58,11 @@ func TestParseBill(t *testing.T) {
 			content: `{"description":"","total":0,"people":[{"name":"Ki","amount":0,"user_id":68},{"name":"Hà","amount":0,"user_id":null},{"name":"B","amount":0}]}`,
 			want:    Bill{People: []Person{{Name: "Ki", UserID: 68}, {Name: "Hà"}, {Name: "B"}}},
 		},
+		{
+			name:    "prorate is read, and defaults to false",
+			content: `{"description":"","total":100,"prorate":true,"people":[{"name":"A","amount":50}]}`,
+			want:    Bill{Total: 100, Prorate: true, People: []Person{{Name: "A", Amount: 50}}},
+		},
 		{name: "prose instead of json", content: "xin lỗi", wantErr: true},
 		{name: "broken json", content: `{"total": }`, wantErr: true},
 	}

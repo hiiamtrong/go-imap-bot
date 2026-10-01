@@ -94,6 +94,7 @@ export interface ParsedBill {
 	description: string;
 	total: number;
 	shares: { user_id: number; name: string; amount: number; alias?: string }[];
+	prorated?: boolean;
 }
 
 export interface BillSplitRequest {

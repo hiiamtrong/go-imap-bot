@@ -101,6 +101,7 @@ func (h *ParseHandler) ParseBill(c echo.Context) error {
 
 	plan, description, problems := billsplit.ForBill(bill, users, h.selfUserID, target, aliases)
 	if len(problems) > 0 {
+		log.Printf("parse bill rejected: %s | model matched: %s", strings.Join(problems, "; "), matchedIDs(bill.People))
 		return fail(http.StatusUnprocessableEntity, strings.Join(problems, "; "))
 	}
 
@@ -108,7 +109,17 @@ func (h *ParseHandler) ParseBill(c echo.Context) error {
 	for i, s := range plan.Shares {
 		shares[i] = dto.ParsedShare{UserID: s.UserID, Name: s.Name, Amount: s.Amount, Alias: s.Alias}
 	}
-	return c.JSON(http.StatusOK, dto.Response{Data: dto.ParseBillResponse{Description: description, Total: plan.Total, Shares: shares}})
+	return c.JSON(http.StatusOK, dto.Response{Data: dto.ParseBillResponse{Description: description, Total: plan.Total, Shares: shares, Prorated: plan.Prorated}})
+}
+
+// matchedIDs shows which known user the model picked for each person, so a
+// rejected request can be told apart from a model that matched nothing (0).
+func matchedIDs(people []llm.Person) string {
+	parts := make([]string, len(people))
+	for i, p := range people {
+		parts[i] = fmt.Sprintf("%q=%d", p.Name, p.UserID)
+	}
+	return strings.Join(parts, " ")
 }
 
 func decodeImages(encoded []string) ([][]byte, error) {

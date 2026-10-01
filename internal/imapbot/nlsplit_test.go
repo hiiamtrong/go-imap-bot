@@ -288,6 +288,20 @@ func TestNaturalLanguageSplitRemembersAConfirmedAlias(t *testing.T) {
 	}
 }
 
+func TestNaturalLanguageSplitScalesListPrices(t *testing.T) {
+	f := newFixture(t, `{"description":"Nước ép","total":100000,"prorate":true,"people":[{"name":"Hà","amount":70000,"user_id":0},{"name":"Sơn","amount":50000,"user_id":0}]}`)
+	f.addUser(t, "Thương Hà")
+	f.addUser(t, "son.ho")
+
+	f.bot.handleNaturalLanguage(textMessage("chia 100k nước ép theo số tiền được giảm, Hà 70k, Sơn 50k"))
+	preview := f.last(t)
+	for _, want := range []string{"58,333", "41,667", "chia lại theo tổng bill"} {
+		if !strings.Contains(preview.text, want) {
+			t.Errorf("preview missing %q:\n%s", want, preview.text)
+		}
+	}
+}
+
 func TestNaturalLanguageSplitRejects(t *testing.T) {
 	tests := []struct {
 		name    string

@@ -419,6 +419,11 @@
 								</li>
 							{/each}
 						</ul>
+						{#if aiProposal.prorated}
+							<p class="text-xs text-amber-700 mt-2">
+								Amounts were scaled so they add up to the bill total (discounts and fees included).
+							</p>
+						{/if}
 						<p class="text-xs text-gray-500 mt-2">
 							Review the amounts below, then press Create Split. Nothing is saved yet; names in brackets are remembered for next time once you confirm.
 						</p>

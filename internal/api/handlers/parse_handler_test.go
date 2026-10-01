@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/base64"
 	"encoding/json"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -303,5 +304,49 @@ func TestParseBillUsesARememberedAlias(t *testing.T) {
 	}
 	if !strings.Contains(*env.llmBody, "ki = 3") {
 		t.Errorf("the model was not told the remembered name: %s", *env.llmBody)
+	}
+}
+
+func TestParseBillLogsWhyItWasRejected(t *testing.T) {
+	// "Linh" fits both D Linh and linh.pham3, and the model gave no id for it.
+	reply := `{"description":"","total":100000,"people":[{"name":"Linh","amount":0,"user_id":0},{"name":"Hà","amount":0,"user_id":2}]}`
+	env := newParseEnv(t, reply, http.StatusOK)
+
+	var logs strings.Builder
+	log.SetOutput(&logs)
+	t.Cleanup(func() { log.SetOutput(os.Stderr) })
+
+	if code, _ := call(t, env.handler, dto.ParseBillRequest{Text: "chia 100k"}); code != http.StatusUnprocessableEntity {
+		t.Fatalf("status = %d, want 422", code)
+	}
+	for _, want := range []string{"parse bill rejected", "nhiều người khớp", `"Linh"=0`, `"Hà"=2`} {
+		if !strings.Contains(logs.String(), want) {
+			t.Errorf("log missing %q:\n%s", want, logs.String())
+		}
+	}
+}
+
+func TestParseBillScalesListPricesToTheBillTotal(t *testing.T) {
+	// List prices add up to 120000, the bill was 100000 after discounts.
+	reply := `{"description":"Nước ép","total":100000,"prorate":true,"people":[{"name":"Hà","amount":70000,"user_id":2},{"name":"Sơn","amount":50000,"user_id":3}]}`
+	env := newParseEnv(t, reply, http.StatusOK)
+
+	code, resp := call(t, env.handler, dto.ParseBillRequest{Text: "chia theo số tiền được giảm"})
+	if code != http.StatusOK {
+		t.Fatalf("status = %d, error = %q", code, resp.Error)
+	}
+	got := parsed(t, resp)
+	amounts := map[string]int64{}
+	for _, s := range got.Shares {
+		amounts[s.Name] = s.Amount
+	}
+	if !got.Prorated || got.Total != 100000 || amounts["Thương Hà"] != 58333 || amounts["son.ho"] != 41667 {
+		t.Errorf("got %+v, amounts %v", got, amounts)
+	}
+
+	// The same amounts without the flag are an error the user must see.
+	env = newParseEnv(t, strings.Replace(reply, `"prorate":true`, `"prorate":false`, 1), http.StatusOK)
+	if code, resp := call(t, env.handler, dto.ParseBillRequest{Text: "x"}); code != http.StatusUnprocessableEntity || !strings.Contains(resp.Error, "khác tổng bill") {
+		t.Errorf("without the flag: status = %d, error = %q", code, resp.Error)
 	}
 }

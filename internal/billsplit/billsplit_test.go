@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -347,6 +348,113 @@ func TestResolveAliases(t *testing.T) {
 		s, problems := one(llm.Person{Name: "Hà"}, nil)
 		if len(problems) > 0 || s.UserID != 65 || s.Alias != "" {
 			t.Fatalf("share = %+v, problems = %v", s, problems)
+		}
+	})
+}
+
+func TestProrate(t *testing.T) {
+	sum := func(ps []llm.Person) (n int64) {
+		for _, p := range ps {
+			n += p.Amount
+		}
+		return
+	}
+
+	t.Run("scales to the total and loses nothing to rounding", func(t *testing.T) {
+		in := people("A", 56000, "B", 49000, "C", 39000, "D", 49000, "E", 62000, "F", 55000)
+		got, ok := Prorate(in, 511100-199000)
+		if !ok || sum(got) != 312100 {
+			t.Fatalf("ok = %v, sum = %d, got %+v", ok, sum(got), got)
+		}
+		for i := range got {
+			if lo, hi := in[i].Amount*312100/310000, in[i].Amount*312100/310000+1; got[i].Amount < lo || got[i].Amount > hi {
+				t.Errorf("%s: %d is not within a unit of its exact share", got[i].Name, got[i].Amount)
+			}
+		}
+	})
+
+	t.Run("the largest remainder takes the leftover unit", func(t *testing.T) {
+		// 10/3 each: all remainders tie, so the first people get the extra units.
+		got, _ := Prorate(people("A", 1, "B", 1, "C", 1), 10)
+		if want := []int64{4, 3, 3}; got[0].Amount != want[0] || got[1].Amount != want[1] || got[2].Amount != want[2] {
+			t.Errorf("got %+v, want %v", got, want)
+		}
+		got, _ = Prorate(people("A", 1, "B", 2), 10) // 3.33 / 6.67
+		if got[0].Amount != 3 || got[1].Amount != 7 {
+			t.Errorf("got %+v, want 3 and 7", got)
+		}
+	})
+
+	t.Run("does not mutate the caller's slice", func(t *testing.T) {
+		in := people("A", 100, "B", 100)
+		Prorate(in, 150)
+		if in[0].Amount != 100 || in[1].Amount != 100 {
+			t.Errorf("input changed: %+v", in)
+		}
+	})
+
+	t.Run("leaves the people alone when it should not apply", func(t *testing.T) {
+		for name, tt := range map[string]struct {
+			in    []llm.Person
+			total int64
+		}{
+			"already adds up":       {people("A", 60, "B", 40), 100},
+			"someone has no amount": {people("A", 60, "B", 0), 100},
+			"no total to scale to":  {people("A", 60, "B", 40), 0},
+			"nobody":                {nil, 100},
+		} {
+			got, ok := Prorate(tt.in, tt.total)
+			if ok || !reflect.DeepEqual(got, tt.in) {
+				t.Errorf("%s: ok = %v, got %+v", name, ok, got)
+			}
+		}
+	})
+
+	t.Run("big amounts do not overflow", func(t *testing.T) {
+		const big = 1_000_000_000_000 // the most llm accepts
+		got, ok := Prorate(people("A", big, "B", big), big+1)
+		if !ok || sum(got) != big+1 {
+			t.Fatalf("ok = %v, got %+v", ok, got)
+		}
+	})
+}
+
+func TestForBillProrate(t *testing.T) {
+	tx := &models.Transaction{ID: 7, Amount: 100000}
+	list := func(prorate bool) *llm.Bill {
+		return &llm.Bill{Prorate: prorate, People: people("Hà", 60000, "Sơn", 60000, "Trọng", 0)[:2]}
+	}
+
+	t.Run("a discounted bill is scaled and flagged", func(t *testing.T) {
+		plan, _, problems := ForBill(list(true), users, 4, tx, nil)
+		if len(problems) > 0 || !plan.Prorated || plan.Total != 100000 {
+			t.Fatalf("plan = %+v, problems = %v", plan, problems)
+		}
+		if got := amounts(plan); got[65] != 50000 || got[68] != 50000 {
+			t.Errorf("amounts = %v", got)
+		}
+	})
+
+	t.Run("without the flag a mismatch is still rejected", func(t *testing.T) {
+		_, _, problems := ForBill(list(false), users, 4, tx, nil)
+		if len(problems) == 0 || !strings.Contains(problems[0], "khác tổng bill") {
+			t.Fatalf("problems = %v", problems)
+		}
+	})
+
+	t.Run("an unresolved person is reported, not scaled around", func(t *testing.T) {
+		bill := &llm.Bill{Prorate: true, People: people("Hà", 60000, "nobody", 60000)}
+		plan, _, problems := ForBill(bill, users, 4, tx, nil)
+		if len(problems) == 0 || plan.Prorated {
+			t.Fatalf("plan = %+v, problems = %v", plan, problems)
+		}
+	})
+
+	t.Run("amounts that already add up are not flagged", func(t *testing.T) {
+		bill := &llm.Bill{Prorate: true, People: people("Hà", 40000, "Sơn", 60000)}
+		plan, _, problems := ForBill(bill, users, 4, tx, nil)
+		if len(problems) > 0 || plan.Prorated {
+			t.Fatalf("plan = %+v, problems = %v", plan, problems)
 		}
 	})
 }

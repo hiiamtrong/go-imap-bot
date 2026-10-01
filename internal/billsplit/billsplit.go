@@ -2,6 +2,7 @@ package billsplit
 
 import (
 	"fmt"
+	"math/big"
 	"slices"
 	"strings"
 	"unicode"
@@ -24,6 +25,8 @@ type Share struct {
 type Plan struct {
 	Total  int64
 	Shares []Share
+	// Prorated means the amounts were scaled to Total (see Prorate).
+	Prorated bool
 }
 
 var (
@@ -126,11 +129,55 @@ func ForBill(bill *llm.Bill, users []*models.User, selfID int64, target *models.
 		description = "Chia bill"
 	}
 
-	plan, problems := Resolve(bill.People, total, users, selfID, aliases)
+	people, prorated := bill.People, false
+	if bill.Prorate {
+		people, prorated = Prorate(people, total)
+	}
+
+	plan, problems := Resolve(people, total, users, selfID, aliases)
+	plan.Prorated = prorated && len(problems) == 0
 	if target != nil && len(problems) == 0 && plan.Total != target.Amount {
 		problems = append(problems, fmt.Sprintf("tổng chia (%d) khác số tiền giao dịch #%d (%d)", plan.Total, target.ID, target.Amount))
 	}
 	return plan, description, problems
+}
+
+// Prorate scales every amount so they add up to total, handing the leftover
+// units to the largest remainders so nothing is lost to rounding. It applies
+// only when everyone has an amount and the sum differs from total; otherwise
+// the people come back untouched and false is returned.
+func Prorate(people []llm.Person, total int64) ([]llm.Person, bool) {
+	var sum int64
+	for _, p := range people {
+		if p.Amount <= 0 {
+			return people, false
+		}
+		sum += p.Amount
+	}
+	if len(people) == 0 || total <= 0 || sum == total {
+		return people, false
+	}
+
+	scaled := make([]llm.Person, len(people))
+	copy(scaled, people)
+	rest := make([]*big.Int, len(people))
+	var given int64
+	for i, p := range people {
+		num := new(big.Int).Mul(big.NewInt(p.Amount), big.NewInt(total))
+		q, r := new(big.Int).QuoRem(num, big.NewInt(sum), new(big.Int))
+		scaled[i].Amount, rest[i] = q.Int64(), r
+		given += scaled[i].Amount
+	}
+
+	order := make([]int, len(people))
+	for i := range order {
+		order[i] = i
+	}
+	slices.SortStableFunc(order, func(a, b int) int { return rest[b].Cmp(rest[a]) })
+	for _, i := range order[:total-given] {
+		scaled[i].Amount++
+	}
+	return scaled, true
 }
 
 func findUser(p llm.Person, users []*models.User, selfID int64, aliases map[string]int64) (*models.User, string) {
