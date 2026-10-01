@@ -384,6 +384,15 @@
 					<p class="text-xs text-gray-500 mt-1">
 						{aiImages.length} image{aiImages.length !== 1 ? "s" : ""} attached
 					</p>
+					<div class="flex flex-wrap gap-2 mt-2">
+						{#each aiImages as image, i}
+							<img
+								src={image}
+								alt="Attached bill photo {i + 1}"
+								class="h-28 w-auto rounded border border-gray-200"
+							/>
+						{/each}
+					</div>
 				{/if}
 				{#if aiError}
 					<p class="text-sm text-red-600 mt-2">{aiError}</p>
