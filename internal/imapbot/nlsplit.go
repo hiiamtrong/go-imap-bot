@@ -133,13 +133,20 @@ func (b *Bot) previewSplit(ctx context.Context, chatID int64, text string, bill 
 		return
 	}
 
+	aliases, err := b.BotInjector.AliasRepository.GetAll()
+	if err != nil {
+		log.Printf("Error getting aliases: %v", err)
+		b.SendMessage(chatID, "Không thể lấy danh sách người dùng.")
+		return
+	}
+
 	target, problem := b.pickTarget(ctx, text, bill.Total)
 	if problem != "" {
 		b.sendSplitProblems(chatID, []string{problem})
 		return
 	}
 
-	plan, description, problems := billsplit.ForBill(bill, users, b.selfUserID, target)
+	plan, description, problems := billsplit.ForBill(bill, users, b.selfUserID, target, aliases)
 	if len(problems) > 0 {
 		b.sendSplitProblems(chatID, problems)
 		return
@@ -160,7 +167,11 @@ func (b *Bot) previewSplit(ctx context.Context, chatID int64, text string, bill 
 	sb.WriteString(fmt.Sprintf("🤖 *Đề xuất chia bill*\n%s — %s\n%s\n\n",
 		escapeMarkdown(description), escapeMarkdown(formatVND(plan.Total)), source))
 	for _, s := range plan.Shares {
-		sb.WriteString(fmt.Sprintf("• %s: %s\n", escapeMarkdown(s.Name), escapeMarkdown(formatVND(s.Amount))))
+		label := s.Name
+		if s.Alias != "" {
+			label += " (" + s.Alias + ")"
+		}
+		sb.WriteString(fmt.Sprintf("• %s: %s\n", escapeMarkdown(label), escapeMarkdown(formatVND(s.Amount))))
 	}
 
 	msg := tgbotapi.NewMessage(chatID, sb.String())
@@ -274,8 +285,22 @@ func (b *Bot) confirmSplitDraft(chatID, draftID int64) {
 		return
 	}
 
+	b.saveAliases(d.plan)
 	b.SendMessage(chatID, fmt.Sprintf("✅ Đã chia bill cho giao dịch #%d (%d người)", txID, len(d.plan.Shares)))
 	b.handleBackToTransaction(chatID, txID)
+}
+
+// saveAliases remembers the bill names the user just confirmed. A failure is
+// logged, not reported: the split is already saved.
+func (b *Bot) saveAliases(plan billsplit.Plan) {
+	for _, s := range plan.Shares {
+		if s.Alias == "" {
+			continue
+		}
+		if err := b.BotInjector.AliasRepository.Save(billsplit.AliasKey(s.Alias), s.Alias, s.UserID); err != nil {
+			log.Printf("Error saving alias %q: %v", s.Alias, err)
+		}
+	}
 }
 
 func (b *Bot) downloadPhoto(ctx context.Context, fileID string) ([]byte, error) {

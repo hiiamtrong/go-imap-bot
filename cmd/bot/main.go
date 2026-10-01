@@ -70,6 +70,7 @@ func main() {
 	telegramUserRepo := repository.NewTelegramUserRepository(db)
 	transactionSplitRepo := repository.NewTransactionSplitRepository(db)
 	splitHashRepo := repository.NewSplitHashRepository(db)
+	aliasRepo := repository.NewAliasRepository(db)
 
 	botInjector := imapbot.NewBotInjector(
 		db,
@@ -80,6 +81,7 @@ func main() {
 		telegramUserRepo,
 		transactionSplitRepo,
 		splitHashRepo,
+		aliasRepo,
 		smtp,
 	)
 	bot := imapbot.InitBot(cfg, context.Background(), botInjector)

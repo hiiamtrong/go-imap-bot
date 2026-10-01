@@ -48,15 +48,16 @@ func main() {
 	userRepo := repository.NewUserRepository(db)
 	transactionSplitRepo := repository.NewTransactionSplitRepository(db)
 	splitHashRepo := repository.NewSplitHashRepository(db)
+	aliasRepo := repository.NewAliasRepository(db)
 
 	// Setup handlers
 	authHandler := handlers.NewAuthHandler(cfg)
 	transactionHandler := handlers.NewTransactionHandler(transactionRepo, tagRepo, transactionSplitRepo, userRepo)
 	userHandler := handlers.NewUserHandler(userRepo)
 	tagHandler := handlers.NewTagHandler(tagRepo)
-	splitHandler := handlers.NewSplitHandler(transactionSplitRepo, transactionRepo, userRepo, smtpService, splitHashRepo)
+	splitHandler := handlers.NewSplitHandler(transactionSplitRepo, transactionRepo, userRepo, aliasRepo, smtpService, splitHashRepo)
 	statsHandler := handlers.NewStatisticsHandler(db)
-	parseHandler := handlers.NewParseHandler(llm.New(cfg.LLM.BaseURL, cfg.LLM.APIKey, cfg.LLM.Model), userRepo, transactionRepo, cfg.LLM.SelfUserID)
+	parseHandler := handlers.NewParseHandler(llm.New(cfg.LLM.BaseURL, cfg.LLM.APIKey, cfg.LLM.Model), userRepo, aliasRepo, transactionRepo, cfg.LLM.SelfUserID)
 
 	// Setup Echo
 	e := echo.New()

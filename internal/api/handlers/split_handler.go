@@ -2,11 +2,14 @@ package handlers
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/hiiamtrong/go-imap-bot/internal/api/dto"
+	"github.com/hiiamtrong/go-imap-bot/internal/billsplit"
 	"github.com/hiiamtrong/go-imap-bot/internal/models"
 	"github.com/hiiamtrong/go-imap-bot/internal/repository"
 	"github.com/hiiamtrong/go-imap-bot/internal/smtp"
@@ -17,6 +20,7 @@ type SplitHandler struct {
 	splitRepo       *repository.TransactionSplitRepository
 	transactionRepo *repository.TransactionRepository
 	userRepo        *repository.UserRepository
+	aliasRepo       *repository.AliasRepository
 	smtpService     *smtp.SMTPService
 	splitHashRepo   *repository.SplitHashRepository
 }
@@ -25,6 +29,7 @@ func NewSplitHandler(
 	splitRepo *repository.TransactionSplitRepository,
 	transactionRepo *repository.TransactionRepository,
 	userRepo *repository.UserRepository,
+	aliasRepo *repository.AliasRepository,
 	smtpService *smtp.SMTPService,
 	splitHashRepo *repository.SplitHashRepository,
 ) *SplitHandler {
@@ -32,6 +37,7 @@ func NewSplitHandler(
 		splitRepo:       splitRepo,
 		transactionRepo: transactionRepo,
 		userRepo:        userRepo,
+		aliasRepo:       aliasRepo,
 		smtpService:     smtpService,
 		splitHashRepo:   splitHashRepo,
 	}
@@ -130,7 +136,27 @@ func (h *SplitHandler) CreateSplit(c echo.Context) error {
 		})
 	}
 
+	h.saveAliases(req)
+
 	return c.JSON(http.StatusCreated, dto.Response{Data: splits})
+}
+
+// saveAliases remembers the bill names the user just confirmed, but only for
+// people still in the split. A failure is logged, not returned: the split is saved.
+func (h *SplitHandler) saveAliases(req dto.CreateSplitRequest) {
+	inSplit := map[int64]bool{}
+	for _, u := range req.Users {
+		inSplit[u.UserID] = true
+	}
+	for _, a := range req.Aliases {
+		alias := strings.TrimSpace(a.Alias)
+		if !inSplit[a.UserID] {
+			continue
+		}
+		if err := h.aliasRepo.Save(billsplit.AliasKey(alias), alias, a.UserID); err != nil {
+			log.Printf("save alias %q: %v", alias, err)
+		}
+	}
 }
 
 // GetSplitsForTransaction godoc

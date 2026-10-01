@@ -15,6 +15,7 @@ type BotInjector struct {
 	TelegramUserRepository     *repository.TelegramUserRepository
 	TransactionSplitRepository *repository.TransactionSplitRepository
 	SplitHashRepository        *repository.SplitHashRepository
+	AliasRepository            *repository.AliasRepository
 	SMTP                       *smtp.SMTPService
 }
 
@@ -27,6 +28,7 @@ func NewBotInjector(
 	telegramUserRepository *repository.TelegramUserRepository,
 	transactionSplitRepository *repository.TransactionSplitRepository,
 	splitHashRepository *repository.SplitHashRepository,
+	aliasRepository *repository.AliasRepository,
 	smtp *smtp.SMTPService,
 ) *BotInjector {
 	return &BotInjector{
@@ -38,6 +40,7 @@ func NewBotInjector(
 		TelegramUserRepository:     telegramUserRepository,
 		TransactionSplitRepository: transactionSplitRepository,
 		SplitHashRepository:        splitHashRepository,
+		AliasRepository:            aliasRepository,
 		SMTP:                       smtp,
 	}
 }

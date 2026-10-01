@@ -82,6 +82,13 @@ type SplitResponse struct {
 type CreateSplitRequest struct {
 	TransactionID int64              `json:"transaction_id" validate:"required"`
 	Users         []SplitUserRequest `json:"users" validate:"required,dive"`
+	Aliases       []AliasRequest     `json:"aliases"`
+}
+
+// AliasRequest is a bill's own name for a person, saved when the split is confirmed.
+type AliasRequest struct {
+	Alias  string `json:"alias"`
+	UserID int64  `json:"user_id"`
 }
 
 type SplitUserRequest struct {
@@ -143,6 +150,7 @@ type ParsedShare struct {
 	UserID int64  `json:"user_id"`
 	Name   string `json:"name"`
 	Amount int64  `json:"amount"`
+	Alias  string `json:"alias,omitempty"`
 }
 
 type ParseBillResponse struct {

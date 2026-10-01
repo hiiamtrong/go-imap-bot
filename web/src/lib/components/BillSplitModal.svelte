@@ -283,9 +283,16 @@
 			reason: reasons[userId] || defaultReason,
 		}));
 
+		// Names the AI paired with a user are remembered once the split is confirmed,
+		// but only for people still in it.
+		const aliases = (aiProposal?.shares ?? [])
+			.filter((s) => s.alias && selectedUsers.has(s.user_id))
+			.map((s) => ({ alias: s.alias as string, user_id: s.user_id }));
+
 		const response = await api.createBillSplit({
 			transaction_id: transaction.id,
 			users: splits,
+			aliases,
 		});
 
 		if (response.error) {
@@ -395,13 +402,16 @@
 						<ul class="mt-1 text-gray-700">
 							{#each aiProposal.shares as share}
 								<li class="flex justify-between">
-									<span>{share.name}</span>
+									<span>
+										{share.name}
+										{#if share.alias}<span class="text-gray-500">({share.alias})</span>{/if}
+									</span>
 									<span>{formatCurrency(share.amount, currency)}</span>
 								</li>
 							{/each}
 						</ul>
 						<p class="text-xs text-gray-500 mt-2">
-							Review the amounts below, then press Create Split. Nothing is saved yet.
+							Review the amounts below, then press Create Split. Nothing is saved yet; names in brackets are remembered for next time once you confirm.
 						</p>
 					</div>
 				{/if}

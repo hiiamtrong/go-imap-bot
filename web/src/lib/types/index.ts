@@ -93,7 +93,7 @@ export interface ParseBillRequest {
 export interface ParsedBill {
 	description: string;
 	total: number;
-	shares: { user_id: number; name: string; amount: number }[];
+	shares: { user_id: number; name: string; amount: number; alias?: string }[];
 }
 
 export interface BillSplitRequest {
@@ -103,6 +103,7 @@ export interface BillSplitRequest {
 		amount: number;
 		reason?: string;
 	}[];
+	aliases?: { alias: string; user_id: number }[];
 }
 
 export interface ApiResponse<T> {

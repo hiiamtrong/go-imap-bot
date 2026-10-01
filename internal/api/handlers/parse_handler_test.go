@@ -7,10 +7,12 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/hiiamtrong/go-imap-bot/internal/api/dto"
+	"github.com/hiiamtrong/go-imap-bot/internal/billsplit"
 	"github.com/hiiamtrong/go-imap-bot/internal/config"
 	"github.com/hiiamtrong/go-imap-bot/internal/database"
 	"github.com/hiiamtrong/go-imap-bot/internal/llm"
@@ -26,11 +28,14 @@ var repoRoot = func() string {
 }()
 
 type parseEnv struct {
-	handler  *ParseHandler
-	txRepo   *repository.TransactionRepository
-	mailRepo *repository.MailRepository
-	llmBody  *string
-	llmCalls *int
+	handler   *ParseHandler
+	db        *database.Database
+	userRepo  *repository.UserRepository
+	aliasRepo *repository.AliasRepository
+	txRepo    *repository.TransactionRepository
+	mailRepo  *repository.MailRepository
+	llmBody   *string
+	llmCalls  *int
 }
 
 func newParseEnv(t *testing.T, llmReply string, llmStatus int) parseEnv {
@@ -57,10 +62,13 @@ func newParseEnv(t *testing.T, llmReply string, llmStatus int) parseEnv {
 	}
 
 	env := parseEnv{
-		txRepo:   repository.NewTransactionRepository(db),
-		mailRepo: repository.NewMailRepository(db),
-		llmBody:  new(string),
-		llmCalls: new(int),
+		db:        db,
+		userRepo:  userRepo,
+		aliasRepo: repository.NewAliasRepository(db),
+		txRepo:    repository.NewTransactionRepository(db),
+		mailRepo:  repository.NewMailRepository(db),
+		llmBody:   new(string),
+		llmCalls:  new(int),
 	}
 	llmSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		*env.llmCalls++
@@ -80,7 +88,7 @@ func newParseEnv(t *testing.T, llmReply string, llmStatus int) parseEnv {
 	}))
 	t.Cleanup(llmSrv.Close)
 
-	env.handler = NewParseHandler(llm.New(llmSrv.URL, "key", "m"), userRepo, env.txRepo, 1)
+	env.handler = NewParseHandler(llm.New(llmSrv.URL, "key", "m"), userRepo, env.aliasRepo, env.txRepo, 1)
 	return env
 }
 
@@ -227,5 +235,63 @@ func TestParseBillDisabledWithoutLLM(t *testing.T) {
 	}
 	if *env.llmCalls != 0 {
 		t.Error("model was called although the feature is disabled")
+	}
+}
+
+func userIDByName(t *testing.T, env parseEnv, name string) int64 {
+	t.Helper()
+	users, err := env.userRepo.GetAll()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, u := range users {
+		if u.Name == name {
+			return u.ID
+		}
+	}
+	t.Fatalf("no user %q", name)
+	return 0
+}
+
+func TestParseBillOffersAStatedPairForSaving(t *testing.T) {
+	reply := `{"description":"","total":100000,"people":[{"name":"son.ho","amount":0,"alias":"Ki"},{"name":"Hà","amount":0,"alias":""}]}`
+	env := newParseEnv(t, reply, http.StatusOK)
+
+	code, resp := call(t, env.handler, dto.ParseBillRequest{Text: "ki: son.ho, Hà"})
+	if code != http.StatusOK {
+		t.Fatalf("status = %d, error = %q", code, resp.Error)
+	}
+	aliases := map[string]string{}
+	for _, s := range parsed(t, resp).Shares {
+		aliases[s.Name] = s.Alias
+	}
+	if want := map[string]string{"son.ho": "Ki", "Thương Hà": ""}; !reflect.DeepEqual(aliases, want) {
+		t.Errorf("aliases = %v, want %v", aliases, want)
+	}
+	if saved, _ := env.aliasRepo.GetAll(); len(saved) != 0 {
+		t.Errorf("parsing alone must not save anything, saved %v", saved)
+	}
+}
+
+func TestParseBillUsesARememberedAlias(t *testing.T) {
+	reply := `{"description":"","total":100000,"people":[{"name":"Ki","amount":0,"alias":""},{"name":"Hà","amount":0,"alias":""}]}`
+	env := newParseEnv(t, reply, http.StatusOK)
+	if err := env.aliasRepo.Save(billsplit.AliasKey("Ki"), "Ki", userIDByName(t, env, "son.ho")); err != nil {
+		t.Fatal(err)
+	}
+
+	code, resp := call(t, env.handler, dto.ParseBillRequest{Text: "Ki, Hà"})
+	if code != http.StatusOK {
+		t.Fatalf("status = %d, error = %q", code, resp.Error)
+	}
+	names := map[string]bool{}
+	for _, s := range parsed(t, resp).Shares {
+		names[s.Name] = true
+		if s.Alias != "" {
+			t.Errorf("a remembered alias is not offered again: %+v", s)
+		}
+	}
+	if !names["son.ho"] || !names["Thương Hà"] {
+		t.Errorf("names = %v", names)
 	}
 }

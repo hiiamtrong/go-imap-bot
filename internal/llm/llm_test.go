@@ -46,12 +46,17 @@ func TestParseBill(t *testing.T) {
 		{
 			name:    "plain json",
 			content: `{"description":"Nước ép","total":252000,"people":[{"name":"Hà","amount":0},{"name":" Sơn ","amount":28000.4}]}`,
-			want:    Bill{Description: "Nước ép", Total: 252000, People: []Person{{"Hà", 0}, {"Sơn", 28000}}},
+			want:    Bill{Description: "Nước ép", Total: 252000, People: []Person{{Name: "Hà"}, {Name: "Sơn", Amount: 28000}}},
 		},
 		{
 			name:    "blank names are dropped",
 			content: `{"description":"x","total":5,"people":[{"name":"","amount":10},{"name":"  ","amount":10},{"name":"B","amount":1}]}`,
-			want:    Bill{Description: "x", Total: 5, People: []Person{{"B", 1}}},
+			want:    Bill{Description: "x", Total: 5, People: []Person{{Name: "B", Amount: 1}}},
+		},
+		{
+			name:    "alias is trimmed and optional",
+			content: `{"description":"","total":0,"people":[{"name":"son.ho","amount":0,"alias":" Ki "},{"name":"Hà","amount":0}]}`,
+			want:    Bill{People: []Person{{Name: "son.ho", Alias: "Ki"}, {Name: "Hà"}}},
 		},
 		{name: "prose instead of json", content: "xin lỗi", wantErr: true},
 		{name: "broken json", content: `{"total": }`, wantErr: true},
@@ -195,7 +200,7 @@ func TestParseBillEmptyAndNullShapes(t *testing.T) {
 	}
 
 	bill, err := parseBill(`{"people":[{"name":null,"amount":5},{"name":"A","amount":null}]}`)
-	if err != nil || len(bill.People) != 1 || bill.People[0] != (Person{"A", 0}) {
+	if err != nil || len(bill.People) != 1 || bill.People[0] != (Person{Name: "A"}) {
 		t.Errorf("null name/amount: bill = %+v, err = %v", bill, err)
 	}
 }

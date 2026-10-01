@@ -11,10 +11,13 @@ import (
 	"golang.org/x/text/unicode/norm"
 )
 
+// Alias is set only for a pair the user spelled out ("ki: son.ho"): the bill's
+// own name for the person, offered for saving once the split is confirmed.
 type Share struct {
 	UserID int64
 	Name   string
 	Amount int64
+	Alias  string
 }
 
 type Plan struct {
@@ -27,7 +30,11 @@ var (
 	selfWords  = strings.Fields("toi minh tao moi")
 )
 
-func Resolve(people []llm.Person, total int64, users []*models.User, selfID int64) (Plan, []string) {
+// AliasKey makes "Hồngg Ngọc" and "hongg ngoc" the same alias.
+func AliasKey(name string) string { return strings.Join(tokens(name), " ") }
+
+// aliases maps AliasKey to a user ID: names the user already told us once.
+func Resolve(people []llm.Person, total int64, users []*models.User, selfID int64, aliases map[string]int64) (Plan, []string) {
 	var problems []string
 	if len(people) == 0 {
 		return Plan{}, []string{"không thấy người nào tham gia"}
@@ -36,7 +43,11 @@ func Resolve(people []llm.Person, total int64, users []*models.User, selfID int6
 	shares := make([]Share, len(people))
 	seen := map[int64]bool{}
 	for i, p := range people {
-		u, problem := findUser(p.Name, users, selfID)
+		known := aliases
+		if p.Alias != "" {
+			known = nil // a pair stated now outranks a remembered one
+		}
+		u, problem := findUser(p.Name, users, selfID, known)
 		if problem != "" {
 			problems = append(problems, problem)
 			continue
@@ -46,7 +57,7 @@ func Resolve(people []llm.Person, total int64, users []*models.User, selfID int6
 			continue
 		}
 		seen[u.ID] = true
-		shares[i] = Share{UserID: u.ID, Name: u.Name, Amount: p.Amount}
+		shares[i] = Share{UserID: u.ID, Name: u.Name, Amount: p.Amount, Alias: p.Alias}
 	}
 	if len(problems) > 0 {
 		return Plan{}, problems
@@ -90,7 +101,7 @@ func Resolve(people []llm.Person, total int64, users []*models.User, selfID int6
 	return Plan{Total: total, Shares: shares}, nil
 }
 
-func ForBill(bill *llm.Bill, users []*models.User, selfID int64, target *models.Transaction) (Plan, string, []string) {
+func ForBill(bill *llm.Bill, users []*models.User, selfID int64, target *models.Transaction, aliases map[string]int64) (Plan, string, []string) {
 	total, description := bill.Total, bill.Description
 	if target != nil {
 		if total == 0 {
@@ -104,14 +115,14 @@ func ForBill(bill *llm.Bill, users []*models.User, selfID int64, target *models.
 		description = "Chia bill"
 	}
 
-	plan, problems := Resolve(bill.People, total, users, selfID)
+	plan, problems := Resolve(bill.People, total, users, selfID, aliases)
 	if target != nil && len(problems) == 0 && plan.Total != target.Amount {
 		problems = append(problems, fmt.Sprintf("tổng chia (%d) khác số tiền giao dịch #%d (%d)", plan.Total, target.ID, target.Amount))
 	}
 	return plan, description, problems
 }
 
-func findUser(name string, users []*models.User, selfID int64) (*models.User, string) {
+func findUser(name string, users []*models.User, selfID int64, aliases map[string]int64) (*models.User, string) {
 	q := tokens(name)
 	if len(q) == 0 {
 		return nil, fmt.Sprintf("%q không phải tên hợp lệ", name)
@@ -124,6 +135,11 @@ func findUser(name string, users []*models.User, selfID int64) (*models.User, st
 			}
 		}
 		return nil, fmt.Sprintf("%q: chưa biết bạn là ai, hãy ghi tên thay vì %q", name, name)
+	}
+
+	// An id whose user was deleted just falls through to matching by name.
+	if i := slices.IndexFunc(users, func(u *models.User) bool { return u.ID == aliases[AliasKey(name)] }); i >= 0 {
+		return users[i], ""
 	}
 
 	best := bestMatches(q, users, func(u *models.User) string { return u.Name })

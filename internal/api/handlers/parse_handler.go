@@ -23,6 +23,7 @@ const (
 type ParseHandler struct {
 	llm             *llm.Client
 	userRepo        *repository.UserRepository
+	aliasRepo       *repository.AliasRepository
 	transactionRepo *repository.TransactionRepository
 	selfUserID      int64
 }
@@ -30,10 +31,11 @@ type ParseHandler struct {
 func NewParseHandler(
 	llmClient *llm.Client,
 	userRepo *repository.UserRepository,
+	aliasRepo *repository.AliasRepository,
 	transactionRepo *repository.TransactionRepository,
 	selfUserID int64,
 ) *ParseHandler {
-	return &ParseHandler{llm: llmClient, userRepo: userRepo, transactionRepo: transactionRepo, selfUserID: selfUserID}
+	return &ParseHandler{llm: llmClient, userRepo: userRepo, aliasRepo: aliasRepo, transactionRepo: transactionRepo, selfUserID: selfUserID}
 }
 
 // ParseBill godoc
@@ -91,14 +93,19 @@ func (h *ParseHandler) ParseBill(c echo.Context) error {
 		return fail(http.StatusInternalServerError, "Failed to load users")
 	}
 
-	plan, description, problems := billsplit.ForBill(bill, users, h.selfUserID, target)
+	aliases, err := h.aliasRepo.GetAll()
+	if err != nil {
+		return fail(http.StatusInternalServerError, "Failed to load aliases")
+	}
+
+	plan, description, problems := billsplit.ForBill(bill, users, h.selfUserID, target, aliases)
 	if len(problems) > 0 {
 		return fail(http.StatusUnprocessableEntity, strings.Join(problems, "; "))
 	}
 
 	shares := make([]dto.ParsedShare, len(plan.Shares))
 	for i, s := range plan.Shares {
-		shares[i] = dto.ParsedShare{UserID: s.UserID, Name: s.Name, Amount: s.Amount}
+		shares[i] = dto.ParsedShare{UserID: s.UserID, Name: s.Name, Amount: s.Amount, Alias: s.Alias}
 	}
 	return c.JSON(http.StatusOK, dto.Response{Data: dto.ParseBillResponse{Description: description, Total: plan.Total, Shares: shares}})
 }

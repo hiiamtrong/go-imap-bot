@@ -18,7 +18,7 @@ const maxMoney = 1e12
 
 var imageTypes = []string{"image/jpeg", "image/png", "image/gif", "image/webp"}
 
-const billSchema = `{"type":"object","properties":{"description":{"type":"string"},"total":{"type":"number"},"people":{"type":"array","items":{"type":"object","properties":{"name":{"type":"string"},"amount":{"type":"number"}},"required":["name","amount"],"additionalProperties":false}}},"required":["description","total","people"],"additionalProperties":false}`
+const billSchema = `{"type":"object","properties":{"description":{"type":"string"},"total":{"type":"number"},"people":{"type":"array","items":{"type":"object","properties":{"name":{"type":"string"},"amount":{"type":"number"},"alias":{"type":"string"}},"required":["name","amount","alias"],"additionalProperties":false}}},"required":["description","total","people"],"additionalProperties":false}`
 
 const systemPrompt = `Bạn trích xuất thông tin chia bill từ tin nhắn tiếng Việt, ảnh (hóa đơn, ảnh chụp bảng hoặc đoạn chat) hoặc bảng CSV.
 Chỉ trả về một JSON object, không giải thích:
@@ -27,6 +27,7 @@ Quy tắc:
 - Tiền là VND, số nguyên: "50k"=50000, "1tr2"=1200000, "1.5tr"=1500000.
 - description: tên món hoặc quán nếu người dùng nêu rõ; chuỗi rỗng nếu không nêu, không tự đặt. total: tổng bill, 0 nếu không nêu.
 - people: mỗi người tham gia là một phần tử. name giữ nguyên cách viết, kể cả "tôi", "mình". amount là số tiền riêng của người đó, 0 nếu chia đều phần còn lại.
+- alias: chỉ điền khi tin nhắn cho biết một tên hoặc tài khoản khác cho chính người đó, ví dụ "ki: son.ho" hoặc danh sách tài khoản theo đúng thứ tự người trong ảnh. Khi đó name là tên hoặc tài khoản trong tin nhắn ("son.ho") và alias là tên của người đó đúng như in trên bill, ảnh, bảng hoặc đoạn chat ("Ki"). Không có thì alias là chuỗi rỗng; không tự đoán ghép người.
 - Với bảng: mỗi dòng là một người và số tiền của họ; total là dòng tổng nếu có.
 - Không thêm người không được nhắc tới, không tự tính lại tổng.`
 
@@ -58,6 +59,7 @@ type Input struct {
 type Person struct {
 	Name   string
 	Amount int64
+	Alias  string
 }
 
 type Bill struct {
@@ -72,6 +74,7 @@ type rawBill struct {
 	People      []struct {
 		Name   string  `json:"name"`
 		Amount float64 `json:"amount"`
+		Alias  string  `json:"alias"`
 	} `json:"people"`
 }
 
@@ -161,7 +164,7 @@ func parseBill(content string) (*Bill, error) {
 			return nil, fmt.Errorf("amount %v out of range", p.Amount)
 		}
 		if name := strings.TrimSpace(p.Name); name != "" {
-			bill.People = append(bill.People, Person{Name: name, Amount: int64(math.Round(p.Amount))})
+			bill.People = append(bill.People, Person{Name: name, Amount: int64(math.Round(p.Amount)), Alias: strings.TrimSpace(p.Alias)})
 		}
 	}
 	return bill, nil

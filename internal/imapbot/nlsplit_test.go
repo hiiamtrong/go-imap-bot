@@ -14,6 +14,7 @@ import (
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"github.com/hiiamtrong/go-imap-bot/internal/billsplit"
 	"github.com/hiiamtrong/go-imap-bot/internal/config"
 	"github.com/hiiamtrong/go-imap-bot/internal/database"
 	"github.com/hiiamtrong/go-imap-bot/internal/llm"
@@ -112,6 +113,7 @@ func newFixture(t *testing.T, llmBill string) fixture {
 		repository.NewTelegramUserRepository(db),
 		repository.NewTransactionSplitRepository(db),
 		repository.NewSplitHashRepository(db),
+		repository.NewAliasRepository(db),
 		nil,
 	)
 	f.bot = &Bot{
@@ -255,6 +257,33 @@ func TestNaturalLanguageSplitCreatesVirtualBill(t *testing.T) {
 	}
 	if n := len(f.splits(t, txID)); n != 2 {
 		t.Errorf("splits = %d, want 2", n)
+	}
+}
+
+func TestNaturalLanguageSplitRemembersAConfirmedAlias(t *testing.T) {
+	f := newFixture(t, `{"description":"Nước ép","total":100000,"people":[{"name":"son.ho","amount":0,"alias":"Ki"},{"name":"Hà","amount":0,"alias":""}]}`)
+	son := f.addUser(t, "son.ho")
+	f.addUser(t, "Thương Hà")
+	aliases := f.bot.BotInjector.AliasRepository
+
+	f.bot.handleNaturalLanguage(textMessage("chia 100k nước ép, ki: son.ho, Hà"))
+	preview := f.last(t)
+	if !strings.Contains(preview.text, "son.ho (Ki)") {
+		t.Fatalf("preview should show the pair it will remember:\n%s", preview.text)
+	}
+	if saved, _ := aliases.GetAll(); len(saved) != 0 {
+		t.Fatalf("alias saved before confirmation: %v", saved)
+	}
+
+	f.bot.confirmSplitDraft(testChatID, draftIDFrom(t, preview.markup))
+	if saved, _ := aliases.GetAll(); len(saved) != 1 || saved[billsplit.AliasKey("Ki")] != son {
+		t.Fatalf("saved = %v, want Ki -> %d", saved, son)
+	}
+
+	*f.llmBill = `{"description":"Trà","total":60000,"people":[{"name":"Ki","amount":0,"alias":""},{"name":"Hà","amount":0,"alias":""}]}`
+	f.bot.handleNaturalLanguage(textMessage("chia 60k trà cho Ki, Hà"))
+	if next := f.last(t); !strings.Contains(next.text, "son.ho") || strings.Contains(next.text, "không tìm thấy") {
+		t.Errorf("a remembered Ki should resolve to son.ho:\n%s", next.text)
 	}
 }
 

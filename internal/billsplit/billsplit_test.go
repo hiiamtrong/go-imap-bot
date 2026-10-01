@@ -70,7 +70,7 @@ func TestResolveNames(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			plan, problems := Resolve(people(tt.person, 10000), 10000, users, 4)
+			plan, problems := Resolve(people(tt.person, 10000), 10000, users, 4, nil)
 			if tt.wantProb != "" {
 				if len(problems) != 1 || !strings.Contains(problems[0], tt.wantProb) {
 					t.Fatalf("problems = %v, want one containing %q", problems, tt.wantProb)
@@ -88,7 +88,7 @@ func TestResolveNames(t *testing.T) {
 }
 
 func TestResolveSelfWithoutSelfID(t *testing.T) {
-	_, problems := Resolve(people("mình", 0), 1000, users, 0)
+	_, problems := Resolve(people("mình", 0), 1000, users, 0, nil)
 	if len(problems) != 1 || !strings.Contains(problems[0], "chưa biết bạn là ai") {
 		t.Fatalf("problems = %v", problems)
 	}
@@ -96,7 +96,7 @@ func TestResolveSelfWithoutSelfID(t *testing.T) {
 
 func TestResolveAmounts(t *testing.T) {
 	t.Run("equal split gives remainder to first", func(t *testing.T) {
-		plan, problems := Resolve(people("Trọng", 0, "Hà", 0, "Sơn", 0), 100000, users, 4)
+		plan, problems := Resolve(people("Trọng", 0, "Hà", 0, "Sơn", 0), 100000, users, 4, nil)
 		if len(problems) != 0 {
 			t.Fatal(problems)
 		}
@@ -107,7 +107,7 @@ func TestResolveAmounts(t *testing.T) {
 	})
 
 	t.Run("fixed amounts and equal remainder", func(t *testing.T) {
-		plan, problems := Resolve(people("Trọng", 60000, "Hà", 0, "Sơn", 0), 160000, users, 4)
+		plan, problems := Resolve(people("Trọng", 60000, "Hà", 0, "Sơn", 0), 160000, users, 4, nil)
 		if len(problems) != 0 {
 			t.Fatal(problems)
 		}
@@ -118,7 +118,7 @@ func TestResolveAmounts(t *testing.T) {
 	})
 
 	t.Run("all fixed without total takes their sum", func(t *testing.T) {
-		plan, problems := Resolve(people("Hà", 40000, "Sơn", 50000), 0, users, 4)
+		plan, problems := Resolve(people("Hà", 40000, "Sơn", 50000), 0, users, 4, nil)
 		if len(problems) != 0 || plan.Total != 90000 {
 			t.Fatalf("total = %d, problems = %v", plan.Total, problems)
 		}
@@ -140,7 +140,7 @@ func TestResolveAmounts(t *testing.T) {
 	}
 	for _, tt := range problemCases {
 		t.Run(tt.name, func(t *testing.T) {
-			_, problems := Resolve(tt.people, tt.total, users, 4)
+			_, problems := Resolve(tt.people, tt.total, users, 4, nil)
 			if len(problems) != 1 || !strings.Contains(problems[0], tt.want) {
 				t.Fatalf("problems = %v, want one containing %q", problems, tt.want)
 			}
@@ -221,28 +221,28 @@ func TestForBill(t *testing.T) {
 	}
 
 	t.Run("total and description default from the target transaction", func(t *testing.T) {
-		plan, desc, problems := ForBill(&llm.Bill{People: equal("Hà", "Sơn")}, users, 4, tx)
+		plan, desc, problems := ForBill(&llm.Bill{People: equal("Hà", "Sơn")}, users, 4, tx, nil)
 		if len(problems) != 0 || plan.Total != 100000 || desc != "VU XUAN TRONG chuyen tien" {
 			t.Fatalf("plan = %+v, desc = %q, problems = %v", plan, desc, problems)
 		}
 	})
 
 	t.Run("stated values win over the target", func(t *testing.T) {
-		_, desc, problems := ForBill(&llm.Bill{Description: "Cơm", Total: 100000, People: equal("Hà")}, users, 4, tx)
+		_, desc, problems := ForBill(&llm.Bill{Description: "Cơm", Total: 100000, People: equal("Hà")}, users, 4, tx, nil)
 		if len(problems) != 0 || desc != "Cơm" {
 			t.Fatalf("desc = %q, problems = %v", desc, problems)
 		}
 	})
 
 	t.Run("stated total that differs from the target is rejected", func(t *testing.T) {
-		_, _, problems := ForBill(&llm.Bill{Total: 90000, People: equal("Hà")}, users, 4, tx)
+		_, _, problems := ForBill(&llm.Bill{Total: 90000, People: equal("Hà")}, users, 4, tx, nil)
 		if len(problems) != 1 || !strings.Contains(problems[0], "khác số tiền giao dịch #7") {
 			t.Fatalf("problems = %v", problems)
 		}
 	})
 
 	t.Run("without a target a generic description is used", func(t *testing.T) {
-		_, desc, problems := ForBill(&llm.Bill{Total: 50000, People: equal("Hà")}, users, 4, nil)
+		_, desc, problems := ForBill(&llm.Bill{Total: 50000, People: equal("Hà")}, users, 4, nil, nil)
 		if len(problems) != 0 || desc != "Chia bill" {
 			t.Fatalf("desc = %q, problems = %v", desc, problems)
 		}
@@ -250,7 +250,7 @@ func TestForBill(t *testing.T) {
 }
 
 func TestResolveSheetWithEmailStyleNames(t *testing.T) {
-	plan, problems := Resolve(people("trong.vu", 4500, "hanh.le", 4500), 9000, users, 4)
+	plan, problems := Resolve(people("trong.vu", 4500, "hanh.le", 4500), 9000, users, 4, nil)
 	if len(problems) != 0 {
 		t.Fatalf("problems = %v", problems)
 	}
@@ -258,4 +258,67 @@ func TestResolveSheetWithEmailStyleNames(t *testing.T) {
 	if len(got) != 2 || got[4] != 4500 || got[10] != 4500 || plan.Total != 9000 {
 		t.Errorf("plan = %+v", plan)
 	}
+}
+
+func TestAliasKey(t *testing.T) {
+	for in, want := range map[string]string{
+		"Hồngg Ngọc": "hongg ngoc",
+		"  KI ":      "ki",
+		"Anh Tùng":   "tung",
+		"":           "",
+	} {
+		if got := AliasKey(in); got != want {
+			t.Errorf("AliasKey(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestResolveAliases(t *testing.T) {
+	aliases := map[string]int64{"ki": 68, "ghost": 999}
+
+	t.Run("a remembered display name resolves without any hint", func(t *testing.T) {
+		plan, problems := Resolve(people("Ki", 0), 10000, users, 4, aliases)
+		if len(problems) > 0 || plan.Shares[0].UserID != 68 {
+			t.Fatalf("plan = %+v, problems = %v", plan, problems)
+		}
+		if plan.Shares[0].Alias != "" {
+			t.Errorf("a remembered alias must not be offered for saving again, got %q", plan.Shares[0].Alias)
+		}
+	})
+
+	t.Run("a remembered display name beats a fuzzy match", func(t *testing.T) {
+		plan, problems := Resolve(people("Hà", 0), 10000, users, 4, map[string]int64{"ha": 16})
+		if len(problems) > 0 || plan.Shares[0].UserID != 16 {
+			t.Fatalf("plan = %+v, problems = %v", plan, problems)
+		}
+	})
+
+	t.Run("an explicit pair beats a remembered one and is offered for saving", func(t *testing.T) {
+		in := []llm.Person{{Name: "trong.vu", Alias: "Ki"}}
+		plan, problems := Resolve(in, 10000, users, 4, aliases)
+		if len(problems) > 0 || plan.Shares[0].UserID != 4 {
+			t.Fatalf("plan = %+v, problems = %v", plan, problems)
+		}
+		if plan.Shares[0].Alias != "Ki" {
+			t.Errorf("Alias = %q, want %q", plan.Shares[0].Alias, "Ki")
+		}
+	})
+
+	t.Run("an alias pointing at a deleted user falls back to matching the name", func(t *testing.T) {
+		plan, problems := Resolve(people("ghost", 0), 10000, users, 4, aliases)
+		if len(problems) == 0 {
+			t.Fatalf("want a not-found problem, got plan %+v", plan)
+		}
+		plan, problems = Resolve(people("Trọng", 0), 10000, users, 4, map[string]int64{"trong": 999})
+		if len(problems) > 0 || plan.Shares[0].UserID != 4 {
+			t.Fatalf("plan = %+v, problems = %v", plan, problems)
+		}
+	})
+
+	t.Run("an unresolved person never yields an alias", func(t *testing.T) {
+		in := []llm.Person{{Name: "nobody", Alias: "Ki"}}
+		if _, problems := Resolve(in, 10000, users, 4, aliases); len(problems) == 0 {
+			t.Fatal("want a problem")
+		}
+	})
 }
