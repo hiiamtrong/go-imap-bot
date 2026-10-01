@@ -253,8 +253,9 @@ func userIDByName(t *testing.T, env parseEnv, name string) int64 {
 	return 0
 }
 
-func TestParseBillOffersAStatedPairForSaving(t *testing.T) {
-	reply := `{"description":"","total":100000,"people":[{"name":"son.ho","amount":0,"alias":"Ki"},{"name":"Hà","amount":0,"alias":""}]}`
+func TestParseBillOffersTheModelsMatchForSaving(t *testing.T) {
+	// son.ho is the third user newParseEnv creates.
+	reply := `{"description":"","total":100000,"people":[{"name":"Ki","amount":0,"user_id":3},{"name":"Hà","amount":0,"user_id":0}]}`
 	env := newParseEnv(t, reply, http.StatusOK)
 
 	code, resp := call(t, env.handler, dto.ParseBillRequest{Text: "ki: son.ho, Hà"})
@@ -265,16 +266,22 @@ func TestParseBillOffersAStatedPairForSaving(t *testing.T) {
 	for _, s := range parsed(t, resp).Shares {
 		aliases[s.Name] = s.Alias
 	}
+	// Hà was matched by token matching, not by the model, so nothing is offered.
 	if want := map[string]string{"son.ho": "Ki", "Thương Hà": ""}; !reflect.DeepEqual(aliases, want) {
 		t.Errorf("aliases = %v, want %v", aliases, want)
 	}
 	if saved, _ := env.aliasRepo.GetAll(); len(saved) != 0 {
 		t.Errorf("parsing alone must not save anything, saved %v", saved)
 	}
+	for _, want := range []string{"Người dùng đã biết", "3 | son.ho | sonho", "2 | Thương Hà | thươnghà"} {
+		if !strings.Contains(*env.llmBody, want) {
+			t.Errorf("the model was not given %q: %s", want, *env.llmBody)
+		}
+	}
 }
 
 func TestParseBillUsesARememberedAlias(t *testing.T) {
-	reply := `{"description":"","total":100000,"people":[{"name":"Ki","amount":0,"alias":""},{"name":"Hà","amount":0,"alias":""}]}`
+	reply := `{"description":"","total":100000,"people":[{"name":"Ki","amount":0,"user_id":0},{"name":"Hà","amount":0,"user_id":0}]}`
 	env := newParseEnv(t, reply, http.StatusOK)
 	if err := env.aliasRepo.Save(billsplit.AliasKey("Ki"), "Ki", userIDByName(t, env, "son.ho")); err != nil {
 		t.Fatal(err)
@@ -293,5 +300,8 @@ func TestParseBillUsesARememberedAlias(t *testing.T) {
 	}
 	if !names["son.ho"] || !names["Thương Hà"] {
 		t.Errorf("names = %v", names)
+	}
+	if !strings.Contains(*env.llmBody, "ki = 3") {
+		t.Errorf("the model was not told the remembered name: %s", *env.llmBody)
 	}
 }

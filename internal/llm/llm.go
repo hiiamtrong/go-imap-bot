@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"math"
 	"net/http"
 	"slices"
@@ -18,7 +19,7 @@ const maxMoney = 1e12
 
 var imageTypes = []string{"image/jpeg", "image/png", "image/gif", "image/webp"}
 
-const billSchema = `{"type":"object","properties":{"description":{"type":"string"},"total":{"type":"number"},"people":{"type":"array","items":{"type":"object","properties":{"name":{"type":"string"},"amount":{"type":"number"},"alias":{"type":"string"}},"required":["name","amount","alias"],"additionalProperties":false}}},"required":["description","total","people"],"additionalProperties":false}`
+const billSchema = `{"type":"object","properties":{"description":{"type":"string"},"total":{"type":"number"},"people":{"type":"array","items":{"type":"object","properties":{"name":{"type":"string"},"amount":{"type":"number"},"user_id":{"type":"integer"}},"required":["name","amount","user_id"],"additionalProperties":false}}},"required":["description","total","people"],"additionalProperties":false}`
 
 const systemPrompt = `Bạn trích xuất thông tin chia bill từ tin nhắn tiếng Việt, ảnh (hóa đơn, ảnh chụp bảng hoặc đoạn chat) hoặc bảng CSV.
 Chỉ trả về một JSON object, không giải thích:
@@ -26,8 +27,8 @@ Chỉ trả về một JSON object, không giải thích:
 Quy tắc:
 - Tiền là VND, số nguyên: "50k"=50000, "1tr2"=1200000, "1.5tr"=1500000.
 - description: tên món hoặc quán nếu người dùng nêu rõ; chuỗi rỗng nếu không nêu, không tự đặt. total: tổng bill, 0 nếu không nêu.
-- people: mỗi người tham gia là một phần tử. name giữ nguyên cách viết, kể cả "tôi", "mình". amount là số tiền riêng của người đó, 0 nếu chia đều phần còn lại.
-- alias: chỉ điền khi tin nhắn cho biết một tên hoặc tài khoản khác cho chính người đó, ví dụ "ki: son.ho" hoặc danh sách tài khoản theo đúng thứ tự người trong ảnh. Khi đó name là tên hoặc tài khoản trong tin nhắn ("son.ho") và alias là tên của người đó đúng như in trên bill, ảnh, bảng hoặc đoạn chat ("Ki"). Không có thì alias là chuỗi rỗng; không tự đoán ghép người.
+- people: mỗi người tham gia là một phần tử. name là tên của người đó đúng như in trên bill, ảnh, bảng hoặc đoạn chat, nếu không có bill thì đúng như người dùng viết, kể cả "tôi", "mình". amount là số tiền riêng của người đó, 0 nếu chia đều phần còn lại.
+- user_id: id của người dùng đã biết khớp với người đó (danh sách người dùng và tên đã nhớ nằm cuối tin nhắn). Khớp theo tên trên bill, ảnh, bảng, chat và theo tên hoặc tài khoản trong tin nhắn, chấp nhận khác dấu, sai chính tả, viết tắt (ví dụ ảnh ghi "Hồngg Ngọc" mà tin nhắn ghi "Hồng Ngọc: ngoc.vu" thì là ngoc.vu). Tên đã nhớ là mặc định, trừ khi tin nhắn nói rõ khác. Trả 0 nếu không chắc chắn hoặc có nhiều người có thể khớp; không đoán.
 - Với bảng: mỗi dòng là một người và số tiền của họ; total là dòng tổng nếu có.
 - Không thêm người không được nhắc tới, không tự tính lại tổng.`
 
@@ -50,16 +51,48 @@ func New(baseURL, apiKey, model string) *Client {
 	}
 }
 
+// KnownUser is a user the model may match a person on the bill to. Account is
+// the email without its domain, which is all the model needs.
+type KnownUser struct {
+	ID      int64
+	Name    string
+	Account string
+}
+
 type Input struct {
 	Text   string
 	Sheet  string
 	Images [][]byte
+	Users  []KnownUser
+	// Aliases maps a remembered bill name (billsplit.AliasKey) to a user ID.
+	Aliases map[string]int64
+}
+
+func (in Input) message() string {
+	var b strings.Builder
+	b.WriteString(in.Text)
+	if in.Sheet != "" {
+		b.WriteString("\n\nBảng CSV:\n" + in.Sheet)
+	}
+	if len(in.Users) > 0 {
+		b.WriteString("\n\nNgười dùng đã biết (id | tên | tài khoản):\n")
+		for _, u := range in.Users {
+			fmt.Fprintf(&b, "%d | %s | %s\n", u.ID, u.Name, u.Account)
+		}
+	}
+	if len(in.Aliases) > 0 {
+		b.WriteString("\nTên đã nhớ (tên trên bill = id):\n")
+		for _, key := range slices.Sorted(maps.Keys(in.Aliases)) {
+			fmt.Fprintf(&b, "%s = %d\n", key, in.Aliases[key])
+		}
+	}
+	return b.String()
 }
 
 type Person struct {
 	Name   string
 	Amount int64
-	Alias  string
+	UserID int64 // the known user the model matched, 0 when it was not sure
 }
 
 type Bill struct {
@@ -74,16 +107,12 @@ type rawBill struct {
 	People      []struct {
 		Name   string  `json:"name"`
 		Amount float64 `json:"amount"`
-		Alias  string  `json:"alias"`
+		UserID float64 `json:"user_id"`
 	} `json:"people"`
 }
 
 func (c *Client) ParseBill(ctx context.Context, in Input) (*Bill, error) {
-	text := in.Text
-	if in.Sheet != "" {
-		text += "\n\nBảng CSV:\n" + in.Sheet
-	}
-	parts := []map[string]any{{"type": "text", "text": text}}
+	parts := []map[string]any{{"type": "text", "text": in.message()}}
 	for _, img := range in.Images {
 		mime := http.DetectContentType(img)
 		if !slices.Contains(imageTypes, mime) {
@@ -164,7 +193,7 @@ func parseBill(content string) (*Bill, error) {
 			return nil, fmt.Errorf("amount %v out of range", p.Amount)
 		}
 		if name := strings.TrimSpace(p.Name); name != "" {
-			bill.People = append(bill.People, Person{Name: name, Amount: int64(math.Round(p.Amount)), Alias: strings.TrimSpace(p.Alias)})
+			bill.People = append(bill.People, Person{Name: name, Amount: int64(math.Round(p.Amount)), UserID: int64(p.UserID)})
 		}
 	}
 	return bill, nil

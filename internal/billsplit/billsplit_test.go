@@ -274,51 +274,79 @@ func TestAliasKey(t *testing.T) {
 }
 
 func TestResolveAliases(t *testing.T) {
-	aliases := map[string]int64{"ki": 68, "ghost": 999}
-
-	t.Run("a remembered display name resolves without any hint", func(t *testing.T) {
-		plan, problems := Resolve(people("Ki", 0), 10000, users, 4, aliases)
-		if len(problems) > 0 || plan.Shares[0].UserID != 68 {
-			t.Fatalf("plan = %+v, problems = %v", plan, problems)
+	// The fixture users: 4 Trọng, 68 son.ho, 16 tam.hoang, 65 Thương Hà.
+	one := func(p llm.Person, aliases map[string]int64) (Share, []string) {
+		plan, problems := Resolve([]llm.Person{p}, 10000, users, 4, aliases)
+		if len(problems) > 0 {
+			return Share{}, problems
 		}
-		if plan.Shares[0].Alias != "" {
-			t.Errorf("a remembered alias must not be offered for saving again, got %q", plan.Shares[0].Alias)
+		return plan.Shares[0], nil
+	}
+
+	t.Run("the model's match is used and its bill name is offered for saving", func(t *testing.T) {
+		s, problems := one(llm.Person{Name: "Hồngg Ngọc", UserID: 4}, nil)
+		if len(problems) > 0 || s.UserID != 4 || s.Alias != "Hồngg Ngọc" {
+			t.Fatalf("share = %+v, problems = %v", s, problems)
 		}
 	})
 
-	t.Run("a remembered display name beats a fuzzy match", func(t *testing.T) {
-		plan, problems := Resolve(people("Hà", 0), 10000, users, 4, map[string]int64{"ha": 16})
-		if len(problems) > 0 || plan.Shares[0].UserID != 16 {
-			t.Fatalf("plan = %+v, problems = %v", plan, problems)
+	t.Run("a bill name that already identifies the user needs no alias", func(t *testing.T) {
+		for _, name := range []string{"trong.vu", "Trọng", "trong.vu@sotatek.com"} {
+			if s, problems := one(llm.Person{Name: name, UserID: 4}, nil); len(problems) > 0 || s.Alias != "" {
+				t.Errorf("%q: share = %+v, problems = %v", name, s, problems)
+			}
 		}
 	})
 
-	t.Run("an explicit pair beats a remembered one and is offered for saving", func(t *testing.T) {
-		in := []llm.Person{{Name: "trong.vu", Alias: "Ki"}}
-		plan, problems := Resolve(in, 10000, users, 4, aliases)
-		if len(problems) > 0 || plan.Shares[0].UserID != 4 {
-			t.Fatalf("plan = %+v, problems = %v", plan, problems)
-		}
-		if plan.Shares[0].Alias != "Ki" {
-			t.Errorf("Alias = %q, want %q", plan.Shares[0].Alias, "Ki")
+	t.Run("the model's match beats a remembered name, so a correction sticks", func(t *testing.T) {
+		s, problems := one(llm.Person{Name: "Ki", UserID: 4}, map[string]int64{"ki": 68})
+		if len(problems) > 0 || s.UserID != 4 || s.Alias != "Ki" {
+			t.Fatalf("share = %+v, problems = %v", s, problems)
 		}
 	})
 
-	t.Run("an alias pointing at a deleted user falls back to matching the name", func(t *testing.T) {
-		plan, problems := Resolve(people("ghost", 0), 10000, users, 4, aliases)
-		if len(problems) == 0 {
-			t.Fatalf("want a not-found problem, got plan %+v", plan)
-		}
-		plan, problems = Resolve(people("Trọng", 0), 10000, users, 4, map[string]int64{"trong": 999})
-		if len(problems) > 0 || plan.Shares[0].UserID != 4 {
-			t.Fatalf("plan = %+v, problems = %v", plan, problems)
+	t.Run("a remembered name resolves when the model is unsure, and is not offered again", func(t *testing.T) {
+		s, problems := one(llm.Person{Name: "Ki"}, map[string]int64{"ki": 68})
+		if len(problems) > 0 || s.UserID != 68 || s.Alias != "" {
+			t.Fatalf("share = %+v, problems = %v", s, problems)
 		}
 	})
 
-	t.Run("an unresolved person never yields an alias", func(t *testing.T) {
-		in := []llm.Person{{Name: "nobody", Alias: "Ki"}}
-		if _, problems := Resolve(in, 10000, users, 4, aliases); len(problems) == 0 {
-			t.Fatal("want a problem")
+	t.Run("a remembered name beats a fuzzy match", func(t *testing.T) {
+		s, problems := one(llm.Person{Name: "Hà"}, map[string]int64{"ha": 16})
+		if len(problems) > 0 || s.UserID != 16 {
+			t.Fatalf("share = %+v, problems = %v", s, problems)
+		}
+	})
+
+	t.Run("an id the model invented falls back to matching the name", func(t *testing.T) {
+		s, problems := one(llm.Person{Name: "Trọng", UserID: 999}, nil)
+		if len(problems) > 0 || s.UserID != 4 || s.Alias != "" {
+			t.Fatalf("share = %+v, problems = %v", s, problems)
+		}
+		if _, problems := one(llm.Person{Name: "nobody", UserID: 999}, nil); len(problems) == 0 {
+			t.Fatal("want a not-found problem")
+		}
+	})
+
+	t.Run("a remembered name pointing at a deleted user falls back too", func(t *testing.T) {
+		s, problems := one(llm.Person{Name: "Trọng"}, map[string]int64{"trong": 999})
+		if len(problems) > 0 || s.UserID != 4 {
+			t.Fatalf("share = %+v, problems = %v", s, problems)
+		}
+	})
+
+	t.Run("a first person word is never offered as an alias", func(t *testing.T) {
+		s, problems := one(llm.Person{Name: "tôi", UserID: 4}, nil)
+		if len(problems) > 0 || s.UserID != 4 || s.Alias != "" {
+			t.Fatalf("share = %+v, problems = %v", s, problems)
+		}
+	})
+
+	t.Run("a name guessed by token matching is never offered as an alias", func(t *testing.T) {
+		s, problems := one(llm.Person{Name: "Hà"}, nil)
+		if len(problems) > 0 || s.UserID != 65 || s.Alias != "" {
+			t.Fatalf("share = %+v, problems = %v", s, problems)
 		}
 	})
 }

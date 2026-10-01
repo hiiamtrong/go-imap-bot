@@ -82,12 +82,6 @@ func (h *ParseHandler) ParseBill(c echo.Context) error {
 		}
 	}
 
-	bill, err := h.llm.ParseBill(c.Request().Context(), in)
-	if err != nil {
-		log.Printf("parse bill: %v", err)
-		return fail(http.StatusBadGateway, "Could not analyze the content, please try again")
-	}
-
 	users, err := h.userRepo.GetAll()
 	if err != nil {
 		return fail(http.StatusInternalServerError, "Failed to load users")
@@ -96,6 +90,13 @@ func (h *ParseHandler) ParseBill(c echo.Context) error {
 	aliases, err := h.aliasRepo.GetAll()
 	if err != nil {
 		return fail(http.StatusInternalServerError, "Failed to load aliases")
+	}
+
+	in.Users, in.Aliases = billsplit.KnownUsers(users), aliases
+	bill, err := h.llm.ParseBill(c.Request().Context(), in)
+	if err != nil {
+		log.Printf("parse bill: %v", err)
+		return fail(http.StatusBadGateway, "Could not analyze the content, please try again")
 	}
 
 	plan, description, problems := billsplit.ForBill(bill, users, h.selfUserID, target, aliases)

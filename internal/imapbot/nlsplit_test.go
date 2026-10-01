@@ -261,11 +261,12 @@ func TestNaturalLanguageSplitCreatesVirtualBill(t *testing.T) {
 }
 
 func TestNaturalLanguageSplitRemembersAConfirmedAlias(t *testing.T) {
-	f := newFixture(t, `{"description":"Nước ép","total":100000,"people":[{"name":"son.ho","amount":0,"alias":"Ki"},{"name":"Hà","amount":0,"alias":""}]}`)
+	f := newFixture(t, "{}")
 	son := f.addUser(t, "son.ho")
 	f.addUser(t, "Thương Hà")
 	aliases := f.bot.BotInjector.AliasRepository
 
+	*f.llmBill = fmt.Sprintf(`{"description":"Nước ép","total":100000,"people":[{"name":"Ki","amount":0,"user_id":%d},{"name":"Hà","amount":0,"user_id":0}]}`, son)
 	f.bot.handleNaturalLanguage(textMessage("chia 100k nước ép, ki: son.ho, Hà"))
 	preview := f.last(t)
 	if !strings.Contains(preview.text, "son.ho (Ki)") {
@@ -280,7 +281,7 @@ func TestNaturalLanguageSplitRemembersAConfirmedAlias(t *testing.T) {
 		t.Fatalf("saved = %v, want Ki -> %d", saved, son)
 	}
 
-	*f.llmBill = `{"description":"Trà","total":60000,"people":[{"name":"Ki","amount":0,"alias":""},{"name":"Hà","amount":0,"alias":""}]}`
+	*f.llmBill = `{"description":"Trà","total":60000,"people":[{"name":"Ki","amount":0,"user_id":0},{"name":"Hà","amount":0,"user_id":0}]}`
 	f.bot.handleNaturalLanguage(textMessage("chia 60k trà cho Ki, Hà"))
 	if next := f.last(t); !strings.Contains(next.text, "son.ho") || strings.Contains(next.text, "không tìm thấy") {
 		t.Errorf("a remembered Ki should resolve to son.ho:\n%s", next.text)

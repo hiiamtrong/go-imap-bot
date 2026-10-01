@@ -11,8 +11,9 @@ import (
 	"golang.org/x/text/unicode/norm"
 )
 
-// Alias is set only for a pair the user spelled out ("ki: son.ho"): the bill's
-// own name for the person, offered for saving once the split is confirmed.
+// Alias is the bill's own name for the person when the model matched it to this
+// user and the name would not find them by itself: offered for saving once the
+// split is confirmed.
 type Share struct {
 	UserID int64
 	Name   string
@@ -30,6 +31,17 @@ var (
 	selfWords  = strings.Fields("toi minh tao moi")
 )
 
+// KnownUsers is what the model needs to match a bill's names to users. Only the
+// part of the email before "@" is sent.
+func KnownUsers(users []*models.User) []llm.KnownUser {
+	known := make([]llm.KnownUser, len(users))
+	for i, u := range users {
+		account, _, _ := strings.Cut(u.Email, "@")
+		known[i] = llm.KnownUser{ID: u.ID, Name: u.Name, Account: account}
+	}
+	return known
+}
+
 // AliasKey makes "Hồngg Ngọc" and "hongg ngoc" the same alias.
 func AliasKey(name string) string { return strings.Join(tokens(name), " ") }
 
@@ -43,11 +55,7 @@ func Resolve(people []llm.Person, total int64, users []*models.User, selfID int6
 	shares := make([]Share, len(people))
 	seen := map[int64]bool{}
 	for i, p := range people {
-		known := aliases
-		if p.Alias != "" {
-			known = nil // a pair stated now outranks a remembered one
-		}
-		u, problem := findUser(p.Name, users, selfID, known)
+		u, problem := findUser(p, users, selfID, aliases)
 		if problem != "" {
 			problems = append(problems, problem)
 			continue
@@ -57,7 +65,10 @@ func Resolve(people []llm.Person, total int64, users []*models.User, selfID int6
 			continue
 		}
 		seen[u.ID] = true
-		shares[i] = Share{UserID: u.ID, Name: u.Name, Amount: p.Amount, Alias: p.Alias}
+		shares[i] = Share{UserID: u.ID, Name: u.Name, Amount: p.Amount}
+		if u.ID == p.UserID && !isSelfWord(p.Name) {
+			shares[i].Alias = aliasFor(p.Name, u, aliases)
+		}
 	}
 	if len(problems) > 0 {
 		return Plan{}, problems
@@ -122,24 +133,28 @@ func ForBill(bill *llm.Bill, users []*models.User, selfID int64, target *models.
 	return plan, description, problems
 }
 
-func findUser(name string, users []*models.User, selfID int64, aliases map[string]int64) (*models.User, string) {
+func findUser(p llm.Person, users []*models.User, selfID int64, aliases map[string]int64) (*models.User, string) {
+	name := p.Name
 	q := tokens(name)
 	if len(q) == 0 {
 		return nil, fmt.Sprintf("%q không phải tên hợp lệ", name)
 	}
 
-	if len(q) == 1 && slices.Contains(selfWords, q[0]) {
-		for _, u := range users {
-			if u.ID == selfID {
-				return u, ""
-			}
+	if isSelfWord(name) {
+		if u := userByID(users, selfID); u != nil {
+			return u, ""
 		}
 		return nil, fmt.Sprintf("%q: chưa biết bạn là ai, hãy ghi tên thay vì %q", name, name)
 	}
 
-	// An id whose user was deleted just falls through to matching by name.
-	if i := slices.IndexFunc(users, func(u *models.User) bool { return u.ID == aliases[AliasKey(name)] }); i >= 0 {
-		return users[i], ""
+	// The model matched the name against the known users itself, so its answer
+	// comes first. An id it invented, or one whose user was deleted, and a
+	// remembered name pointing at a deleted user all fall through.
+	if u := userByID(users, p.UserID); u != nil {
+		return u, ""
+	}
+	if u := userByID(users, aliases[AliasKey(name)]); u != nil {
+		return u, ""
 	}
 
 	best := bestMatches(q, users, func(u *models.User) string { return u.Name })
@@ -159,6 +174,28 @@ func findUser(name string, users []*models.User, selfID int64, aliases map[strin
 		names = append(names, u.Name)
 	}
 	return nil, fmt.Sprintf("%q: nhiều người khớp (%s), hãy ghi rõ hơn", name, strings.Join(names, ", "))
+}
+
+func isSelfWord(name string) bool {
+	q := tokens(name)
+	return len(q) == 1 && slices.Contains(selfWords, q[0])
+}
+
+func userByID(users []*models.User, id int64) *models.User {
+	if i := slices.IndexFunc(users, func(u *models.User) bool { return u.ID == id }); i >= 0 {
+		return users[i]
+	}
+	return nil
+}
+
+// aliasFor is the bill name worth remembering for u: one that is not already
+// remembered and would not find u by name or email on its own.
+func aliasFor(name string, u *models.User, aliases map[string]int64) string {
+	key := AliasKey(name)
+	if key == "" || aliases[key] == u.ID || key == AliasKey(u.Name) || key == AliasKey(u.Email) {
+		return ""
+	}
+	return strings.TrimSpace(name)
 }
 
 func bestMatches(q []string, users []*models.User, field func(*models.User) string) []*models.User {

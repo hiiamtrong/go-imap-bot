@@ -116,16 +116,6 @@ func (b *Bot) handleNaturalLanguage(msg *tgbotapi.Message) {
 		in.Images = [][]byte{img}
 	}
 
-	bill, err := b.llm.ParseBill(ctx, in)
-	if err != nil {
-		log.Printf("Error parsing bill with LLM: %v", err)
-		b.SendMessage(chatID, "❌ Không phân tích được nội dung chia bill, vui lòng thử lại.")
-		return
-	}
-	b.previewSplit(ctx, chatID, text, bill)
-}
-
-func (b *Bot) previewSplit(ctx context.Context, chatID int64, text string, bill *llm.Bill) {
 	users, err := b.BotInjector.UserRepository.GetAll()
 	if err != nil {
 		log.Printf("Error getting users: %v", err)
@@ -140,6 +130,17 @@ func (b *Bot) previewSplit(ctx context.Context, chatID int64, text string, bill 
 		return
 	}
 
+	in.Users, in.Aliases = billsplit.KnownUsers(users), aliases
+	bill, err := b.llm.ParseBill(ctx, in)
+	if err != nil {
+		log.Printf("Error parsing bill with LLM: %v", err)
+		b.SendMessage(chatID, "❌ Không phân tích được nội dung chia bill, vui lòng thử lại.")
+		return
+	}
+	b.previewSplit(ctx, chatID, text, bill, users, aliases)
+}
+
+func (b *Bot) previewSplit(ctx context.Context, chatID int64, text string, bill *llm.Bill, users []*models.User, aliases map[string]int64) {
 	target, problem := b.pickTarget(ctx, text, bill.Total)
 	if problem != "" {
 		b.sendSplitProblems(chatID, []string{problem})

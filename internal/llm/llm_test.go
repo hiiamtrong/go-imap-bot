@@ -54,9 +54,9 @@ func TestParseBill(t *testing.T) {
 			want:    Bill{Description: "x", Total: 5, People: []Person{{Name: "B", Amount: 1}}},
 		},
 		{
-			name:    "alias is trimmed and optional",
-			content: `{"description":"","total":0,"people":[{"name":"son.ho","amount":0,"alias":" Ki "},{"name":"Hà","amount":0}]}`,
-			want:    Bill{People: []Person{{Name: "son.ho", Alias: "Ki"}, {Name: "Hà"}}},
+			name:    "user_id is optional and null means unknown",
+			content: `{"description":"","total":0,"people":[{"name":"Ki","amount":0,"user_id":68},{"name":"Hà","amount":0,"user_id":null},{"name":"B","amount":0}]}`,
+			want:    Bill{People: []Person{{Name: "Ki", UserID: 68}, {Name: "Hà"}, {Name: "B"}}},
 		},
 		{name: "prose instead of json", content: "xin lỗi", wantErr: true},
 		{name: "broken json", content: `{"total": }`, wantErr: true},
@@ -261,5 +261,27 @@ func TestParseBillImageTypes(t *testing.T) {
 				t.Errorf("body lacks %q: %s", tt.want, body)
 			}
 		})
+	}
+}
+
+func TestInputMessageListsKnownUsersAndAliases(t *testing.T) {
+	got := Input{
+		Text:    "chia 100k",
+		Sheet:   "a,b",
+		Users:   []KnownUser{{ID: 68, Name: "son.ho", Account: "son.ho"}, {ID: 4, Name: "Trọng", Account: "trong.vu"}},
+		Aliases: map[string]int64{"ki": 68, "hongg ngoc": 4},
+	}.message()
+
+	for _, want := range []string{
+		"chia 100k", "Bảng CSV:\na,b",
+		"68 | son.ho | son.ho\n", "4 | Trọng | trong.vu\n",
+		"hongg ngoc = 4\nki = 68\n", // sorted, so the request is stable
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("message missing %q:\n%s", want, got)
+		}
+	}
+	if only := (Input{Text: "x"}).message(); only != "x" {
+		t.Errorf("without users or aliases the message is just the text, got %q", only)
 	}
 }
