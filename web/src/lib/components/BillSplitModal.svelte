@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from "svelte";
 	import { api } from "$lib/api/client";
-	import { formatCurrency } from "$lib/utils/format";
+	import { formatCurrency, formatSignedCurrency } from "$lib/utils/format";
 	import type { ParsedBill, Transaction, User } from "$lib/types";
 
 	interface Props {
@@ -44,7 +44,7 @@
 			for (const split of transaction.splits) {
 				newSelectedUsers.add(split.user_id);
 				newCustomAmounts[split.user_id] = split.amount.toString();
-				newDisplayAmounts[split.user_id] = formatCurrency(split.amount, transaction.currency || "VND");
+				newDisplayAmounts[split.user_id] = formatSignedCurrency(split.amount, transaction.currency || "VND");
 				if (split.reason) {
 					newReasons[split.user_id] = split.reason;
 				}
@@ -100,7 +100,9 @@
 			displayAmounts = Object.fromEntries(
 				shares.map((s) => [s.user_id, formatCurrency(s.amount, currency).replace("₫", "").trim()])
 			);
-			reasons = {};
+			reasons = Object.fromEntries(
+				shares.filter((s) => s.reason).map((s) => [s.user_id, s.reason as string])
+			);
 			aiProposal = response.data;
 			globalReason = description;
 			splitMode = "custom";
@@ -414,6 +416,9 @@
 									<span>
 										{share.name}
 										{#if share.alias}<span class="text-gray-500">({share.alias})</span>{/if}
+										{#if share.covers?.length}
+											<span class="text-gray-500">— includes {share.covers.join(", ")}</span>
+										{/if}
 									</span>
 									<span>{formatCurrency(share.amount, currency)}</span>
 								</li>

@@ -350,3 +350,31 @@ func TestParseBillScalesListPricesToTheBillTotal(t *testing.T) {
 		t.Errorf("without the flag: status = %d, error = %q", code, resp.Error)
 	}
 }
+
+func TestParseBillFoldsCoveredSharesIntoThePayer(t *testing.T) {
+	reply := `{"description":"Cơm","total":100000,"prorate":false,"adjustments":[],"covers":[{"name":"D Linh","user_id":0,"for":[{"name":"Hà","user_id":0}]}],"people":[{"name":"Hà","amount":60000,"user_id":0},{"name":"Sơn","amount":40000,"user_id":0}]}`
+	env := newParseEnv(t, reply, http.StatusOK)
+
+	code, resp := call(t, env.handler, dto.ParseBillRequest{Text: "Hà 60k, Sơn 40k, Linh chịu tiền cho Hà"})
+	if code != http.StatusOK {
+		t.Fatalf("status = %d, error = %q", code, resp.Error)
+	}
+	got := parsed(t, resp)
+	if len(got.Shares) != 2 {
+		t.Fatalf("shares = %+v", got.Shares)
+	}
+	for _, s := range got.Shares {
+		switch s.Name {
+		case "D Linh":
+			if s.Amount != 60000 || strings.Join(s.Covers, ",") != "Thương Hà" || s.Reason != "Cơm (gồm phần của Thương Hà)" {
+				t.Errorf("payer share = %+v", s)
+			}
+		case "son.ho":
+			if s.Amount != 40000 || len(s.Covers) != 0 || s.Reason != "" {
+				t.Errorf("plain share = %+v", s)
+			}
+		default:
+			t.Errorf("unexpected share %+v", s)
+		}
+	}
+}

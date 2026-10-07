@@ -107,7 +107,10 @@ func (h *ParseHandler) ParseBill(c echo.Context) error {
 
 	shares := make([]dto.ParsedShare, len(plan.Shares))
 	for i, s := range plan.Shares {
-		shares[i] = dto.ParsedShare{UserID: s.UserID, Name: s.Name, Amount: s.Amount, Alias: s.Alias}
+		shares[i] = dto.ParsedShare{UserID: s.UserID, Name: s.Name, Amount: s.Amount, Alias: s.Alias, Covers: s.Covers}
+		if len(s.Covers) > 0 {
+			shares[i].Reason = s.Reason(description)
+		}
 	}
 	return c.JSON(http.StatusOK, dto.Response{Data: dto.ParseBillResponse{Description: description, Total: plan.Total, Shares: shares, Prorated: plan.Prorated}})
 }

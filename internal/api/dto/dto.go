@@ -151,6 +151,9 @@ type ParsedShare struct {
 	Name   string `json:"name"`
 	Amount int64  `json:"amount"`
 	Alias  string `json:"alias,omitempty"`
+	// Covers and Reason are set only for a person who also bears others' shares.
+	Covers []string `json:"covers,omitempty"`
+	Reason string   `json:"reason,omitempty"`
 }
 
 type ParseBillResponse struct {

@@ -93,7 +93,14 @@ export interface ParseBillRequest {
 export interface ParsedBill {
 	description: string;
 	total: number;
-	shares: { user_id: number; name: string; amount: number; alias?: string }[];
+	shares: {
+		user_id: number;
+		name: string;
+		amount: number;
+		alias?: string;
+		covers?: string[];
+		reason?: string;
+	}[];
 	prorated?: boolean;
 }
 

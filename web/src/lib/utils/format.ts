@@ -44,6 +44,12 @@ export function formatRelativeTime(date: string | Date): string {
 	return formatDistanceToNow(dateObj, { addSuffix: true });
 }
 
+// formatCurrency drops the sign. Splits can be negative (a payment already
+// received), and without the sign that line would read like a debt.
+export function formatSignedCurrency(amount: number, currency: string): string {
+	return (amount < 0 ? "-" : "") + formatCurrency(amount, currency);
+}
+
 export function formatAmount(amount: number, type: "add" | "subtract", currency: string): string {
 	const formatted = formatCurrency(Math.abs(amount), currency);
 	return type === "add" ? `+${formatted}` : `-${formatted}`;

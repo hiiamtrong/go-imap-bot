@@ -104,7 +104,7 @@ func TestClientParseBillRequestShape(t *testing.T) {
 	if bill.Total != 1000 || len(bill.People) != 1 {
 		t.Fatalf("bill = %+v", bill)
 	}
-	for _, want := range []string{`"model":"test-model"`, `"json_schema"`, `"name":"bill"`, `"additionalProperties":false`, "ten,tien", "data:image/jpeg;base64,/9j/4A=="} {
+	for _, want := range []string{`"model":"test-model"`, `"json_schema"`, `"name":"bill"`, `"additionalProperties":false`, `"adjustments"`, `"covers"`, "ten,tien", "data:image/jpeg;base64,/9j/4A=="} {
 		if !strings.Contains(body, want) {
 			t.Errorf("request body missing %q: %s", want, body)
 		}
@@ -288,5 +288,55 @@ func TestInputMessageListsKnownUsersAndAliases(t *testing.T) {
 	}
 	if only := (Input{Text: "x"}).message(); only != "x" {
 		t.Errorf("without users or aliases the message is just the text, got %q", only)
+	}
+}
+
+func TestParseBillAdjustments(t *testing.T) {
+	bill, err := parseBill(`{"description":"","total":511100,"prorate":false,"adjustments":[{"label":" Phí áp dụng ","amount":10000},{"label":"Giảm 10%","amount":-56900.4}],"people":[{"name":"A","amount":569000}]}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []Adjustment{{"Phí áp dụng", 10000}, {"Giảm 10%", -56900}}
+	if len(bill.Adjustments) != 2 || bill.Adjustments[0] != want[0] || bill.Adjustments[1] != want[1] {
+		t.Fatalf("adjustments = %+v, want %+v", bill.Adjustments, want)
+	}
+	if bill.AdjustmentSum() != -46900 {
+		t.Errorf("sum = %d, want -46900", bill.AdjustmentSum())
+	}
+
+	for _, content := range []string{`{"people":[]}`, `{"adjustments":null,"people":[]}`, `{"adjustments":[],"people":[]}`} {
+		bill, err := parseBill(content)
+		if err != nil || len(bill.Adjustments) != 0 || bill.AdjustmentSum() != 0 {
+			t.Errorf("parseBill(%s) = %+v, %v; want no adjustments", content, bill, err)
+		}
+	}
+
+	for _, content := range []string{
+		`{"adjustments":[{"label":"x","amount":1000000000001}],"people":[]}`,
+		`{"adjustments":[{"label":"x","amount":-1000000000001}],"people":[]}`,
+	} {
+		if _, err := parseBill(content); err == nil {
+			t.Errorf("out-of-range adjustment accepted: %s", content)
+		}
+	}
+}
+
+func TestParseBillCovers(t *testing.T) {
+	bill, err := parseBill(`{"covers":[{"name":" toan.tran ","user_id":32,"for":[{"name":"Trọng","user_id":4},{"name":" ","user_id":9},{"name":"son.ho","user_id":0}]},{"name":"","user_id":5,"for":[{"name":"X","user_id":1}]}],"people":[]}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(bill.Covers) != 1 {
+		t.Fatalf("covers = %+v, want the nameless payer dropped", bill.Covers)
+	}
+	c := bill.Covers[0]
+	if c.Payer != (Person{Name: "toan.tran", UserID: 32}) || len(c.For) != 2 || c.For[0] != (Person{Name: "Trọng", UserID: 4}) || c.For[1].Name != "son.ho" {
+		t.Errorf("cover = %+v", c)
+	}
+
+	for _, content := range []string{`{"people":[]}`, `{"covers":null,"people":[]}`, `{"covers":[],"people":[]}`} {
+		if bill, err := parseBill(content); err != nil || len(bill.Covers) != 0 {
+			t.Errorf("parseBill(%s) = %+v, %v; want no covers", content, bill, err)
+		}
 	}
 }

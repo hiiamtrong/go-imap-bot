@@ -20,6 +20,15 @@ type Share struct {
 	Name   string
 	Amount int64
 	Alias  string
+	// Covers lists the people whose share was folded into this one.
+	Covers []string
+}
+
+func (s Share) Reason(description string) string {
+	if len(s.Covers) == 0 {
+		return description
+	}
+	return description + " (gồm phần của " + strings.Join(s.Covers, ", ") + ")"
 }
 
 type Plan struct {
@@ -91,7 +100,7 @@ func Resolve(people []llm.Person, total int64, users []*models.User, selfID int6
 	case len(equal) == 0 && total == 0:
 		total = fixed
 	case len(equal) == 0 && fixed != total:
-		return Plan{}, []string{fmt.Sprintf("tổng các phần (%d) khác tổng bill (%d)", fixed, total)}
+		return Plan{}, []string{fmt.Sprintf("tổng các phần (%d) khác tổng bill (%d); nếu bill có giảm giá hoặc phí, hãy ghi thêm \"chia theo số tiền sau giảm giá\"", fixed, total)}
 	case len(equal) > 0:
 		if total == 0 {
 			return Plan{}, []string{"thiếu tổng tiền để chia đều"}
@@ -115,6 +124,110 @@ func Resolve(people []llm.Person, total int64, users []*models.User, selfID int6
 	return Plan{Total: total, Shares: shares}, nil
 }
 
+// explainsGap reports whether the bill's own fee and discount lines account for
+// the exact difference between the item prices and the total, so the list
+// prices can be scaled without the user having to ask.
+func explainsGap(bill *llm.Bill, total int64) bool {
+	adjustment := bill.AdjustmentSum()
+	if adjustment == 0 {
+		return false
+	}
+	var items int64
+	for _, p := range bill.People {
+		if p.Amount <= 0 {
+			return false
+		}
+		items += p.Amount
+	}
+	return items+adjustment == total
+}
+
+// applyCovers folds the share of every covered person into their payer's, so
+// the payer ends up with one split for all of it and the total is unchanged.
+func applyCovers(plan Plan, covers []llm.Cover, users []*models.User, selfID int64, aliases map[string]int64) (Plan, []string) {
+	if len(covers) == 0 {
+		return plan, nil
+	}
+
+	type resolved struct {
+		payer   *models.User
+		targets []*models.User
+	}
+	var all []resolved
+	var problems []string
+	payers := map[int64]bool{}
+	for _, c := range covers {
+		payer, problem := findUser(c.Payer, users, selfID, aliases)
+		if problem != "" {
+			problems = append(problems, problem)
+			continue
+		}
+		r := resolved{payer: payer}
+		for _, t := range c.For {
+			target, problem := findUser(t, users, selfID, aliases)
+			if problem != "" {
+				problems = append(problems, problem)
+			} else if target.ID != payer.ID {
+				r.targets = append(r.targets, target)
+			}
+		}
+		payers[payer.ID] = true
+		all = append(all, r)
+	}
+	if len(problems) > 0 {
+		return Plan{}, problems
+	}
+
+	inPlan := map[int64]*Share{}
+	for i := range plan.Shares {
+		inPlan[plan.Shares[i].UserID] = &plan.Shares[i]
+	}
+	covered := map[int64]bool{}
+	moved := map[int64]int64{}
+	names := map[int64][]string{}
+	var order []*models.User
+	for _, r := range all {
+		if _, seen := moved[r.payer.ID]; !seen {
+			order = append(order, r.payer)
+			moved[r.payer.ID] = 0
+		}
+		for _, target := range r.targets {
+			switch share := inPlan[target.ID]; {
+			case payers[target.ID]:
+				problems = append(problems, fmt.Sprintf("%s vừa chịu tiền giúp người khác vừa được người khác chịu giúp", target.Name))
+			case covered[target.ID]:
+				problems = append(problems, fmt.Sprintf("%s được chịu tiền giúp hai lần", target.Name))
+			case share == nil:
+				problems = append(problems, fmt.Sprintf("%s không có trong bill nên không thể được chịu tiền giúp", target.Name))
+			default:
+				covered[target.ID] = true
+				moved[r.payer.ID] += share.Amount
+				names[r.payer.ID] = append(names[r.payer.ID], target.Name)
+			}
+		}
+	}
+	if len(problems) > 0 {
+		return Plan{}, problems
+	}
+
+	shares := make([]Share, 0, len(plan.Shares))
+	for _, s := range plan.Shares {
+		if covered[s.UserID] {
+			continue
+		}
+		s.Amount += moved[s.UserID]
+		s.Covers = names[s.UserID]
+		shares = append(shares, s)
+	}
+	for _, payer := range order {
+		if inPlan[payer.ID] == nil && moved[payer.ID] > 0 {
+			shares = append(shares, Share{UserID: payer.ID, Name: payer.Name, Amount: moved[payer.ID], Covers: names[payer.ID]})
+		}
+	}
+	plan.Shares = shares
+	return plan, nil
+}
+
 func ForBill(bill *llm.Bill, users []*models.User, selfID int64, target *models.Transaction, aliases map[string]int64) (Plan, string, []string) {
 	total, description := bill.Total, bill.Description
 	if target != nil {
@@ -130,11 +243,14 @@ func ForBill(bill *llm.Bill, users []*models.User, selfID int64, target *models.
 	}
 
 	people, prorated := bill.People, false
-	if bill.Prorate {
+	if bill.Prorate || explainsGap(bill, total) {
 		people, prorated = Prorate(people, total)
 	}
 
 	plan, problems := Resolve(people, total, users, selfID, aliases)
+	if len(problems) == 0 {
+		plan, problems = applyCovers(plan, bill.Covers, users, selfID, aliases)
+	}
 	plan.Prorated = prorated && len(problems) == 0
 	if target != nil && len(problems) == 0 && plan.Total != target.Amount {
 		problems = append(problems, fmt.Sprintf("tổng chia (%d) khác số tiền giao dịch #%d (%d)", plan.Total, target.ID, target.Amount))

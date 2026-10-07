@@ -172,6 +172,9 @@ func (b *Bot) previewSplit(ctx context.Context, chatID int64, text string, bill 
 		if s.Alias != "" {
 			label += " (" + s.Alias + ")"
 		}
+		if len(s.Covers) > 0 {
+			label += " — gồm phần của " + strings.Join(s.Covers, ", ")
+		}
 		sb.WriteString(fmt.Sprintf("• %s: %s\n", escapeMarkdown(label), escapeMarkdown(formatVND(s.Amount))))
 	}
 	if plan.Prorated {
@@ -267,7 +270,7 @@ func (b *Bot) confirmSplitDraft(chatID, draftID int64) {
 		}
 
 		for _, s := range d.plan.Shares {
-			split := &models.TransactionSplit{TransactionID: txID, UserID: s.UserID, Amount: s.Amount, Reason: d.description}
+			split := &models.TransactionSplit{TransactionID: txID, UserID: s.UserID, Amount: s.Amount, Reason: s.Reason(d.description)}
 			if err := b.BotInjector.TransactionSplitRepository.CreateTx(tx, split); err != nil {
 				return err
 			}

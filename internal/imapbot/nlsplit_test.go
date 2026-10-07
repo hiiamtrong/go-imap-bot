@@ -25,6 +25,11 @@ import (
 
 const testChatID = 42
 
+var repoRoot = func() string {
+	wd, _ := os.Getwd()
+	return filepath.Join(wd, "../..")
+}()
+
 type sentMessage struct {
 	text   string
 	markup string
@@ -58,7 +63,7 @@ func newFixture(t *testing.T, llmBill string) fixture {
 	t.Helper()
 
 	wd, _ := os.Getwd()
-	if err := os.Chdir("../.."); err != nil {
+	if err := os.Chdir(repoRoot); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { os.Chdir(wd) })
@@ -685,5 +690,34 @@ func TestVirtualBillRolledBackWhenSplitInsertFails(t *testing.T) {
 	}
 	if got := f.last(t).text; !strings.Contains(got, "Không thể lưu chia bill") {
 		t.Errorf("reply = %q", got)
+	}
+}
+
+func TestNaturalLanguageSplitFoldsCoveredSharesIntoThePayer(t *testing.T) {
+	f := newFixture(t, `{"description":"Cơm","total":0,"prorate":false,"adjustments":[],"covers":[{"name":"Linh","user_id":0,"for":[{"name":"Hà","user_id":0}]}],"people":[{"name":"Hà","amount":40000,"user_id":0},{"name":"Sơn","amount":50000,"user_id":0}]}`)
+	f.addUser(t, "Thương Hà")
+	son, linh := f.addUser(t, "son.ho"), f.addUser(t, "D Linh")
+
+	f.bot.handleNaturalLanguage(textMessage("Hà 40k, Sơn 50k, Linh chịu tiền cho Hà"))
+	preview := f.last(t)
+	if !strings.Contains(preview.text, "D Linh — gồm phần của Thương Hà: 40,000") || strings.Contains(preview.text, "• Thương Hà:") {
+		t.Fatalf("preview = %s", preview.text)
+	}
+
+	f.bot.confirmSplitDraft(testChatID, draftIDFrom(t, preview.markup))
+
+	var txID int64
+	if err := f.db.Conn.QueryRow("SELECT id FROM transactions WHERE description = 'Cơm'").Scan(&txID); err != nil {
+		t.Fatal(err)
+	}
+	got := f.splits(t, txID)
+	want := []splitRow{{son, 50000, false, "Cơm"}, {linh, 40000, false, "Cơm (gồm phần của Thương Hà)"}}
+	if len(got) != len(want) {
+		t.Fatalf("splits = %+v, want %+v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("split %d = %+v, want %+v", i, got[i], want[i])
+		}
 	}
 }

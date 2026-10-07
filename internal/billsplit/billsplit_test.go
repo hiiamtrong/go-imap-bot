@@ -458,3 +458,188 @@ func TestForBillProrate(t *testing.T) {
 		}
 	})
 }
+
+func grabBill(adjustments ...llm.Adjustment) *llm.Bill {
+	items := []struct {
+		name   string
+		amount int64
+	}{
+		{"Trọng", 56000}, {"Tùng", 56000}, {"Đức", 49000}, {"Hạnh Lê", 49000}, {"A Phong", 62000},
+		{"tam.hoang", 56000}, {"tung.le2", 55000}, {"toan.tran2", 49000}, {"Thương Hà", 39000},
+		{"son.ho", 49000}, {"an.vu2@sotatek.com", 49000},
+	}
+	bill := &llm.Bill{Total: 511100, Adjustments: adjustments}
+	for _, it := range items {
+		bill.People = append(bill.People, llm.Person{Name: it.name, Amount: it.amount})
+	}
+	return bill
+}
+
+func TestForBillScalesWhenFeesAndDiscountsExplainTheGap(t *testing.T) {
+	fees := []llm.Adjustment{{Label: "Phí áp dụng", Amount: 10000}, {Label: "Giảm phí giao", Amount: -6000}, {Label: "Giảm 10%", Amount: -56900}, {Label: "Giảm 5k", Amount: -5000}}
+
+	plan, _, problems := ForBill(grabBill(fees...), users, 4, nil, nil)
+	if len(problems) != 0 {
+		t.Fatalf("problems = %v", problems)
+	}
+	if !plan.Prorated || plan.Total != 511100 {
+		t.Fatalf("prorated = %v, total = %d", plan.Prorated, plan.Total)
+	}
+	var sum int64
+	for _, s := range plan.Shares {
+		sum += s.Amount
+		if s.Name == "Trọng" && (s.Amount < 50301 || s.Amount > 50302) {
+			t.Errorf("56.000 scaled to %d, want 50301 or 50302", s.Amount)
+		}
+	}
+	if sum != 511100 {
+		t.Errorf("shares add up to %d, want 511100", sum)
+	}
+}
+
+func TestForBillDoesNotScaleWhenAdjustmentsDoNotAddUp(t *testing.T) {
+	for name, fees := range map[string][]llm.Adjustment{
+		"adjustments leave a gap":  {{Label: "Giảm", Amount: -50000}},
+		"no adjustments at all":    nil,
+		"adjustments sum to zero":  {{Label: "Phí", Amount: 5000}, {Label: "Giảm", Amount: -5000}},
+		"wrong sign on a discount": {{Label: "Phí", Amount: 10000}, {Label: "Giảm", Amount: 67900}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			plan, _, problems := ForBill(grabBill(fees...), users, 4, nil, nil)
+			if plan.Prorated || len(problems) != 1 || !strings.Contains(problems[0], "khác tổng bill") {
+				t.Fatalf("prorated = %v, problems = %v", plan.Prorated, problems)
+			}
+			if !strings.Contains(problems[0], "chia theo số tiền sau giảm giá") {
+				t.Errorf("the error does not tell the user how to proceed: %q", problems[0])
+			}
+		})
+	}
+}
+
+func TestForBillKeepsEqualSharesOutOfScaling(t *testing.T) {
+	bill := &llm.Bill{Total: 90000, Adjustments: []llm.Adjustment{{Label: "Giảm", Amount: -10000}}, People: people("Hà", 50000, "Sơn", 0)}
+	plan, _, problems := ForBill(bill, users, 4, nil, nil)
+	if plan.Prorated || len(problems) != 0 {
+		t.Fatalf("prorated = %v, problems = %v", plan.Prorated, problems)
+	}
+	if got := amounts(plan); got[65] != 50000 || got[68] != 40000 {
+		t.Errorf("amounts = %v", got)
+	}
+}
+
+func coverBill(covers ...llm.Cover) *llm.Bill {
+	return &llm.Bill{Total: 150000, Covers: covers, People: people("Trọng", 60000, "Thương Hà", 40000, "son.ho", 30000, "Đức", 20000)}
+}
+
+func cover(payer string, targets ...string) llm.Cover {
+	c := llm.Cover{Payer: llm.Person{Name: payer}}
+	for _, name := range targets {
+		c.For = append(c.For, llm.Person{Name: name})
+	}
+	return c
+}
+
+func shareOf(plan Plan, userID int64) *Share {
+	for i := range plan.Shares {
+		if plan.Shares[i].UserID == userID {
+			return &plan.Shares[i]
+		}
+	}
+	return nil
+}
+
+func TestCoversFoldIntoThePayer(t *testing.T) {
+	t.Run("payer outside the bill takes the covered shares", func(t *testing.T) {
+		plan, _, problems := ForBill(coverBill(cover("toan.tran", "Trọng", "son.ho")), users, 4, nil, nil)
+		if len(problems) != 0 {
+			t.Fatalf("problems = %v", problems)
+		}
+		payer := shareOf(plan, 32)
+		if payer == nil || payer.Amount != 90000 || strings.Join(payer.Covers, ",") != "Trọng,son.ho" {
+			t.Fatalf("payer share = %+v", payer)
+		}
+		if shareOf(plan, 4) != nil || shareOf(plan, 68) != nil {
+			t.Error("covered people still have their own share")
+		}
+		if len(plan.Shares) != 3 || plan.Total != 150000 {
+			t.Errorf("shares = %+v, total = %d", plan.Shares, plan.Total)
+		}
+		if got := payer.Reason("Cơm"); got != "Cơm (gồm phần của Trọng, son.ho)" {
+			t.Errorf("reason = %q", got)
+		}
+		if got := shareOf(plan, 65).Reason("Cơm"); got != "Cơm" {
+			t.Errorf("uncovered reason = %q", got)
+		}
+	})
+
+	t.Run("payer already in the bill adds the covered shares to their own", func(t *testing.T) {
+		plan, _, problems := ForBill(coverBill(cover("Hà", "Trọng")), users, 4, nil, nil)
+		if len(problems) != 0 {
+			t.Fatalf("problems = %v", problems)
+		}
+		if got := shareOf(plan, 65); got == nil || got.Amount != 100000 || len(plan.Shares) != 3 {
+			t.Fatalf("plan = %+v", plan.Shares)
+		}
+	})
+
+	t.Run("one payer split across entries is merged", func(t *testing.T) {
+		plan, _, problems := ForBill(coverBill(cover("toan.tran", "Trọng"), cover("toan.tran", "Đức")), users, 4, nil, nil)
+		if got := shareOf(plan, 32); len(problems) != 0 || got == nil || got.Amount != 80000 || len(plan.Shares) != 3 {
+			t.Fatalf("plan = %+v, problems = %v", plan.Shares, problems)
+		}
+	})
+
+	t.Run("covering yourself is ignored and empty covers change nothing", func(t *testing.T) {
+		plan, _, problems := ForBill(coverBill(cover("Hà", "Hà", "Trọng"), cover("toan.tran")), users, 4, nil, nil)
+		if got := shareOf(plan, 65); len(problems) != 0 || got.Amount != 100000 || shareOf(plan, 32) != nil || len(plan.Shares) != 3 {
+			t.Fatalf("plan = %+v, problems = %v", plan.Shares, problems)
+		}
+	})
+
+	t.Run("equal shares are folded after they are computed", func(t *testing.T) {
+		bill := &llm.Bill{Total: 100000, Covers: []llm.Cover{cover("toan.tran", "Hà")}, People: people("Hà", 0, "Sơn", 0)}
+		plan, _, problems := ForBill(bill, users, 4, nil, nil)
+		if got := shareOf(plan, 32); len(problems) != 0 || got == nil || got.Amount != 50000 || len(plan.Shares) != 2 {
+			t.Fatalf("plan = %+v, problems = %v", plan.Shares, problems)
+		}
+	})
+
+	t.Run("shares scaled to the bill total are folded without losing a dong", func(t *testing.T) {
+		bill := grabBill(llm.Adjustment{Label: "Giảm", Amount: -57900})
+		bill.Covers = []llm.Cover{cover("linh.pham3", "Trọng", "Tùng", "Đức")}
+		plan, _, problems := ForBill(bill, users, 4, nil, nil)
+		if len(problems) != 0 {
+			t.Fatalf("problems = %v", problems)
+		}
+		var sum int64
+		for _, s := range plan.Shares {
+			sum += s.Amount
+		}
+		payer := shareOf(plan, 15)
+		if !plan.Prorated || sum != 511100 || len(plan.Shares) != 9 || payer == nil || len(payer.Covers) != 3 {
+			t.Fatalf("prorated = %v, sum = %d, shares = %d, payer = %+v", plan.Prorated, sum, len(plan.Shares), payer)
+		}
+	})
+}
+
+func TestCoversAreRefusedWhenTheyDoNotMakeSense(t *testing.T) {
+	tests := []struct {
+		name   string
+		covers []llm.Cover
+		want   string
+	}{
+		{"covered person is not in the bill", []llm.Cover{cover("toan.tran", "A Phong")}, "không có trong bill"},
+		{"covered twice", []llm.Cover{cover("toan.tran", "Trọng"), cover("linh.pham3", "Trọng")}, "hai lần"},
+		{"a payer who is also covered", []llm.Cover{cover("Hà", "Trọng"), cover("Trọng", "son.ho")}, "vừa chịu tiền giúp"},
+		{"unknown payer", []llm.Cover{cover("Zed", "Trọng")}, "không tìm thấy"},
+		{"unknown covered person", []llm.Cover{cover("toan.tran", "Zed")}, "không tìm thấy"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			plan, _, problems := ForBill(coverBill(tt.covers...), users, 4, nil, nil)
+			if len(problems) == 0 || !strings.Contains(strings.Join(problems, ";"), tt.want) || len(plan.Shares) != 0 {
+				t.Fatalf("problems = %v, shares = %v; want one containing %q", problems, plan.Shares, tt.want)
+			}
+		})
+	}
+}

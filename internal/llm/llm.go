@@ -19,17 +19,19 @@ const maxMoney = 1e12
 
 var imageTypes = []string{"image/jpeg", "image/png", "image/gif", "image/webp"}
 
-const billSchema = `{"type":"object","properties":{"description":{"type":"string"},"total":{"type":"number"},"prorate":{"type":"boolean"},"people":{"type":"array","items":{"type":"object","properties":{"name":{"type":"string"},"amount":{"type":"number"},"user_id":{"type":"integer"}},"required":["name","amount","user_id"],"additionalProperties":false}}},"required":["description","total","prorate","people"],"additionalProperties":false}`
+const billSchema = `{"type":"object","properties":{"description":{"type":"string"},"total":{"type":"number"},"prorate":{"type":"boolean"},"adjustments":{"type":"array","items":{"type":"object","properties":{"label":{"type":"string"},"amount":{"type":"number"}},"required":["label","amount"],"additionalProperties":false}},"covers":{"type":"array","items":{"type":"object","properties":{"name":{"type":"string"},"user_id":{"type":"integer"},"for":{"type":"array","items":{"type":"object","properties":{"name":{"type":"string"},"user_id":{"type":"integer"}},"required":["name","user_id"],"additionalProperties":false}}},"required":["name","user_id","for"],"additionalProperties":false}},"people":{"type":"array","items":{"type":"object","properties":{"name":{"type":"string"},"amount":{"type":"number"},"user_id":{"type":"integer"}},"required":["name","amount","user_id"],"additionalProperties":false}}},"required":["description","total","prorate","adjustments","covers","people"],"additionalProperties":false}`
 
 const systemPrompt = `Bạn trích xuất thông tin chia bill từ tin nhắn tiếng Việt, ảnh (hóa đơn, ảnh chụp bảng hoặc đoạn chat) hoặc bảng CSV.
 Chỉ trả về một JSON object, không giải thích:
-{"description": string, "total": number, "prorate": boolean, "people": [{"name": string, "amount": number}]}
+{"description": string, "total": number, "prorate": boolean, "adjustments": [{"label": string, "amount": number}], "covers": [{"name": string, "user_id": number, "for": [{"name": string, "user_id": number}]}], "people": [{"name": string, "amount": number}]}
 Quy tắc:
 - Tiền là VND, số nguyên: "50k"=50000, "1tr2"=1200000, "1.5tr"=1500000.
 - description: tên món hoặc quán nếu người dùng nêu rõ; chuỗi rỗng nếu không nêu, không tự đặt. total: tổng bill, 0 nếu không nêu.
 - people: mỗi người tham gia là một phần tử. name là tên của người đó đúng như in trên bill, ảnh, bảng hoặc đoạn chat, nếu không có bill thì đúng như người dùng viết, kể cả "tôi", "mình". amount là số tiền riêng của người đó, 0 nếu chia đều phần còn lại.
 - user_id: id của người dùng đã biết khớp với người đó (danh sách người dùng và tên đã nhớ nằm cuối tin nhắn). Khớp theo tên trên bill, ảnh, bảng, chat và theo tên hoặc tài khoản trong tin nhắn, chấp nhận khác dấu, sai chính tả, viết tắt (ví dụ ảnh ghi "Hồngg Ngọc" mà tin nhắn ghi "Hồng Ngọc: ngoc.vu" thì là ngoc.vu). Tên đã nhớ là mặc định, trừ khi tin nhắn nói rõ khác. Tài khoản trong tin nhắn có thể chỉ là phần đầu của tài khoản đã biết (ví dụ "lethithuhanh" khớp "lethithuhanh.txpt"): nếu đúng một người dùng khớp thì chọn người đó. Trả 0 nếu không chắc chắn hoặc có nhiều người có thể khớp; không đoán.
 - prorate: true chỉ khi người dùng yêu cầu chia theo số tiền sau giảm giá, ưu đãi hoặc phí (chia theo tỉ lệ). Khi đó amount của mỗi người là giá gốc của họ trên bill, KHÔNG tự trừ giảm giá hay cộng phí; total là số tiền thật phải trả. Ngược lại prorate là false.
+- adjustments: các dòng phí và giảm giá nằm ngoài từng món ở phần tổng kết của hóa đơn (phí áp dụng, phí giao hàng, mã giảm giá, voucher...), mỗi dòng một phần tử, amount đúng như số ở cột bên phải: phí là số dương, giảm giá là số âm. Không đưa "tổng tạm tính" hay "tổng cộng" vào đây. Mảng rỗng nếu bill không có các dòng này. Với ảnh hóa đơn, amount của mỗi người là giá món họ thực trả (giá hiện tại, không phải giá gạch ngang) và total là số tiền phải trả cuối cùng (tổng cộng).
+- covers: khi người dùng nói một người chịu, trả hoặc bao tiền thay cho những người khác (ví dụ "toan.tran sẽ chịu tiền cho: A, B"), mỗi người chịu tiền là một phần tử: name và user_id của người chịu tiền, for là danh sách những người được chịu giúp (name và user_id khớp như people). Người chịu tiền không cần có trong people. Không đưa chuyện này vào amount của ai. Mảng rỗng nếu không có.
 - Với bảng: mỗi dòng là một người và số tiền của họ; total là dòng tổng nếu có.
 - Không thêm người không được nhắc tới, không tự tính lại tổng.`
 
@@ -102,14 +104,49 @@ type Bill struct {
 	// Prorate means the amounts are list prices to be scaled to Total, because
 	// the user asked to split by what each person pays after discounts and fees.
 	Prorate bool
-	People  []Person
+	// Adjustments are the fee (positive) and discount (negative) lines of the
+	// bill summary that belong to no single item.
+	Adjustments []Adjustment
+	Covers      []Cover
+	People      []Person
+}
+
+// Cover says Payer bears the share of everyone in For.
+type Cover struct {
+	Payer Person
+	For   []Person
+}
+
+type Adjustment struct {
+	Label  string
+	Amount int64
+}
+
+func (b *Bill) AdjustmentSum() int64 {
+	var sum int64
+	for _, a := range b.Adjustments {
+		sum += a.Amount
+	}
+	return sum
 }
 
 type rawBill struct {
 	Description string  `json:"description"`
 	Total       float64 `json:"total"`
 	Prorate     bool    `json:"prorate"`
-	People      []struct {
+	Adjustments []struct {
+		Label  string  `json:"label"`
+		Amount float64 `json:"amount"`
+	} `json:"adjustments"`
+	Covers []struct {
+		Name   string  `json:"name"`
+		UserID float64 `json:"user_id"`
+		For    []struct {
+			Name   string  `json:"name"`
+			UserID float64 `json:"user_id"`
+		} `json:"for"`
+	} `json:"covers"`
+	People []struct {
 		Name   string  `json:"name"`
 		Amount float64 `json:"amount"`
 		UserID float64 `json:"user_id"`
@@ -193,6 +230,24 @@ func parseBill(content string) (*Bill, error) {
 		return nil, fmt.Errorf("total %v out of range", raw.Total)
 	}
 	bill := &Bill{Description: strings.TrimSpace(raw.Description), Total: int64(math.Round(raw.Total)), Prorate: raw.Prorate}
+	for _, a := range raw.Adjustments {
+		if math.Abs(a.Amount) > maxMoney {
+			return nil, fmt.Errorf("adjustment %v out of range", a.Amount)
+		}
+		bill.Adjustments = append(bill.Adjustments, Adjustment{Label: strings.TrimSpace(a.Label), Amount: int64(math.Round(a.Amount))})
+	}
+	for _, c := range raw.Covers {
+		cover := Cover{Payer: Person{Name: strings.TrimSpace(c.Name), UserID: int64(c.UserID)}}
+		if cover.Payer.Name == "" {
+			continue
+		}
+		for _, t := range c.For {
+			if name := strings.TrimSpace(t.Name); name != "" {
+				cover.For = append(cover.For, Person{Name: name, UserID: int64(t.UserID)})
+			}
+		}
+		bill.Covers = append(bill.Covers, cover)
+	}
 	for _, p := range raw.People {
 		if p.Amount < 0 || p.Amount > maxMoney {
 			return nil, fmt.Errorf("amount %v out of range", p.Amount)
