@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -22,7 +21,6 @@ import (
 	"github.com/hiiamtrong/go-imap-bot/internal/s3"
 	"github.com/hiiamtrong/go-imap-bot/internal/smtp"
 	"github.com/hiiamtrong/go-imap-bot/internal/vietqr"
-	"github.com/hiiamtrong/go-imap-bot/pkg/regexpkg"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/spf13/viper"
 )
@@ -442,28 +440,7 @@ func processEmail(msg *imapclient.FetchMessageData, bot *imapbot.Bot) {
 	// Get the first email address from the To field
 	recipientEmail := strings.Split(newMail.To, ",")[0]
 
-	// Check if transaction is a bill split (optional - don't block on errors)
-	if matched, _ := regexp.MatchString(`(trx|TRX)\w+(ong|ONG)`, transaction.Description); matched {
-		hash, err := regexpkg.ExtractHash(transaction.Description)
-		if err != nil {
-			log.Printf("failed to extract hash (skipping split): %v", err)
-		} else {
-			splitIDs, err := bot.BotInjector.SplitHashRepository.GetSplitIDs(hash)
-			if err != nil {
-				log.Printf("split hash not found (skipping split): %v", err)
-			} else {
-				err = bot.BotInjector.TransactionSplitRepository.UpdateSplitStatus(splitIDs, tx)
-				if err != nil {
-					log.Printf("failed to update split status: %v", err)
-				} else {
-					err = bot.NotifySplitBillComplete(recipientEmail, splitIDs, transaction.ID, tx)
-					if err != nil {
-						log.Printf("failed to notify split bill: %v", err)
-					}
-				}
-			}
-		}
-	}
+	bot.SettleSplitPayment(transaction, recipientEmail, tx)
 
 	err = bot.NotifyNewTransaction(transaction, recipientEmail, tx)
 	if err != nil {

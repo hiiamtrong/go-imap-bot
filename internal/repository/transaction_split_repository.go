@@ -169,6 +169,84 @@ func (r *TransactionSplitRepository) UpdateByID(id int64, amount int64, reason s
 	return nil
 }
 
+func inClause(ids []int64) (string, []interface{}) {
+	placeholders := make([]string, len(ids))
+	args := make([]interface{}, len(ids))
+	for i, id := range ids {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+	return strings.Join(placeholders, ","), args
+}
+
+func scanPendingSplits(rows *sql.Rows) ([]*models.TransactionSplit, error) {
+	defer rows.Close()
+	var splits []*models.TransactionSplit
+	for rows.Next() {
+		split := &models.TransactionSplit{}
+		if err := rows.Scan(&split.ID, &split.UserID, &split.Amount); err != nil {
+			return nil, fmt.Errorf("failed to scan pending split: %v", err)
+		}
+		splits = append(splits, split)
+	}
+	return splits, rows.Err()
+}
+
+func (r *TransactionSplitRepository) GetPendingByIDs(splitIDs []int64, tx *sql.Tx) ([]*models.TransactionSplit, error) {
+	in, args := inClause(splitIDs)
+	rows, err := tx.Query(`SELECT id, user_id, amount FROM transaction_splits WHERE completed = 0 AND id IN (`+in+`) ORDER BY id`, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get pending splits: %v", err)
+	}
+	return scanPendingSplits(rows)
+}
+
+// GetPendingCreditsByUserIDs returns the open negative splits, which record
+// money a person already paid towards what they owe.
+func (r *TransactionSplitRepository) GetPendingCreditsByUserIDs(userIDs []int64, tx *sql.Tx) ([]*models.TransactionSplit, error) {
+	in, args := inClause(userIDs)
+	rows, err := tx.Query(`SELECT id, user_id, amount FROM transaction_splits WHERE completed = 0 AND amount < 0 AND user_id IN (`+in+`) ORDER BY id`, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get pending credits: %v", err)
+	}
+	return scanPendingSplits(rows)
+}
+
+type CreditPayment struct {
+	TransactionID int64
+	At            time.Time
+}
+
+// GetCreditPayments returns the incoming transfers of exactly this amount that
+// already carry a credit for one of the users.
+func (r *TransactionSplitRepository) GetCreditPayments(userIDs []int64, amount, exceptTransactionID int64, tx *sql.Tx) ([]CreditPayment, error) {
+	in, args := inClause(userIDs)
+	args = append(args, amount, exceptTransactionID)
+	rows, err := tx.Query(`
+		SELECT DISTINCT t.id, t.timestamp
+		FROM transaction_splits s
+		JOIN transactions t ON t.id = s.transaction_id
+		WHERE s.amount < 0 AND t.type = 'add' AND s.user_id IN (`+in+`) AND t.amount = ? AND t.id <> ?`, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get credit payments: %v", err)
+	}
+	defer rows.Close()
+
+	var payments []CreditPayment
+	for rows.Next() {
+		var payment CreditPayment
+		var timestamp string
+		if err := rows.Scan(&payment.TransactionID, &timestamp); err != nil {
+			return nil, fmt.Errorf("failed to scan credit payment: %v", err)
+		}
+		if payment.At, err = parseTimestamp(timestamp); err != nil {
+			return nil, fmt.Errorf("failed to parse credit payment time: %v", err)
+		}
+		payments = append(payments, payment)
+	}
+	return payments, rows.Err()
+}
+
 func (r *TransactionSplitRepository) UpdateSplitStatus(splitIDs []int64, tx *sql.Tx) error {
 	placeholders := make([]string, len(splitIDs))
 	args := make([]interface{}, len(splitIDs))
