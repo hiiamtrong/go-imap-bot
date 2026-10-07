@@ -2,7 +2,7 @@
 	import { onMount } from "svelte";
 	import { page } from "$app/stores";
 	import { api } from "$lib/api/client";
-	import { formatCurrency, formatDate, formatAmount } from "$lib/utils/format";
+	import { formatCurrency, formatSignedCurrency, formatDate, formatAmount } from "$lib/utils/format";
 	import type { Transaction } from "$lib/types";
 	import BillSplitModal from "$lib/components/BillSplitModal.svelte";
 	import TagSelector from "$lib/components/TagSelector.svelte";
@@ -296,7 +296,7 @@
 							<div class="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
 								<div class="sm:text-right">
 									<p class="text-base sm:text-lg font-bold text-gray-900">
-										{formatCurrency(split.amount, split.currency || "VND")}
+										{formatSignedCurrency(split.amount, split.currency || "VND")}
 									</p>
 									{#if split.completed}
 										<span
@@ -351,7 +351,7 @@
 					<div class="flex justify-between text-base sm:text-lg font-bold">
 						<span>Total Split:</span>
 						<span>
-							{formatCurrency(transaction.splits.reduce((sum, split) => sum + split.amount, 0), transaction.currency || "VND")}
+							{formatSignedCurrency(transaction.splits.reduce((sum, split) => sum + split.amount, 0), transaction.currency || "VND")}
 						</span>
 					</div>
 					<div class="flex justify-between text-xs sm:text-sm text-gray-600 mt-1 sm:mt-2">

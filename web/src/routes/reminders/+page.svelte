@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from "svelte";
 	import { api } from "$lib/api/client";
-	import { formatCurrency } from "$lib/utils/format";
+	import { formatCurrency, formatSignedCurrency } from "$lib/utils/format";
 	import type { UserSplitSummary, TransactionSplit } from "$lib/types";
 
 	let userSummaries = $state<UserSplitSummary[]>([]);
@@ -350,7 +350,7 @@
 										<span>Số lượng bill: <strong>{summary.bill_count}</strong></span>
 										<span
 											>Tổng tiền: <strong class="text-orange-600"
-												>{formatCurrency(summary.total_amount, "VND")}</strong
+												>{formatSignedCurrency(summary.total_amount, "VND")}</strong
 											></span
 										>
 									</div>
@@ -411,7 +411,7 @@
 													</p>
 												{/if}
 												<p class="text-sm font-bold text-orange-600">
-													{formatCurrency(split.amount, split.currency || "VND")}
+													{formatSignedCurrency(split.amount, split.currency || "VND")}
 												</p>
 												<p class="text-xs text-gray-500 mt-1">
 													{new Date(split.created_at).toLocaleString("vi-VN")}
@@ -473,7 +473,7 @@
 					<div class="p-3 bg-green-50 rounded-lg">
 						<p class="text-xs sm:text-sm text-gray-600">Tổng tiền</p>
 						<p class="text-xl sm:text-2xl font-bold text-green-600">
-							{formatCurrency(totalSummary().totalAmount, "VND")}
+							{formatSignedCurrency(totalSummary().totalAmount, "VND")}
 						</p>
 					</div>
 				</div>
