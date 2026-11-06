@@ -223,6 +223,7 @@ func TestParseBillAmountLimit(t *testing.T) {
 		{"beyond int64", `{"total":1e30,"people":[]}`, true},
 		{"negative total", `{"total":-1,"people":[]}`, true},
 		{"negative person amount", `{"people":[{"name":"A","amount":-1}]}`, true},
+		{"weight past limit", `{"people":[{"name":"A","amount":0,"weight":101}]}`, true},
 		{"zero amounts mean equal share", `{"total":0,"people":[{"name":"A","amount":0}]}`, false},
 	}
 	for _, tt := range tests {

@@ -19,15 +19,15 @@ const maxMoney = 1e12
 
 var imageTypes = []string{"image/jpeg", "image/png", "image/gif", "image/webp"}
 
-const billSchema = `{"type":"object","properties":{"description":{"type":"string"},"total":{"type":"number"},"prorate":{"type":"boolean"},"adjustments":{"type":"array","items":{"type":"object","properties":{"label":{"type":"string"},"amount":{"type":"number"}},"required":["label","amount"],"additionalProperties":false}},"covers":{"type":"array","items":{"type":"object","properties":{"name":{"type":"string"},"user_id":{"type":"integer"},"for":{"type":"array","items":{"type":"object","properties":{"name":{"type":"string"},"user_id":{"type":"integer"}},"required":["name","user_id"],"additionalProperties":false}}},"required":["name","user_id","for"],"additionalProperties":false}},"people":{"type":"array","items":{"type":"object","properties":{"name":{"type":"string"},"amount":{"type":"number"},"user_id":{"type":"integer"}},"required":["name","amount","user_id"],"additionalProperties":false}}},"required":["description","total","prorate","adjustments","covers","people"],"additionalProperties":false}`
+const billSchema = `{"type":"object","properties":{"description":{"type":"string"},"total":{"type":"number"},"prorate":{"type":"boolean"},"adjustments":{"type":"array","items":{"type":"object","properties":{"label":{"type":"string"},"amount":{"type":"number"}},"required":["label","amount"],"additionalProperties":false}},"covers":{"type":"array","items":{"type":"object","properties":{"name":{"type":"string"},"user_id":{"type":"integer"},"for":{"type":"array","items":{"type":"object","properties":{"name":{"type":"string"},"user_id":{"type":"integer"}},"required":["name","user_id"],"additionalProperties":false}}},"required":["name","user_id","for"],"additionalProperties":false}},"people":{"type":"array","items":{"type":"object","properties":{"name":{"type":"string"},"amount":{"type":"number"},"weight":{"type":"integer"},"user_id":{"type":"integer"}},"required":["name","amount","weight","user_id"],"additionalProperties":false}}},"required":["description","total","prorate","adjustments","covers","people"],"additionalProperties":false}`
 
 const systemPrompt = `Bạn trích xuất thông tin chia bill từ tin nhắn tiếng Việt, ảnh (hóa đơn, ảnh chụp bảng hoặc đoạn chat) hoặc bảng CSV.
 Chỉ trả về một JSON object, không giải thích:
-{"description": string, "total": number, "prorate": boolean, "adjustments": [{"label": string, "amount": number}], "covers": [{"name": string, "user_id": number, "for": [{"name": string, "user_id": number}]}], "people": [{"name": string, "amount": number}]}
+{"description": string, "total": number, "prorate": boolean, "adjustments": [{"label": string, "amount": number}], "covers": [{"name": string, "user_id": number, "for": [{"name": string, "user_id": number}]}], "people": [{"name": string, "amount": number, "weight": number}]}
 Quy tắc:
 - Tiền là VND, số nguyên: "50k"=50000, "1tr2"=1200000, "1.5tr"=1500000.
 - description: tên món hoặc quán nếu người dùng nêu rõ; chuỗi rỗng nếu không nêu, không tự đặt. total: tổng bill, 0 nếu không nêu.
-- people: mỗi người tham gia là một phần tử. name là tên của người đó đúng như in trên bill, ảnh, bảng hoặc đoạn chat, nếu không có bill thì đúng như người dùng viết, kể cả "tôi", "mình". amount là số tiền riêng của người đó, 0 nếu chia đều phần còn lại.
+- people: mỗi người tham gia là một phần tử. name là tên của người đó đúng như in trên bill, ảnh, bảng hoặc đoạn chat, nếu không có bill thì đúng như người dùng viết, kể cả "tôi", "mình". amount là số tiền riêng của người đó, 0 nếu chia đều phần còn lại. weight là số phần của người đó khi chia đều phần còn lại, mặc định 1; "gấp đôi" là 2, "gấp ba" là 3. Mỗi người chỉ là một phần tử dù weight lớn hơn 1: "chia cho 6 người, gấp đôi cho A, còn lại B, C, D, E" là 5 phần tử, A có weight 2. Chỉ đặt weight khác 1 khi amount là 0.
 - user_id: id của người dùng đã biết khớp với người đó (danh sách người dùng và tên đã nhớ nằm cuối tin nhắn). Khớp theo tên trên bill, ảnh, bảng, chat và theo tên hoặc tài khoản trong tin nhắn, chấp nhận khác dấu, sai chính tả, viết tắt (ví dụ ảnh ghi "Hồngg Ngọc" mà tin nhắn ghi "Hồng Ngọc: ngoc.vu" thì là ngoc.vu). Tên đã nhớ là mặc định, trừ khi tin nhắn nói rõ khác. Tài khoản trong tin nhắn có thể chỉ là phần đầu của tài khoản đã biết (ví dụ "lethithuhanh" khớp "lethithuhanh.txpt"): nếu đúng một người dùng khớp thì chọn người đó. Trả 0 nếu không chắc chắn hoặc có nhiều người có thể khớp; không đoán.
 - prorate: true chỉ khi người dùng yêu cầu chia theo số tiền sau giảm giá, ưu đãi hoặc phí (chia theo tỉ lệ). Khi đó amount của mỗi người là giá gốc của họ trên bill, KHÔNG tự trừ giảm giá hay cộng phí; total là số tiền thật phải trả. Ngược lại prorate là false.
 - adjustments: các dòng phí và giảm giá nằm ngoài từng món ở phần tổng kết của hóa đơn (phí áp dụng, phí giao hàng, mã giảm giá, voucher...), mỗi dòng một phần tử, amount đúng như số ở cột bên phải: phí là số dương, giảm giá là số âm. Không đưa "tổng tạm tính" hay "tổng cộng" vào đây. Mảng rỗng nếu bill không có các dòng này. Với ảnh hóa đơn, amount của mỗi người là giá món họ thực trả (giá hiện tại, không phải giá gạch ngang) và total là số tiền phải trả cuối cùng (tổng cộng).
@@ -95,6 +95,9 @@ func (in Input) message() string {
 type Person struct {
 	Name   string
 	Amount int64
+	// Weight is the number of equal parts this person takes of what is left
+	// after the fixed amounts; 0 means 1.
+	Weight int64
 	UserID int64 // the known user the model matched, 0 when it was not sure
 }
 
@@ -149,6 +152,7 @@ type rawBill struct {
 	People []struct {
 		Name   string  `json:"name"`
 		Amount float64 `json:"amount"`
+		Weight float64 `json:"weight"`
 		UserID float64 `json:"user_id"`
 	} `json:"people"`
 }
@@ -252,8 +256,11 @@ func parseBill(content string) (*Bill, error) {
 		if p.Amount < 0 || p.Amount > maxMoney {
 			return nil, fmt.Errorf("amount %v out of range", p.Amount)
 		}
+		if p.Weight < 0 || p.Weight > 100 {
+			return nil, fmt.Errorf("weight %v out of range", p.Weight)
+		}
 		if name := strings.TrimSpace(p.Name); name != "" {
-			bill.People = append(bill.People, Person{Name: name, Amount: int64(math.Round(p.Amount)), UserID: int64(p.UserID)})
+			bill.People = append(bill.People, Person{Name: name, Amount: int64(math.Round(p.Amount)), Weight: int64(math.Round(p.Weight)), UserID: int64(p.UserID)})
 		}
 	}
 	return bill, nil

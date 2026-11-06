@@ -118,6 +118,19 @@ func TestResolveAmounts(t *testing.T) {
 		}
 	})
 
+	t.Run("weight gives a person several equal parts", func(t *testing.T) {
+		in := people("Thương Hà", 0, "Trọng", 0, "Sơn", 0, "Tùng", 0, "Đức", 0)
+		in[0].Weight = 2
+		plan, problems := Resolve(in, 1614000, users, 4, nil)
+		if len(problems) != 0 {
+			t.Fatal(problems)
+		}
+		got := amounts(plan)
+		if got[65] != 538000 || got[4] != 269000 || got[68] != 269000 || got[1] != 269000 || got[9] != 269000 {
+			t.Errorf("amounts = %v", got)
+		}
+	})
+
 	t.Run("all fixed without total takes their sum", func(t *testing.T) {
 		plan, problems := Resolve(people("Hà", 40000, "Sơn", 50000), 0, users, 4, nil)
 		if len(problems) != 0 || plan.Total != 90000 {

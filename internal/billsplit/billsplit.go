@@ -109,20 +109,25 @@ func Resolve(people []llm.Person, total int64, users []*models.User, selfID int6
 		if rest <= 0 {
 			return Plan{}, []string{fmt.Sprintf("các phần đã nêu (%d) đã vượt tổng bill (%d)", fixed, total)}
 		}
-		n := int64(len(equal))
-		if rest < n {
-			return Plan{}, []string{fmt.Sprintf("còn lại %d không đủ chia cho %d người", rest, n)}
+		var parts int64
+		for _, i := range equal {
+			parts += weightOf(people[i])
+		}
+		if rest < parts {
+			return Plan{}, []string{fmt.Sprintf("còn lại %d không đủ chia cho %d phần", rest, parts)}
 		}
 		for j, i := range equal {
-			shares[i].Amount = rest / n
+			shares[i].Amount = rest / parts * weightOf(people[i])
 			if j == 0 {
-				shares[i].Amount += rest % n
+				shares[i].Amount += rest % parts
 			}
 		}
 	}
 
 	return Plan{Total: total, Shares: shares}, nil
 }
+
+func weightOf(p llm.Person) int64 { return max(p.Weight, 1) }
 
 // explainsGap reports whether the bill's own fee and discount lines account for
 // the exact difference between the item prices and the total, so the list
