@@ -23,11 +23,11 @@ func (p *TimoParser) CanParse(from, subject string) bool {
 
 // Parse extracts transaction details from Timo email body
 func (p *TimoParser) Parse(body string) (*TransactionDetails, error) {
-	// Regular expressions for extracting information
-	amountRegexSubtract := regexp.MustCompile(`giảm ([\d,.]+) VND`)
-	amountRegexAdd := regexp.MustCompile(`tăng ([\d,.]+) VND`)
-	balanceRegex := regexp.MustCompile(`Số dư hiện tại: ([\d,.]+) VND`)
-	descRegex := regexp.MustCompile(`Mô tả: (.+)\.`)
+	// Timo sends the Vietnamese notice and, since late October, an English one.
+	amountRegexSubtract := regexp.MustCompile(`(?:giảm|debited) ([\d,.]+) VND`)
+	amountRegexAdd := regexp.MustCompile(`(?:tăng|credited) ([\d,.]+) VND`)
+	balanceRegex := regexp.MustCompile(`(?i:Số dư hiện tại|current balance is): ([\d,.]+) VND`)
+	descRegex := regexp.MustCompile(`(?:Mô tả|Transaction Description): (.+)\.`)
 
 	var amount int64
 	var transactionType models.TransactionType

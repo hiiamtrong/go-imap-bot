@@ -150,6 +150,19 @@ func searchEmails(c *imapclient.Client) []int64 {
 				{Key: "From", Value: "support@timo.vn"},
 			},
 		},
+		// Timo bank, English notices (the Vietnamese subject above stopped coming on 24 Oct)
+		{
+			Header: []imap.SearchCriteriaHeaderField{
+				{Key: "Subject", Value: "Credit Transaction Notice"},
+				{Key: "From", Value: "support@timo.vn"},
+			},
+		},
+		{
+			Header: []imap.SearchCriteriaHeaderField{
+				{Key: "Subject", Value: "Debit Transaction Notice"},
+				{Key: "From", Value: "support@timo.vn"},
+			},
+		},
 		// Vietcombank - Transfer receipts
 		{
 			Header: []imap.SearchCriteriaHeaderField{
