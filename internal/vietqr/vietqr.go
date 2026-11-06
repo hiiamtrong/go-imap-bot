@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/hiiamtrong/go-imap-bot/internal/config"
 	"github.com/hiiamtrong/go-imap-bot/internal/s3"
@@ -73,7 +74,7 @@ func (s *VietQRService) GenerateQR(req *GenerateQRRequest) (*GenerateQRResponse,
 	httpReq.Header.Set("x-client-id", s.clientID)
 	httpReq.Header.Set("x-api-key", s.apiKey)
 
-	client := &http.Client{}
+	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(httpReq)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request: %v", err)

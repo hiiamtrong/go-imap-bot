@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/hiiamtrong/go-imap-bot/internal/api/dto"
 	"github.com/hiiamtrong/go-imap-bot/internal/models"
@@ -58,42 +59,57 @@ func (h *SplitHandler) SendReminders(c echo.Context) error {
 		mode = "angry"
 	}
 
-	// Send reminders to each user
-	successCount := 0
-	failedUsers := []string{}
+	// Each reminder costs a QR request, an S3 upload and an SMTP session, so
+	// one at a time a long list outlasts the proxy's 60s timeout.
+	var (
+		mu           sync.Mutex
+		wg           sync.WaitGroup
+		successCount int
+		failedUsers  = []string{}
+		limit        = make(chan struct{}, 5)
+	)
+	fail := func(who string) {
+		mu.Lock()
+		failedUsers = append(failedUsers, who)
+		mu.Unlock()
+	}
 
 	for userID, userSplits := range splitsByUser {
-		// Fetch user details
-		user, err := h.userRepo.GetByID(userID)
-		if err != nil {
-			failedUsers = append(failedUsers, fmt.Sprintf("User ID %d (fetch error)", userID))
-			continue
-		}
+		wg.Add(1)
+		limit <- struct{}{}
+		go func() {
+			defer func() { <-limit; wg.Done() }()
 
-		// Extract split IDs for this user
-		splitIDs := make([]int64, len(userSplits))
-		for i, split := range userSplits {
-			splitIDs[i] = split.ID
-		}
+			user, err := h.userRepo.GetByID(userID)
+			if err != nil {
+				fail(fmt.Sprintf("User ID %d (fetch error)", userID))
+				return
+			}
 
-		// Generate hash for these splits
-		hash, err := h.splitHashRepo.GenerateHash(splitIDs)
-		if err != nil {
-			failedUsers = append(failedUsers, user.Email)
-			continue
-		}
+			splitIDs := make([]int64, len(userSplits))
+			for i, split := range userSplits {
+				splitIDs[i] = split.ID
+			}
 
-		// Send email reminder
-		// Use config email as the "from user" - you may want to customize this
-		fromUser := h.smtpService.GetFromEmail()
-		err = h.smtpService.SendBulkSplitReminders(user, userSplits, fromUser, hash, mode)
-		if err != nil {
-			failedUsers = append(failedUsers, user.Email)
-			continue
-		}
+			hash, err := h.splitHashRepo.GenerateHash(splitIDs)
+			if err != nil {
+				fail(user.Email)
+				return
+			}
 
-		successCount++
+			// Use config email as the "from user" - you may want to customize this
+			fromUser := h.smtpService.GetFromEmail()
+			if err := h.smtpService.SendBulkSplitReminders(user, userSplits, fromUser, hash, mode); err != nil {
+				fail(user.Email)
+				return
+			}
+
+			mu.Lock()
+			successCount++
+			mu.Unlock()
+		}()
 	}
+	wg.Wait()
 
 	// Prepare response message
 	message := fmt.Sprintf("Successfully sent %d reminder(s)", successCount)
