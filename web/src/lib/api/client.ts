@@ -78,6 +78,7 @@ class ApiClient {
 			max_amount?: number;
 			tag_ids?: number[];
 			search?: string;
+			completed?: boolean;
 		}
 	): Promise<ApiResponse<Transaction[]>> {
 		const params = new URLSearchParams({
@@ -94,6 +95,7 @@ class ApiClient {
 			if (filters.tag_ids && filters.tag_ids.length > 0)
 				params.append("tag_ids", filters.tag_ids.join(","));
 			if (filters.search) params.append("search", filters.search);
+			if (filters.completed !== undefined) params.append("completed", String(filters.completed));
 		}
 
 		return this.request<Transaction[]>(`/transactions?${params.toString()}`);
@@ -218,6 +220,13 @@ class ApiClient {
 	async deleteSplit(splitId: number): Promise<ApiResponse<void>> {
 		return this.request<void>(`/splits/${splitId}`, {
 			method: "DELETE",
+		});
+	}
+
+	async completeTransactions(ids: number[]): Promise<ApiResponse<void>> {
+		return this.request<void>("/transactions/complete", {
+			method: "POST",
+			body: JSON.stringify({ ids }),
 		});
 	}
 

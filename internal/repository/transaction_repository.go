@@ -341,6 +341,22 @@ func (r *TransactionRepository) Complete(ctx context.Context, transactionID int6
 	return nil
 }
 
+// CompleteMany marks every given transaction completed in one statement.
+func (r *TransactionRepository) CompleteMany(ctx context.Context, ids []int64) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	args := make([]any, len(ids))
+	for i, id := range ids {
+		args[i] = id
+	}
+	query := `UPDATE transactions SET completed = 1 WHERE id IN (?` + strings.Repeat(",?", len(ids)-1) + `)`
+	if _, err := r.db.Conn.ExecContext(ctx, query, args...); err != nil {
+		return fmt.Errorf("failed to complete transactions: %v", err)
+	}
+	return nil
+}
+
 func (r *TransactionRepository) UpdateDescription(ctx context.Context, transactionID int64, description string) error {
 	query := `UPDATE transactions SET description = ? WHERE id = ?`
 	result, err := r.db.Conn.ExecContext(ctx, query, description, transactionID)
@@ -451,6 +467,7 @@ type TransactionFilters struct {
 	MaxAmount   *int64     // Maximum amount
 	TagIDs      []int64    // Filter by tag IDs
 	Description *string    // Search in description
+	Completed   *bool      // nil for both, true for completed only, false for pending only
 }
 
 // GetRecentTransactionsWithFilters returns transactions matching the given filters
@@ -497,6 +514,11 @@ func (r *TransactionRepository) GetRecentTransactionsWithFilters(ctx context.Con
 	if filters.MaxAmount != nil && *filters.MaxAmount > 0 {
 		conditions = append(conditions, "t.amount <= ?")
 		args = append(args, *filters.MaxAmount)
+	}
+
+	if filters.Completed != nil {
+		conditions = append(conditions, "t.completed = ?")
+		args = append(args, *filters.Completed)
 	}
 
 	// Search in description

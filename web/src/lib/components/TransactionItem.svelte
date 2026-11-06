@@ -6,9 +6,10 @@
 		transaction: Transaction;
 		showIcon?: boolean;
 		showDate?: boolean;
+		oncomplete?: (id: number) => void;
 	}
 
-	let { transaction, showIcon = false, showDate = false }: Props = $props();
+	let { transaction, showIcon = false, showDate = false, oncomplete }: Props = $props();
 
 	function getTransactionTypeColor(type: "add" | "subtract"): string {
 		return type === "add" ? "text-green-600" : "text-red-600";
@@ -124,6 +125,17 @@
 					Balance: {formatCurrency(transaction.balance, transaction.currency || "VND")}
 				</p>
 			</div>
+			{#if oncomplete && !transaction.completed}
+				<button
+					onclick={(e) => {
+						e.preventDefault();
+						oncomplete(transaction.id);
+					}}
+					class="btn btn-secondary text-xs sm:mt-2"
+				>
+					Mark complete
+				</button>
+			{/if}
 			{#if transaction.splits && transaction.splits.length > 0}
 				<div class="sm:mt-2">
 					{#if showDate}

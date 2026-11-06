@@ -49,6 +49,7 @@ func NewTransactionHandler(
 // @Param max_amount query int false "Maximum amount"
 // @Param tag_ids query string false "Comma-separated tag IDs"
 // @Param search query string false "Search in description"
+// @Param completed query bool false "true for completed only, false for pending only, omit for both"
 // @Success 200 {object} dto.Response{data=[]dto.TransactionResponse}
 // @Router /api/transactions [get]
 func (h *TransactionHandler) GetTransactions(c echo.Context) error {
@@ -78,6 +79,10 @@ func (h *TransactionHandler) GetTransactions(c echo.Context) error {
 	}
 	if searchParam := c.QueryParam("search"); searchParam != "" {
 		filters.Description = &searchParam
+	}
+
+	if completed, err := strconv.ParseBool(c.QueryParam("completed")); err == nil {
+		filters.Completed = &completed
 	}
 
 	// Parse date range
@@ -432,6 +437,26 @@ func (h *TransactionHandler) CompleteTransaction(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, dto.Response{
 		Message: "Transaction marked as completed",
+	})
+}
+
+// CompleteTransactions marks all the given transactions completed.
+func (h *TransactionHandler) CompleteTransactions(c echo.Context) error {
+	var req dto.CompleteTransactionsRequest
+	if err := c.Bind(&req); err != nil || len(req.IDs) == 0 {
+		return c.JSON(http.StatusBadRequest, dto.Response{
+			Error: "ids is required",
+		})
+	}
+
+	if err := h.transactionRepo.CompleteMany(context.Background(), req.IDs); err != nil {
+		return c.JSON(http.StatusInternalServerError, dto.Response{
+			Error: err.Error(),
+		})
+	}
+
+	return c.JSON(http.StatusOK, dto.Response{
+		Message: "Transactions marked as completed",
 	})
 }
 

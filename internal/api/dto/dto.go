@@ -31,6 +31,10 @@ type CreateVirtualBillRequest struct {
 	Description string `json:"description" validate:"required"`
 }
 
+type CompleteTransactionsRequest struct {
+	IDs []int64 `json:"ids"`
+}
+
 type UpdateDescriptionRequest struct {
 	Description string `json:"description" validate:"required"`
 }

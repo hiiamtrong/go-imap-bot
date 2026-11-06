@@ -99,6 +99,7 @@ func main() {
 	protected.GET("/transactions", transactionHandler.GetTransactions)
 	protected.GET("/transactions/:id", transactionHandler.GetTransaction)
 	protected.POST("/transactions/virtual", transactionHandler.CreateVirtualBill)
+	protected.POST("/transactions/complete", transactionHandler.CompleteTransactions)
 	protected.POST("/transactions/:id/complete", transactionHandler.CompleteTransaction)
 	protected.PUT("/transactions/:id/description", transactionHandler.UpdateDescription)
 	protected.DELETE("/transactions/:id", transactionHandler.DeleteTransaction)

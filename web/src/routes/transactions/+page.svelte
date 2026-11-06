@@ -11,6 +11,7 @@
 
 	// Filter states
 	let filterType = $state<"all" | "add" | "subtract">("all");
+	let filterStatus = $state<"pending" | "completed" | "all">("pending");
 	let searchQuery = $state("");
 	let startDate = $state("");
 	let endDate = $state("");
@@ -40,6 +41,10 @@
 
 		if (filterType !== "all") {
 			filters.type = filterType;
+		}
+
+		if (filterStatus !== "all") {
+			filters.completed = filterStatus === "completed";
 		}
 
 		if (searchQuery) {
@@ -76,6 +81,15 @@
 		loading = false;
 	}
 
+	async function completeTransactions(ids: number[]) {
+		const response = await api.completeTransactions(ids);
+		if (response.error) {
+			error = response.error;
+			return;
+		}
+		await loadTransactions();
+	}
+
 	function toggleTag(tagId: number) {
 		if (selectedTagIds.includes(tagId)) {
 			selectedTagIds = selectedTagIds.filter((id) => id !== tagId);
@@ -99,6 +113,7 @@
 	$effect(() => {
 		// Watch for filter changes
 		void filterType;
+		void filterStatus;
 		void searchQuery;
 		void startDate;
 		void endDate;
@@ -171,6 +186,17 @@
 						Expense
 					</button>
 				</div>
+			</div>
+
+			<div class="grid grid-cols-3 gap-2">
+				{#each [["pending", "Pending"], ["completed", "Completed"], ["all", "All status"]] as [value, label]}
+					<button
+						onclick={() => (filterStatus = value as typeof filterStatus)}
+						class="btn text-sm sm:text-base {filterStatus === value ? 'btn-primary' : 'btn-secondary'}"
+					>
+						{label}
+					</button>
+				{/each}
 			</div>
 
 			<!-- Advanced Filters Toggle -->
@@ -257,9 +283,22 @@
 		{:else if transactions.length === 0}
 			<p class="text-gray-500 text-center py-8">No transactions found</p>
 		{:else}
+			{@const pendingIds = transactions.filter((t) => !t.completed).map((t) => t.id)}
+			{#if pendingIds.length > 0}
+				<div class="flex justify-end mb-3">
+					<button onclick={() => completeTransactions(pendingIds)} class="btn btn-secondary text-sm">
+						Mark all complete ({pendingIds.length})
+					</button>
+				</div>
+			{/if}
 			<div class="space-y-3">
 				{#each transactions as transaction}
-					<TransactionItem {transaction} showIcon={true} showDate={true} />
+					<TransactionItem
+						{transaction}
+						showIcon={true}
+						showDate={true}
+						oncomplete={(id) => completeTransactions([id])}
+					/>
 				{/each}
 			</div>
 		{/if}
