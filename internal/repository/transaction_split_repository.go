@@ -156,6 +156,23 @@ func (r *TransactionSplitRepository) Update(split *models.TransactionSplit) erro
 	return nil
 }
 
+// RenameReason carries a transaction rename over to its splits. A split's
+// reason is a copy of the description taken when it was created, so only a
+// reason that is still that description (or that description followed by the
+// covered-people note) is rewritten; one the user wrote is left alone.
+func (r *TransactionSplitRepository) RenameReason(ctx context.Context, transactionID int64, oldDescription, newDescription string) error {
+	covers := oldDescription + " (gồm phần của "
+	_, err := r.db.Conn.ExecContext(ctx, `
+		UPDATE transaction_splits
+		SET reason = ? || substr(reason, ?)
+		WHERE transaction_id = ? AND (reason = ? OR substr(reason, 1, ?) = ?)
+	`, newDescription, len([]rune(oldDescription))+1, transactionID, oldDescription, len([]rune(covers)), covers)
+	if err != nil {
+		return fmt.Errorf("failed to rename split reasons: %v", err)
+	}
+	return nil
+}
+
 // UpdateByID updates a split by its ID with the given amount and reason
 func (r *TransactionSplitRepository) UpdateByID(id int64, amount int64, reason string) error {
 	_, err := r.db.Conn.Exec(`

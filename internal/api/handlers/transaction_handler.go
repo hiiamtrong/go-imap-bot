@@ -477,6 +477,12 @@ func (h *TransactionHandler) UpdateDescription(c echo.Context) error {
 		})
 	}
 
+	if err := h.transactionSplitRepo.RenameReason(context.Background(), id, transaction.Description, req.Description); err != nil {
+		return c.JSON(http.StatusInternalServerError, dto.Response{
+			Error: err.Error(),
+		})
+	}
+
 	// Update local transaction object for response
 	transaction.Description = req.Description
 	transactionDTO := h.toTransactionDTO(transaction)
