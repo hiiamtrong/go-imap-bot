@@ -164,3 +164,63 @@ func TestPaginationIsStableWhenTimestampsTie(t *testing.T) {
 		t.Errorf("pages = %v, want %v", got, want)
 	}
 }
+
+// Rows hold unix seconds (older) or text with a UTC offset (newer, mail Dates arrive in any zone),
+// so sorting and filtering must compare instants, not raw column values.
+func TestOrderAndDateFilterCompareInstantsAcrossFormats(t *testing.T) {
+	conn, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { conn.Close() })
+	conn.SetMaxOpenConns(1)
+	schema, err := os.ReadFile("../../init/init.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := conn.Exec(string(schema)); err != nil {
+		t.Fatal(err)
+	}
+	rows := []struct {
+		desc string
+		ts   any
+	}{
+		{"d: text +07:00, 13:33Z on the 18th", "2026-11-18 20:33:11+07:00"},
+		{"c: unix int, 01:00Z on the 19th", time.Date(2026, 11, 19, 1, 0, 0, 0, time.UTC).Unix()},
+		{"b: text +07:00, 07:51Z on the 19th", "2026-11-19 14:51:46+07:00"},
+		{"a: text -08:00, 18:06Z on the 19th", "2026-11-19 10:06:50-08:00"},
+	}
+	for _, r := range rows {
+		if _, err := conn.Exec(`INSERT INTO transactions (type, mail_id, amount, current_balance, from_account, to_account, description, timestamp) VALUES ('add', 1, 1, 1, 'f', 't', ?, ?)`, r.desc, r.ts); err != nil {
+			t.Fatal(err)
+		}
+	}
+	r := NewTransactionRepository(&database.Database{Conn: conn})
+	ctx := context.Background()
+	letters := func(got []*models.Transaction, err error) string {
+		if err != nil {
+			t.Fatal(err)
+		}
+		var out string
+		for _, tx := range got {
+			out += tx.Description[:1]
+		}
+		return out
+	}
+
+	if got := letters(r.GetRecentTransactionsWithFilters(ctx, 10, 0, TransactionFilters{})); got != "abcd" {
+		t.Errorf("filtered list order = %q, want abcd", got)
+	}
+	if got := letters(r.GetRecentTransactions(ctx, 10, 0, nil)); got != "abcd" {
+		t.Errorf("recent order = %q, want abcd", got)
+	}
+	// 19th 00:00Z keeps a, b, c (including the unix-int row) and drops d
+	start := time.Date(2026, 11, 19, 0, 0, 0, 0, time.UTC)
+	if got := letters(r.GetRecentTransactionsWithFilters(ctx, 10, 0, TransactionFilters{StartDate: &start})); got != "abc" {
+		t.Errorf("start_date filter = %q, want abc", got)
+	}
+	end := time.Date(2026, 11, 19, 12, 0, 0, 0, time.UTC)
+	if got := letters(r.GetRecentTransactionsWithFilters(ctx, 10, 0, TransactionFilters{EndDate: &end})); got != "bcd" {
+		t.Errorf("end_date filter = %q, want bcd", got)
+	}
+}

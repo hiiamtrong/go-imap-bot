@@ -398,6 +398,12 @@ func (r *TransactionRepository) IsCompleted(ctx context.Context, transactionID i
 	return completed, nil
 }
 
+// unixTimestamp turns a timestamp column into unix seconds. Older rows store unix seconds, newer ones
+// text with the mail's UTC offset, so the raw column neither sorts nor compares by instant.
+func unixTimestamp(col string) string {
+	return "CASE typeof(" + col + ") WHEN 'integer' THEN " + col + " ELSE CAST(strftime('%s', " + col + ") AS INTEGER) END"
+}
+
 func (r *TransactionRepository) GetRecentTransactions(ctx context.Context, limit int64, offset int64, isCompleted *bool) ([]*models.Transaction, error) {
 	query := `SELECT id, mail_id, amount, current_balance, currency, type, from_account, to_account, description, completed, timestamp, created_at FROM transactions
 	WHERE 1=1`
@@ -406,7 +412,7 @@ func (r *TransactionRepository) GetRecentTransactions(ctx context.Context, limit
 		query += ` AND completed = ?`
 		args = append(args, *isCompleted)
 	}
-	query += ` ORDER BY timestamp DESC, id DESC LIMIT ? OFFSET ?`
+	query += ` ORDER BY ` + unixTimestamp("timestamp") + ` DESC, id DESC LIMIT ? OFFSET ?`
 	args = append(args, limit, offset)
 
 	rows, err := r.db.Conn.Query(query, args...)
@@ -507,12 +513,12 @@ func (r *TransactionRepository) GetRecentTransactionsWithFilters(ctx context.Con
 
 	// Filter by date range
 	if filters.StartDate != nil && !filters.StartDate.IsZero() {
-		conditions = append(conditions, "t.timestamp >= ?")
-		args = append(args, filters.StartDate.Format(time.RFC3339))
+		conditions = append(conditions, unixTimestamp("t.timestamp")+" >= ?")
+		args = append(args, filters.StartDate.Unix())
 	}
 	if filters.EndDate != nil && !filters.EndDate.IsZero() {
-		conditions = append(conditions, "t.timestamp <= ?")
-		args = append(args, filters.EndDate.Format(time.RFC3339))
+		conditions = append(conditions, unixTimestamp("t.timestamp")+" <= ?")
+		args = append(args, filters.EndDate.Unix())
 	}
 
 	// Filter by amount range
@@ -544,7 +550,7 @@ func (r *TransactionRepository) GetRecentTransactionsWithFilters(ctx context.Con
 	fmt.Println(query)
 
 	// Order and pagination
-	query += " ORDER BY t.timestamp DESC, t.id DESC LIMIT ? OFFSET ?"
+	query += " ORDER BY " + unixTimestamp("t.timestamp") + " DESC, t.id DESC LIMIT ? OFFSET ?"
 	args = append(args, limit, offset)
 
 	rows, err := r.db.Conn.Query(query, args...)
