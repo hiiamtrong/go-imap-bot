@@ -49,10 +49,11 @@ func main() {
 	transactionSplitRepo := repository.NewTransactionSplitRepository(db)
 	splitHashRepo := repository.NewSplitHashRepository(db)
 	aliasRepo := repository.NewAliasRepository(db)
+	mailRepo := repository.NewMailRepository(db)
 
 	// Setup handlers
 	authHandler := handlers.NewAuthHandler(cfg)
-	transactionHandler := handlers.NewTransactionHandler(transactionRepo, tagRepo, transactionSplitRepo, userRepo)
+	transactionHandler := handlers.NewTransactionHandler(transactionRepo, tagRepo, transactionSplitRepo, userRepo, mailRepo)
 	userHandler := handlers.NewUserHandler(userRepo)
 	tagHandler := handlers.NewTagHandler(tagRepo)
 	splitHandler := handlers.NewSplitHandler(transactionSplitRepo, transactionRepo, userRepo, aliasRepo, smtpService, splitHashRepo)

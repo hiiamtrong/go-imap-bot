@@ -47,6 +47,20 @@ func (p *VietcombankParser) Parse(body string) (*TransactionDetails, error) {
 		return nil, fmt.Errorf("skipping Vietcombank email: account %s not in allowed list", debitAccount)
 	}
 
+	// The beneficiary is the other side of the transfer
+	creditAccount := ""
+	if m := regexp.MustCompile(`(?s)<b>Tài khoản hưởng</b>.*?</td>\s*<td[^>]*>\s*(\d+)\s*</td>`).FindStringSubmatch(body); len(m) >= 2 {
+		creditAccount = m[1]
+	}
+	beneficiaryName := ""
+	if m := regexp.MustCompile(`(?s)<b>Tên người hưởng</b>.*?</td>\s*<td[^>]*>\s*([^<]+?)\s*</td>`).FindStringSubmatch(body); len(m) >= 2 {
+		beneficiaryName = m[1]
+	}
+	counterparty := strings.TrimSpace(beneficiaryName + " (" + creditAccount + ")")
+	if creditAccount == "" {
+		counterparty = beneficiaryName
+	}
+
 	// Extract amount from HTML table
 	// Pattern matches: <b>Số tiền</b>...<td...>167,000 VND</td>
 	amountRegex := regexp.MustCompile(`(?s)<b>Số tiền</b>.*?</td>\s*<td[^>]*>\s*([\d,]+)\s*VND`)
@@ -81,5 +95,7 @@ func (p *VietcombankParser) Parse(body string) (*TransactionDetails, error) {
 		Description:    description,
 		Type:           models.TransactionTypeSubtract,
 		Currency:       "VND",
+		Account:        debitAccount,
+		Counterparty:   counterparty,
 	}, nil
 }

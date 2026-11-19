@@ -79,5 +79,6 @@ func (p *TimoParser) Parse(body string) (*TransactionDetails, error) {
 		Description:    description,
 		Type:           transactionType,
 		Currency:       "VND",
+		Account:        "Timo Spend Account", // the mail carries no account number
 	}, nil
 }

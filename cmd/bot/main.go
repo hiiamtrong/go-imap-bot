@@ -396,6 +396,8 @@ func processEmail(msg *imapclient.FetchMessageData, bot *imapbot.Bot) {
 				Currency:       details.Currency,
 				Description:    details.Description,
 				Type:           string(details.Type),
+				Account:        details.Account,
+				Counterparty:   details.Counterparty,
 				Timestamp:      newMail.Date,
 				CreatedAt:      time.Now(),
 				From:           newMail.From,
@@ -407,9 +409,10 @@ func processEmail(msg *imapclient.FetchMessageData, bot *imapbot.Bot) {
 				INSERT INTO transactions (
 					mail_id, amount, current_balance, currency, type,
 					from_account, to_account, description,
+					account, counterparty,
 					timestamp, created_at
 				)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 			`
 			result, err := tx.Exec(
 				query,
@@ -421,6 +424,8 @@ func processEmail(msg *imapclient.FetchMessageData, bot *imapbot.Bot) {
 				transaction.From,
 				transaction.To,
 				transaction.Description,
+				transaction.Account,
+				transaction.Counterparty,
 				transaction.Timestamp,
 				time.Now(),
 			)
@@ -435,6 +440,11 @@ func processEmail(msg *imapclient.FetchMessageData, bot *imapbot.Bot) {
 				return
 			}
 			transaction.ID = id
+
+			if _, err := tx.Exec(`UPDATE mails SET body = ? WHERE id = ?`, bodyText, newMail.ID); err != nil {
+				log.Printf("failed to save mail body: %v", err)
+				return
+			}
 		}
 	}
 

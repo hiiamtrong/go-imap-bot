@@ -17,6 +17,8 @@ type Transaction struct {
 	Currency       string
 	From           string
 	To             string
+	Account        string
+	Counterparty   string
 	Description    string
 	Type           string
 	Completed      bool

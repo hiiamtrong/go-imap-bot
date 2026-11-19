@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/hiiamtrong/go-imap-bot/internal/database"
+	"github.com/hiiamtrong/go-imap-bot/internal/models"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -89,5 +90,77 @@ func TestCompleteManyAndCompletedFilter(t *testing.T) {
 	}
 	if got := ids(nil); !slices.Equal(got, []int64{1, 2, 3}) {
 		t.Errorf("all = %v", got)
+	}
+}
+
+func TestAccountAndCounterpartyRoundTrip(t *testing.T) {
+	conn, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { conn.Close() })
+	conn.SetMaxOpenConns(1)
+	schema, err := os.ReadFile("../../init/init.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := conn.Exec(string(schema)); err != nil {
+		t.Fatal(err)
+	}
+
+	r := NewTransactionRepository(&database.Database{Conn: conn})
+	tx := &models.Transaction{MailID: 1, Amount: 1, Currency: "VND", Type: "subtract", Description: "x", Account: "9338613062", Counterparty: "MUJI (0071001345365)", Timestamp: time.Unix(1743476285, 0)}
+	if err := r.Create(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	byID, err := r.GetByID(tx.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	listed, err := r.GetRecentTransactionsWithFilters(context.Background(), 10, 0, TransactionFilters{})
+	if err != nil || len(listed) != 1 {
+		t.Fatalf("list = %v, err %v", listed, err)
+	}
+	for name, got := range map[string]*models.Transaction{"GetByID": byID, "list": listed[0]} {
+		if got.Account != "9338613062" || got.Counterparty != "MUJI (0071001345365)" {
+			t.Errorf("%s: account/counterparty = %q / %q", name, got.Account, got.Counterparty)
+		}
+	}
+}
+
+func TestPaginationIsStableWhenTimestampsTie(t *testing.T) {
+	conn, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { conn.Close() })
+	conn.SetMaxOpenConns(1)
+	schema, err := os.ReadFile("../../init/init.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := conn.Exec(string(schema)); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 5; i++ {
+		if _, err := conn.Exec(`INSERT INTO transactions (type, mail_id, amount, current_balance, from_account, to_account, description, timestamp) VALUES ('subtract', 1, 1, 1, 'a', 'b', 'x', '2026-09-26T12:21:30+07:00')`); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	r := NewTransactionRepository(&database.Database{Conn: conn})
+	var got []int64
+	for offset := int64(0); offset < 5; offset += 2 {
+		page, err := r.GetRecentTransactionsWithFilters(context.Background(), 2, offset, TransactionFilters{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, tx := range page {
+			got = append(got, tx.ID)
+		}
+	}
+	if want := []int64{5, 4, 3, 2, 1}; !slices.Equal(got, want) {
+		t.Errorf("pages = %v, want %v", got, want)
 	}
 }

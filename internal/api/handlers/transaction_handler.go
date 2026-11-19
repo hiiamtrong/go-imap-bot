@@ -21,6 +21,7 @@ type TransactionHandler struct {
 	tagRepo              *repository.TagRepository
 	transactionSplitRepo *repository.TransactionSplitRepository
 	userRepo             *repository.UserRepository
+	mailRepo             *repository.MailRepository
 }
 
 func NewTransactionHandler(
@@ -28,12 +29,14 @@ func NewTransactionHandler(
 	tagRepo *repository.TagRepository,
 	transactionSplitRepo *repository.TransactionSplitRepository,
 	userRepo *repository.UserRepository,
+	mailRepo *repository.MailRepository,
 ) *TransactionHandler {
 	return &TransactionHandler{
 		transactionRepo:      transactionRepo,
 		tagRepo:              tagRepo,
 		transactionSplitRepo: transactionSplitRepo,
 		userRepo:             userRepo,
+		mailRepo:             mailRepo,
 	}
 }
 
@@ -201,6 +204,18 @@ func (h *TransactionHandler) GetTransaction(c echo.Context) error {
 	}
 
 	transactionDTO := h.toTransactionDTO(transaction)
+
+	// A transaction can outlive its mail row (e.g. virtual bills have a synthetic one), so a miss is not an error.
+	if mail, err := h.mailRepo.GetByID(transaction.MailID); err == nil {
+		transactionDTO.Mail = &dto.MailResponse{
+			ID:      mail.ID,
+			Subject: mail.Subject,
+			From:    mail.From,
+			To:      mail.To,
+			Date:    mail.Date,
+			Body:    mail.Body,
+		}
+	}
 
 	// Get tags
 	tags, _ := h.transactionRepo.GetTagsForTransaction(transaction.ID)
@@ -553,17 +568,21 @@ func (h *TransactionHandler) UpdateDescription(c echo.Context) error {
 // Helper function to convert model to DTO
 func (h *TransactionHandler) toTransactionDTO(t *models.Transaction) dto.TransactionResponse {
 	return dto.TransactionResponse{
-		ID:          t.ID,
-		MailID:      t.MailID,
-		Amount:      t.Amount,
-		Balance:     t.CurrentBalance,
-		Currency:    t.Currency,
-		Type:        t.Type,
-		Description: t.Description,
-		Completed:   t.Completed,
-		Timestamp:   t.Timestamp,
-		Tags:        []dto.TagResponse{},
-		Splits:      []dto.SplitResponse{},
+		ID:           t.ID,
+		MailID:       t.MailID,
+		Amount:       t.Amount,
+		Balance:      t.CurrentBalance,
+		Currency:     t.Currency,
+		Type:         t.Type,
+		Description:  t.Description,
+		Completed:    t.Completed,
+		Timestamp:    t.Timestamp,
+		From:         t.From,
+		To:           t.To,
+		Account:      t.Account,
+		Counterparty: t.Counterparty,
+		Tags:         []dto.TagResponse{},
+		Splits:       []dto.SplitResponse{},
 
 		SuspectedGroupSpend: !t.Completed && groupspend.Suspect(t),
 	}

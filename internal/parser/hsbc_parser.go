@@ -82,11 +82,18 @@ func (p *HSBCParser) Parse(body string) (*TransactionDetails, error) {
 		currentBalance, _ = parseAmount(balanceMatch[1])
 	}
 
+	// Card, e.g. "thẻ tín dụng X6194"
+	account := ""
+	if m := regexp.MustCompile(`thẻ tín dụng\s+(X\d+)`).FindStringSubmatch(normalizedBody); m != nil {
+		account = m[1]
+	}
+
 	return &TransactionDetails{
 		Amount:         amount,
 		CurrentBalance: currentBalance,
 		Description:    description,
 		Type:           models.TransactionTypeSubtract, // Always subtract for credit card purchase
 		Currency:       currency,
+		Account:        account,
 	}, nil
 }

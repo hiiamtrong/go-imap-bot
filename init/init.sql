@@ -4,7 +4,8 @@ CREATE TABLE IF NOT EXISTS mails (
         subject TEXT,
         from_account TEXT,
         to_account TEXT,
-        timestamp INTEGER
+        timestamp INTEGER,
+        body TEXT DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS transactions (
@@ -17,6 +18,8 @@ CREATE TABLE IF NOT EXISTS transactions (
         from_account TEXT,
         to_account TEXT,
         description TEXT,
+        account TEXT DEFAULT '',
+        counterparty TEXT DEFAULT '',
         timestamp INTEGER,
         completed BOOLEAN DEFAULT FALSE,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP

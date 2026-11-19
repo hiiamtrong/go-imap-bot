@@ -11,19 +11,34 @@ type Response struct {
 
 // Transaction DTOs
 type TransactionResponse struct {
-	ID          int64           `json:"id"`
-	MailID      int64           `json:"mail_id"`
-	Amount      int64           `json:"amount"`
-	Balance     int64           `json:"balance"`
-	Currency    string          `json:"currency"`
-	Type        string          `json:"type"`
-	Description string          `json:"description"`
-	Completed   bool            `json:"completed"`
-	Timestamp   time.Time       `json:"timestamp"`
-	Tags        []TagResponse   `json:"tags,omitempty"`
-	Splits      []SplitResponse `json:"splits,omitempty"`
+	ID           int64           `json:"id"`
+	MailID       int64           `json:"mail_id"`
+	Amount       int64           `json:"amount"`
+	Balance      int64           `json:"balance"`
+	Currency     string          `json:"currency"`
+	Type         string          `json:"type"`
+	Description  string          `json:"description"`
+	Completed    bool            `json:"completed"`
+	Timestamp    time.Time       `json:"timestamp"`
+	From         string          `json:"from"`
+	To           string          `json:"to"`
+	Account      string          `json:"account"`
+	Counterparty string          `json:"counterparty"`
+	Tags         []TagResponse   `json:"tags,omitempty"`
+	Splits       []SplitResponse `json:"splits,omitempty"`
+	Mail         *MailResponse   `json:"mail,omitempty"` // only on the detail endpoint
 
 	SuspectedGroupSpend bool `json:"suspected_group_spend"`
+}
+
+// MailResponse is the source mail of a transaction. Body is empty for mails saved before bodies were kept.
+type MailResponse struct {
+	ID      int64     `json:"id"`
+	Subject string    `json:"subject"`
+	From    string    `json:"from"`
+	To      string    `json:"to"`
+	Date    time.Time `json:"date"`
+	Body    string    `json:"body"`
 }
 
 type CreateVirtualBillRequest struct {

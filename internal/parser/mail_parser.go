@@ -14,6 +14,8 @@ type TransactionDetails struct {
 	Description    string
 	Type           models.TransactionType
 	Currency       string
+	Account        string // the user's own account or card, when the mail names one
+	Counterparty   string // the other side of a transfer, when the mail names one
 }
 
 // DefaultRegistry is the global parser registry with all bank parsers

@@ -53,9 +53,10 @@ func (r *TransactionRepository) Create(transaction *models.Transaction) error {
 		INSERT INTO transactions (
 			mail_id, amount, current_balance, currency, type,
 			from_account, to_account, description,
+			account, counterparty,
 			timestamp, created_at
 		)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	result, err := r.db.Conn.Exec(
 		query,
@@ -67,6 +68,8 @@ func (r *TransactionRepository) Create(transaction *models.Transaction) error {
 		transaction.From,
 		transaction.To,
 		transaction.Description,
+		transaction.Account,
+		transaction.Counterparty,
 		transaction.Timestamp,
 		time.Now(),
 	)
@@ -88,9 +91,10 @@ func (r *TransactionRepository) CreateTx(tx *sql.Tx, transaction *models.Transac
 		INSERT INTO transactions (
 			mail_id, amount, current_balance, currency, type,
 			from_account, to_account, description,
+			account, counterparty,
 			timestamp, created_at
 		)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	result, err := tx.Exec(
 		query,
@@ -102,6 +106,8 @@ func (r *TransactionRepository) CreateTx(tx *sql.Tx, transaction *models.Transac
 		transaction.From,
 		transaction.To,
 		transaction.Description,
+		transaction.Account,
+		transaction.Counterparty,
 		transaction.Timestamp,
 		time.Now(),
 	)
@@ -170,7 +176,7 @@ func (r *TransactionRepository) GetByID(id int64) (*models.Transaction, error) {
 		SELECT
 			id, mail_id, amount, current_balance, currency, type,
 			from_account, to_account, description,
-			completed, timestamp, created_at
+			completed, timestamp, created_at, account, counterparty
 		FROM transactions
 		WHERE id = ?
 	`
@@ -194,6 +200,8 @@ func (r *TransactionRepository) GetByID(id int64) (*models.Transaction, error) {
 		&t.Completed,
 		&timestampStr,
 		&createdAtStr,
+		&t.Account,
+		&t.Counterparty,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to scan transaction: %v", err)
@@ -398,7 +406,7 @@ func (r *TransactionRepository) GetRecentTransactions(ctx context.Context, limit
 		query += ` AND completed = ?`
 		args = append(args, *isCompleted)
 	}
-	query += ` ORDER BY timestamp DESC LIMIT ? OFFSET ?`
+	query += ` ORDER BY timestamp DESC, id DESC LIMIT ? OFFSET ?`
 	args = append(args, limit, offset)
 
 	rows, err := r.db.Conn.Query(query, args...)
@@ -473,7 +481,8 @@ type TransactionFilters struct {
 // GetRecentTransactionsWithFilters returns transactions matching the given filters
 func (r *TransactionRepository) GetRecentTransactionsWithFilters(ctx context.Context, limit int64, offset int64, filters TransactionFilters) ([]*models.Transaction, error) {
 	query := `SELECT DISTINCT t.id, t.mail_id, t.amount, t.current_balance, t.currency, t.type,
-		t.from_account, t.to_account, t.description, t.timestamp, t.created_at, t.completed
+		t.from_account, t.to_account, t.description, t.timestamp, t.created_at, t.completed,
+		t.account, t.counterparty
 		FROM transactions t`
 
 	args := []interface{}{}
@@ -535,7 +544,7 @@ func (r *TransactionRepository) GetRecentTransactionsWithFilters(ctx context.Con
 	fmt.Println(query)
 
 	// Order and pagination
-	query += " ORDER BY t.timestamp DESC LIMIT ? OFFSET ?"
+	query += " ORDER BY t.timestamp DESC, t.id DESC LIMIT ? OFFSET ?"
 	args = append(args, limit, offset)
 
 	rows, err := r.db.Conn.Query(query, args...)
@@ -562,6 +571,8 @@ func (r *TransactionRepository) GetRecentTransactionsWithFilters(ctx context.Con
 			&timestampStr,
 			&t.CreatedAt,
 			&t.Completed,
+			&t.Account,
+			&t.Counterparty,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan transaction: %v", err)

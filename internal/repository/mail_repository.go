@@ -47,10 +47,10 @@ func (r *MailRepository) Transaction(fn func(tx *sql.Tx) error) error {
 
 func (r *MailRepository) Create(mail *models.Mail) error {
 	query := `
-		INSERT INTO mails (uid, subject, from_account, to_account, timestamp)
-		VALUES (?, ?, ?, ?, ?)
+		INSERT INTO mails (uid, subject, from_account, to_account, timestamp, body)
+		VALUES (?, ?, ?, ?, ?, ?)
 	`
-	result, err := r.db.Conn.Exec(query, mail.UID, mail.Subject, mail.From, mail.To, mail.Date.Unix())
+	result, err := r.db.Conn.Exec(query, mail.UID, mail.Subject, mail.From, mail.To, mail.Date.Unix(), mail.Body)
 	if err != nil {
 		return fmt.Errorf("failed to insert mail: %v", err)
 	}
@@ -67,10 +67,10 @@ func (r *MailRepository) Create(mail *models.Mail) error {
 
 func (r *MailRepository) CreateTx(tx *sql.Tx, mail *models.Mail) error {
 	query := `
-		INSERT INTO mails (uid, subject, from_account, to_account, timestamp)
-		VALUES (?, ?, ?, ?, ?)
+		INSERT INTO mails (uid, subject, from_account, to_account, timestamp, body)
+		VALUES (?, ?, ?, ?, ?, ?)
 	`
-	result, err := tx.Exec(query, mail.UID, mail.Subject, mail.From, mail.To, mail.Date.Unix())
+	result, err := tx.Exec(query, mail.UID, mail.Subject, mail.From, mail.To, mail.Date.Unix(), mail.Body)
 	if err != nil {
 		return fmt.Errorf("failed to insert mail: %v", err)
 	}
@@ -106,6 +106,32 @@ func (r *MailRepository) GetByUID(uid int64) (*models.Mail, error) {
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to get mail: %v", err)
+	}
+
+	mail.Date = models.UnixToTime(timestamp)
+	return mail, nil
+}
+
+// GetByID returns the mail with its stored body (empty for mails saved before bodies were kept).
+func (r *MailRepository) GetByID(id int64) (*models.Mail, error) {
+	query := `
+		SELECT id, uid, subject, from_account, to_account, timestamp, COALESCE(body, '')
+		FROM mails
+		WHERE id = ?
+	`
+	mail := &models.Mail{}
+	var timestamp int64
+	err := r.db.Conn.QueryRow(query, id).Scan(
+		&mail.ID,
+		&mail.UID,
+		&mail.Subject,
+		&mail.From,
+		&mail.To,
+		&timestamp,
+		&mail.Body,
+	)
+	if err != nil {
+		return nil, err
 	}
 
 	mail.Date = models.UnixToTime(timestamp)

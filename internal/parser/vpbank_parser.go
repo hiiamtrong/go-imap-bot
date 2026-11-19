@@ -80,11 +80,18 @@ func (p *VPBankParser) Parse(body string) (*TransactionDetails, error) {
 		currentBalance, _ = parseAmount(limitMatch[1])
 	}
 
+	// Card, e.g. "<b> *4118</b>...Thẻ / Card"
+	account := ""
+	if m := regexp.MustCompile(`<b>\s*(\*\d+)\s*</b>`).FindStringSubmatch(body); m != nil {
+		account = m[1]
+	}
+
 	return &TransactionDetails{
 		Amount:         amount,
 		CurrentBalance: currentBalance,
 		Description:    description,
 		Type:           txType,
 		Currency:       currency,
+		Account:        account,
 	}, nil
 }

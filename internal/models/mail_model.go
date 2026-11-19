@@ -9,4 +9,5 @@ type Mail struct {
 	From    string
 	To      string
 	Date    time.Time
+	Body    string
 }
