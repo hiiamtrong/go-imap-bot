@@ -9,17 +9,23 @@ export interface Transaction {
 	suspected_group_spend?: boolean;
 	timestamp: string;
 	currency: string;
+	from: string;
+	to: string;
+	account: string;
+	counterparty: string;
 	tags?: Tag[];
 	splits?: TransactionSplit[];
+	mail?: Mail;
 }
 
+// Source mail of a transaction. body is empty for mails saved before bodies were kept.
 export interface Mail {
 	id: number;
-	uid: number;
 	subject: string;
 	from: string;
 	to: string;
-	timestamp: string;
+	date: string;
+	body: string;
 }
 
 export interface User {

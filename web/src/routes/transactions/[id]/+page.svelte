@@ -2,6 +2,7 @@
 	import { onMount } from "svelte";
 	import { page } from "$app/stores";
 	import { api } from "$lib/api/client";
+	import { listQuery } from "$lib/stores/transactions";
 	import { formatCurrency, formatSignedCurrency, formatDate, formatAmount } from "$lib/utils/format";
 	import type { Transaction } from "$lib/types";
 	import BillSplitModal from "$lib/components/BillSplitModal.svelte";
@@ -17,6 +18,10 @@
 	let savingDescription = $state(false);
 
 	const transactionId = $derived(parseInt($page.params.id || "0"));
+
+	const MAIL_CSP = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:">`;
+	let showMailSource = $state(false);
+	const mailIsHtml = $derived(/<[a-z][\s\S]*>/i.test(transaction?.mail?.body ?? ""));
 
 	onMount(async () => {
 		await loadTransaction();
@@ -90,7 +95,7 @@
 		if (response.error) {
 			alert("Error: " + response.error);
 		} else if (response.data) {
-			transaction = response.data;
+			transaction = { ...transaction, ...response.data };
 			isEditingDescription = false;
 		}
 
@@ -114,7 +119,7 @@
 <div class="space-y-6">
 	<div class="flex items-center gap-3 sm:gap-4">
 		<a
-			href="/transactions"
+			href="/transactions{$listQuery}"
 			class="text-gray-600 hover:text-gray-900 flex-shrink-0"
 			aria-label="Back to transactions"
 		>
@@ -273,6 +278,55 @@
 					</button>
 				{/if}
 			</div>
+		</div>
+
+		<!-- Source mail -->
+		<div class="card">
+			<div class="flex items-center justify-between gap-3 mb-3 sm:mb-4">
+				<h3 class="text-lg sm:text-xl font-bold text-gray-900">Source Mail</h3>
+				{#if transaction.mail?.body && mailIsHtml}
+					<button
+						onclick={() => (showMailSource = !showMailSource)}
+						class="text-primary-600 hover:text-primary-700 text-sm font-medium"
+					>
+						{showMailSource ? "Show rendered" : "Show source"}
+					</button>
+				{/if}
+			</div>
+			<dl class="grid grid-cols-1 sm:grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm sm:text-base">
+				<dt class="text-gray-500">Notified by</dt>
+				<dd class="text-gray-900 break-all">{transaction.from || "-"}</dd>
+				{#if transaction.account}
+					<dt class="text-gray-500">Account</dt>
+					<dd class="text-gray-900 break-all">{transaction.account}</dd>
+				{/if}
+				{#if transaction.counterparty}
+					<dt class="text-gray-500">Counterparty</dt>
+					<dd class="text-gray-900 break-words">{transaction.counterparty}</dd>
+				{/if}
+				{#if transaction.mail}
+					<dt class="text-gray-500">Subject</dt>
+					<dd class="text-gray-900 break-words">{transaction.mail.subject || "-"}</dd>
+					<dt class="text-gray-500">Received</dt>
+					<dd class="text-gray-900">{formatDate(transaction.mail.date)}</dd>
+				{/if}
+			</dl>
+			{#if !transaction.mail?.body}
+				<p class="text-sm text-gray-500 mt-3">
+					Mail body was not stored for this transaction (only mails received after body storage was
+					added are kept).
+				</p>
+			{:else if mailIsHtml && !showMailSource}
+				<iframe
+					title="Mail body"
+					sandbox=""
+					srcdoc={MAIL_CSP + transaction.mail.body}
+					class="w-full h-96 mt-3 border border-gray-200 rounded-lg bg-white"
+				></iframe>
+			{:else}
+				<pre
+					class="mt-3 p-3 max-h-96 overflow-auto whitespace-pre-wrap break-words text-xs sm:text-sm bg-gray-50 border border-gray-200 rounded-lg">{transaction.mail.body}</pre>
+			{/if}
 		</div>
 
 		<!-- Bill Splits -->

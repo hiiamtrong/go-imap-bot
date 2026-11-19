@@ -1,29 +1,74 @@
 <script lang="ts">
 	import { onMount } from "svelte";
+	import { page } from "$app/stores";
+	import { goto } from "$app/navigation";
 	import { api } from "$lib/api/client";
+	import { listQuery } from "$lib/stores/transactions";
 	import type { Transaction, Tag } from "$lib/types";
 	import TransactionItem from "$lib/components/TransactionItem.svelte";
+
+	const PAGE_SIZE = 50;
 
 	let transactions = $state<Transaction[]>([]);
 	let tags = $state<Tag[]>([]);
 	let loading = $state(true);
 	let error = $state<string | null>(null);
+	let hasNext = $state(false);
 
-	// Filter states
-	let filterType = $state<"all" | "add" | "subtract">("all");
-	let filterStatus = $state<"pending" | "completed" | "all">("pending");
-	let searchQuery = $state("");
-	let startDate = $state("");
-	let endDate = $state("");
-	let minAmount = $state("");
-	let maxAmount = $state("");
-	let selectedTagIds = $state<number[]>([]);
-	let showAdvancedFilters = $state(false);
+	// Filters and page live in the URL, so back/reload from a transaction restores them.
+	const urlParams = $page.url.searchParams;
+	function fromUrl<T extends string>(key: string, allowed: readonly T[], fallback: T): T {
+		return allowed.find((v) => v === urlParams.get(key)) ?? fallback;
+	}
 
-	onMount(async () => {
-		await loadTags();
-		await loadTransactions();
-	});
+	let filterType = $state(fromUrl("type", ["all", "add", "subtract"], "all"));
+	let filterStatus = $state(fromUrl("status", ["pending", "completed", "all"], "pending"));
+	let searchQuery = $state(urlParams.get("q") ?? "");
+	let startDate = $state(urlParams.get("from") ?? "");
+	let endDate = $state(urlParams.get("to") ?? "");
+	let minAmount = $state(urlParams.get("min") ?? "");
+	let maxAmount = $state(urlParams.get("max") ?? "");
+	let selectedTagIds = $state<number[]>(
+		(urlParams.get("tags") ?? "").split(",").map(Number).filter(Boolean)
+	);
+	let pageNum = $state(Math.max(1, parseInt(urlParams.get("page") ?? "1") || 1));
+	let showAdvancedFilters = $state(["from", "to", "min", "max", "tags"].some((k) => urlParams.get(k)));
+
+	onMount(loadTags);
+
+	function filterKey() {
+		return JSON.stringify([
+			filterType,
+			filterStatus,
+			searchQuery,
+			startDate,
+			endDate,
+			minAmount,
+			maxAmount,
+			selectedTagIds,
+		]);
+	}
+
+	function syncUrl() {
+		const params = new URLSearchParams();
+		if (filterType !== "all") params.set("type", filterType);
+		if (filterStatus !== "pending") params.set("status", filterStatus);
+		if (searchQuery) params.set("q", searchQuery);
+		if (startDate) params.set("from", startDate);
+		if (endDate) params.set("to", endDate);
+		if (minAmount) params.set("min", minAmount);
+		if (maxAmount) params.set("max", maxAmount);
+		if (selectedTagIds.length) params.set("tags", selectedTagIds.join(","));
+		if (pageNum > 1) params.set("page", String(pageNum));
+		const qs = params.toString();
+		listQuery.set(qs ? "?" + qs : "");
+		goto(qs ? "?" + qs : $page.url.pathname, { replaceState: true, keepFocus: true, noScroll: true });
+	}
+
+	function goToPage(n: number) {
+		pageNum = n;
+		window.scrollTo({ top: 0 });
+	}
 
 	async function loadTags() {
 		const response = await api.getTags();
@@ -71,11 +116,18 @@
 			filters.tag_ids = selectedTagIds;
 		}
 
-		const response = await api.getTransactions(50, 0, filters);
+		// Ask for one extra row to know whether a next page exists.
+		const response = await api.getTransactions(PAGE_SIZE + 1, (pageNum - 1) * PAGE_SIZE, filters);
 		if (response.error) {
 			error = response.error;
 		} else if (response.data) {
-			transactions = response.data;
+			if (response.data.length === 0 && pageNum > 1) {
+				// The last page emptied (e.g. everything on it was completed): step back, the effect reloads.
+				pageNum -= 1;
+				return;
+			}
+			hasNext = response.data.length > PAGE_SIZE;
+			transactions = response.data.slice(0, PAGE_SIZE);
 		}
 
 		loading = false;
@@ -106,25 +158,29 @@
 		minAmount = "";
 		maxAmount = "";
 		selectedTagIds = [];
-		loadTransactions();
 	}
 
-	// Reload when filters change
-	$effect(() => {
-		// Watch for filter changes
-		void filterType;
-		void filterStatus;
-		void searchQuery;
-		void startDate;
-		void endDate;
-		void minAmount;
-		void maxAmount;
-		void selectedTagIds.length;
+	let seenKey = filterKey(); // last filter set we saw: a change sends us back to page 1
+	let loadedKey = seenKey; // last filter set we loaded: only a new one is worth debouncing
 
-		// Debounce to avoid too many API calls
-		const timeoutId = setTimeout(() => {
-			loadTransactions();
-		}, 300);
+	// Reload when filters or page change
+	$effect(() => {
+		const key = filterKey();
+		if (key !== seenKey) {
+			seenKey = key;
+			pageNum = 1;
+		}
+		void pageNum;
+
+		// Debounce typing to avoid too many API calls; paging and the first load go straight through
+		const timeoutId = setTimeout(
+			() => {
+				loadedKey = key;
+				syncUrl();
+				loadTransactions();
+			},
+			key === loadedKey ? 0 : 300
+		);
 
 		return () => clearTimeout(timeoutId);
 	});
@@ -301,6 +357,25 @@
 					/>
 				{/each}
 			</div>
+			{#if pageNum > 1 || hasNext}
+				<div class="flex items-center justify-between mt-4">
+					<button
+						onclick={() => goToPage(pageNum - 1)}
+						disabled={pageNum === 1}
+						class="btn btn-secondary text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+					>
+						Previous
+					</button>
+					<span class="text-sm text-gray-600">Page {pageNum}</span>
+					<button
+						onclick={() => goToPage(pageNum + 1)}
+						disabled={!hasNext}
+						class="btn btn-secondary text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+					>
+						Next
+					</button>
+				</div>
+			{/if}
 		{/if}
 	</div>
 </div>

@@ -88,6 +88,14 @@
 							</span>
 						{/if}
 					</div>
+					{#if transaction.account || transaction.counterparty}
+						<p class="text-xs text-gray-400 mt-1 truncate">
+							{transaction.account}{transaction.counterparty ? ` → ${transaction.counterparty}` : ""}
+						</p>
+					{:else if transaction.from}
+						<!-- older transactions: the mail named no account, only the bank that sent it -->
+						<p class="text-xs text-gray-400 mt-1 truncate">{transaction.from}</p>
+					{/if}
 					<p class="text-xs sm:text-sm text-gray-500 mt-1">
 						{formatRelativeTime(transaction.timestamp)}
 						{#if showDate}
