@@ -9,6 +9,12 @@
 	let isProcessing = true;
 
 	onMount(async () => {
+		// Reopening the browser restores this URL, but Google's code works only once.
+		if ($auth.isAuthenticated) {
+			goto("/", { replaceState: true });
+			return;
+		}
+
 		const code = $page.url.searchParams.get("code");
 		const state = $page.url.searchParams.get("state");
 		const errorParam = $page.url.searchParams.get("error");
@@ -36,8 +42,8 @@
 			// Store auth data
 			auth.login(result.data.token, result.data.expires_at, result.data.user);
 
-			// Redirect to home
-			goto("/");
+			// Redirect to home, replacing this entry so the spent code is not restored
+			goto("/", { replaceState: true });
 		} catch (e) {
 			error = e instanceof Error ? e.message : "Authentication failed";
 			isProcessing = false;
