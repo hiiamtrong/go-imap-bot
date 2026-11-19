@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"html/template"
 	"net/smtp"
+	"slices"
 	"time"
 
 	"github.com/hiiamtrong/go-imap-bot/internal/config"
+	"github.com/hiiamtrong/go-imap-bot/internal/groupspend"
 	"github.com/hiiamtrong/go-imap-bot/internal/models"
 	"github.com/hiiamtrong/go-imap-bot/internal/vietqr"
 	"github.com/hiiamtrong/go-imap-bot/pkg/currencypkg"
@@ -75,16 +77,21 @@ func NewSMTPService(cfg *config.Config, vietQR *vietqr.VietQRService) (*SMTPServ
 	}, nil
 }
 
-func (s *SMTPService) SendBulkSplitReminders(user *models.User, splits []*models.TransactionSplit, fromUser string, hash string, mode string) error {
-	fmt.Println("SendBulkSplitReminders", user, splits, fromUser, hash, mode)
+// buildSplitData makes the email rows, oldest bill first by the time its mail arrived: callers fetch
+// splits in the order they were created, which says nothing about when each bill happened.
+func buildSplitData(splits []*models.TransactionSplit) ([]SplitData, int64) {
+	billTime := func(split *models.TransactionSplit) time.Time {
+		if split.BillCreatedAt.IsZero() {
+			return split.TransactionCreatedAt
+		}
+		return split.BillCreatedAt
+	}
+	splits = slices.Clone(splits)
+	slices.SortStableFunc(splits, func(a, b *models.TransactionSplit) int { return billTime(a).Compare(billTime(b)) })
+
 	splitData := make([]SplitData, len(splits))
 	totalAmount := int64(0)
 	for i, split := range splits {
-		createAt := split.TransactionCreatedAt
-		if createAt.IsZero() {
-			createAt = split.BillCreatedAt
-		}
-
 		// Use currency from split, default to VND
 		currency := split.Currency
 		if currency == "" {
@@ -94,11 +101,17 @@ func (s *SMTPService) SendBulkSplitReminders(user *models.User, splits []*models
 		splitData[i] = SplitData{
 			Amount:          currencypkg.FormatCurrency(float64(split.Amount), currency),
 			Reason:          split.Reason,
-			CreatedAt:       createAt.Format("02/01/2006 15:04:05"),
+			CreatedAt:       billTime(split).In(groupspend.ICT).Format("02/01/2006 15:04:05"), // mail dates arrive in any zone
 			TotalBillAmount: currencypkg.FormatCurrency(float64(split.TotalBillAmount), "VND"),
 		}
 		totalAmount += split.Amount
 	}
+	return splitData, totalAmount
+}
+
+func (s *SMTPService) SendBulkSplitReminders(user *models.User, splits []*models.TransactionSplit, fromUser string, hash string, mode string) error {
+	fmt.Println("SendBulkSplitReminders", user, splits, fromUser, hash, mode)
+	splitData, totalAmount := buildSplitData(splits)
 
 	qrCode, err := s.vietQR.GenerateSplitQR(totalAmount, hash)
 	if err != nil {
